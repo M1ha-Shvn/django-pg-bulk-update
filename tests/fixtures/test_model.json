@@ -1,0 +1,74 @@
+[
+  {
+    "model": "tests.TestModel",
+    "pk": 1,
+    "fields": {
+      "name": "test1",
+      "int_field": 1
+    }
+  },
+  {
+    "model": "tests.TestModel",
+    "pk": 2,
+    "fields": {
+      "name": "test2",
+      "int_field": 2
+    }
+  },
+  {
+    "model": "tests.TestModel",
+    "pk": 3,
+    "fields": {
+      "name": "test3",
+      "int_field": 3
+    }
+  },
+  {
+    "model": "tests.TestModel",
+    "pk": 4,
+    "fields": {
+      "name": "test4",
+      "int_field": 4
+    }
+  },
+  {
+    "model": "tests.TestModel",
+    "pk": 5,
+    "fields": {
+      "name": "test5",
+      "int_field": 5
+    }
+  },
+  {
+    "model": "tests.TestModel",
+    "pk": 6,
+    "fields": {
+      "name": "test6",
+      "int_field": 6
+    }
+  },
+  {
+    "model": "tests.TestModel",
+    "pk": 7,
+    "fields": {
+      "name": "test7",
+      "int_field": 7
+    }
+  },
+  {
+    "model": "tests.TestModel",
+    "pk": 8,
+    "fields": {
+      "name": "test8",
+      "int_field": 8
+    }
+  },
+  {
+    "model": "tests.TestModel",
+    "pk": 9,
+    "fields": {
+      "name": "test9",
+      "int_field": 9
+    }
+  }
+]
