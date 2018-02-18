@@ -43,9 +43,9 @@ install:
   - python setup.py -q install
 before_script:
   - psql -c 'CREATE ROLE test;' -U postgres
-  - psql -c 'GRANT ROLE test WITH SUPERADMIN' -U postgres
-  - psql -c 'GRANT ROLE test WITH LOGIN' -U postgres
-  - psql -c 'ALTER ROLE test PASSWORD test' -U postgres
+  - psql -c 'ALTER ROLE test WITH SUPERUSER;' -U postgres
+  - psql -c 'ALTER ROLE test WITH LOGIN;' -U postgres
+  - psql -c "ALTER ROLE test PASSWORD 'test';" -U postgres
   - psql -c 'CREATE DATABASE test OWNER test;' -U postgres
 script:
   python runtests.py
