@@ -1,7 +1,6 @@
 """
 This file contains django settings to run tests with runtests.py
 """
-
 SECRET_KEY = 'fake-key'
 
 INSTALLED_APPS = [
@@ -12,7 +11,7 @@ INSTALLED_APPS = [
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.postgresql',
+        'ENGINE': 'django.db.backends.postgresql_psycopg2',
         'NAME': 'test',
         'USER': 'test',
         'PASSWORD': 'test',
