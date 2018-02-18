@@ -1,11 +1,12 @@
 """
 This file contains sample models to use in tests
 """
-from django.contrib.postgres.fields import HStoreField, JSONField, ArrayField
+import django
+from django.contrib.postgres.fields import HStoreField, ArrayField
 from django.db import models
 
 from django_pg_bulk_update import BulkUpdateManager
-from django_pg_bulk_update.utils import get_postgres_version
+from django_pg_bulk_update.utils import get_postgres_version, jsonb_available
 
 
 class TestModelBase(models.Model):
@@ -20,10 +21,13 @@ class TestModelBase(models.Model):
     array_field = ArrayField(models.IntegerField(null=True, blank=True))
 
 
-# JSONB type is available in PostgreSQL 9.4+ only
-if get_postgres_version(as_tuple=False) < 90400:
+# JSONB type is available in Postgres 9.4+ only
+# JSONField is available in Django 1.9+
+if not jsonb_available():
     class TestModel(TestModelBase):
         pass
 else:
+    from django.contrib.postgres.fields import JSONField
+
     class TestModel(TestModelBase):
         json_field = JSONField(null=True, blank=True)

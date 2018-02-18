@@ -4,7 +4,7 @@ from psycopg2.tests.testutils import skipIf
 from django_pg_bulk_update import bulk_update
 from django_pg_bulk_update.clause_operators import InClauseOperator
 from django_pg_bulk_update.set_functions import ConcatSetFunction
-from django_pg_bulk_update.utils import get_postgres_version
+from django_pg_bulk_update.utils import get_postgres_version, jsonb_available
 from tests.models import TestModel
 
 
@@ -284,7 +284,7 @@ class TestSetFunctions(TestCase):
                                           {'id': 4, 'hstore_field': {}}], set_functions={'hstore_field': '||'})
             self._test_concat_dict(i, res, 'hstore_field', val_as_str=True)
 
-    @skipIf(get_postgres_version(as_tuple=False) < 90400, "JSONB type is available in PostgreSQL 9.4+ only")
+    @skipIf(not jsonb_available(), "JSONB type is available in Postgres 9.4+ and django 1.9+ only")
     def test_concat_jsonb(self):
         for i in range(1, 5):
             res = bulk_update(TestModel, [{'id': 1, 'json_field': {i: 1}},
@@ -460,7 +460,7 @@ class TestFieldTypes(TestCase):
                 self.assertIsNone(array_field)
             self.assertEqual('test%d' % pk, name)
 
-    @skipIf(get_postgres_version(as_tuple=False) < 90400, "JSONB type is available in PostgreSQL 9.4+ only")
+    @skipIf(not jsonb_available(), "JSONB type is available in Postgres 9.4+ and django 1.9+ only")
     def test_jsonb(self):
         res = bulk_update(TestModel, [{'id': 1, 'json_field': {'test': '1'}},
                                       {'id': 2, 'json_field': {'test': '2'}},

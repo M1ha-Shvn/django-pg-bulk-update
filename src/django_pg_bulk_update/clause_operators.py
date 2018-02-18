@@ -103,10 +103,18 @@ class InClauseOperator(AbstractClauseOperator):
         return '%s = ANY(%s)' % (table_field, value)
 
     def get_null_fix_sql(self, model, field_name, conn):
-        # We should resolve value as array for IN operator.
-        # I use rel_db_type here, not db_type as id field returned 'serial' instead of 'integer' here
         field = model._meta.get_field(field_name)
-        return '(SELECT ARRAY[]::%s[] LIMIT 0)' % field.rel_db_type(conn)
+
+        # We should resolve value as array for IN operator.
+        # db_type() as id field returned 'serial' instead of 'integer' here
+        # reL_db_type() return integer, but it is not available before django 1.10
+        db_type = field.db_type(conn)
+        if db_type == 'serial':
+            db_type = 'integer'
+        elif db_type == 'bigserial':
+            db_type = 'biginteger'
+
+        return '(SELECT ARRAY[]::%s[] LIMIT 0)' % db_type
 
     def format_field_value(self, field, val, connection, **kwargs):
         assert isinstance(val, Iterable), "'%s' value must be iterable" % self.__class__.__name__

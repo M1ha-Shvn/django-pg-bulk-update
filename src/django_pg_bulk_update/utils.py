@@ -1,13 +1,20 @@
 """
 Contains some project unbind helpers
 """
-from django.contrib.postgres.fields import JSONField
+import django
 from django.core.exceptions import FieldError
 from django.db import DefaultConnectionProxy, connection, connections
 from django.db.models import Field
 from django.db.models.sql.subqueries import UpdateQuery
 from typing import TypeVar, Set, Any, Tuple, Union, Optional
 
+# JSONField is available in django 1.9+ only
+# I create fake class for previous version in order to just skip isinstance(item, JSONField) if branch
+try:
+    from django.contrib.postgres.fields import JSONField
+except ImportError:
+    class JSONField(object):
+        pass
 
 T = TypeVar('T')
 
@@ -107,3 +114,12 @@ def get_postgres_version(using=None, as_tuple=True):  # type: (Optional[str], bo
     conn = connection if using is None else connections[using]
     num = conn.cursor().connection.server_version
     return (num / 10000, num % 10000 / 100, num % 100) if as_tuple else num
+
+
+def jsonb_available():  # type: () -> bool
+    """
+    Checks if we can use JSONField.
+    It is available since django 1.9 and doesn't support Postgres < 9.4
+    :return: Bool
+    """
+    return get_postgres_version(as_tuple=False) >= 90400 and (django.VERSION[0] > 1 or django.VERSION[1] > 8)

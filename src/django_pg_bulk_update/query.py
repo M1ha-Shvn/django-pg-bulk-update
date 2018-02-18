@@ -345,6 +345,7 @@ def _bulk_update_no_validation(model, values, conn, set_functions, key_fields_op
 
     # Execute query
     cursor = conn.cursor()
+    print(query, set_params, values_update_params)
     cursor.execute(query, set_params + values_update_params)
     return cursor.rowcount
 
