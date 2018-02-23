@@ -12,20 +12,27 @@ python:
   - 3.5
   - 3.6
 
-addons:
-  postgresql:
-    - 9.2
-    - 9.3
-    - 9.4
-    - 9.5
-    - 9.6
-
 env:
-  - DJANGO=1.7
-  - DJANGO=1.8
-  - DJANGO=1.9
-  - DJANGO=1.10
-  - DJANGO=1.11
+  - DJANGO=1.7 PG=9.2
+  - DJANGO=1.7 PG=9.3
+  - DJANGO=1.7 PG=9.4
+  - DJANGO=1.7 PG=9.5
+  - DJANGO=1.7 PG=9.6
+  - DJANGO=1.8 PG=9.2
+  - DJANGO=1.8 PG=9.3
+  - DJANGO=1.8 PG=9.4
+  - DJANGO=1.8 PG=9.5
+  - DJANGO=1.8 PG=9.6
+  - DJANGO=1.9 PG=9.2
+  - DJANGO=1.9 PG=9.3
+  - DJANGO=1.9 PG=9.4
+  - DJANGO=1.9 PG=9.5
+  - DJANGO=1.9 PG=9.6
+  - DJANGO=1.10 PG=9.2
+  - DJANGO=1.11 PG=9.3
+  - DJANGO=1.11 PG=9.4
+  - DJANGO=1.11 PG=9.5
+  - DJANGO=1.11 PG=9.6
 
 matrix:
   exclude:
@@ -47,6 +54,10 @@ install:
   - pip install -r requirements.txt
   - pip install -q Django==$DJANGO
   - python setup.py -q install
+  - add-apt-repository "deb http://apt.postgresql.org/pub/repos/apt/ $(lsb_release -sc)-pgdg main"
+  - wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+  - apt-get update
+  - apt-get install postgresql-$PG postgresql-contrib-$PG -y --no-install-recommends
 before_script:
   - psql -c 'CREATE ROLE test;' -U postgres
   - psql -c 'ALTER ROLE test WITH SUPERUSER;' -U postgres
