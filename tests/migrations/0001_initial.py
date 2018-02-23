@@ -5,7 +5,7 @@ from __future__ import unicode_literals
 from django.db import migrations, models
 
 from django_pg_bulk_update.compatibility import jsonb_available, hstore_available, array_available, \
-    get_postgres_version, POSTGRES_9_4_MERGE_JSONB_SQL
+    get_postgres_version, Postgres94MergeJSONBMigration
 
 test_model_fields = [
     ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
@@ -45,7 +45,5 @@ if hstore_available():
     from django.contrib.postgres.operations import HStoreExtension
     Migration.operations = [HStoreExtension()] + Migration.operations
 
-if jsonb_available() and get_postgres_version() < 90500:
-    Migration.operations.append(
-        migrations.RunSQL(POSTGRES_9_4_MERGE_JSONB_SQL, reverse_sql=migrations.RunSQL.noop)
-    )
+if jsonb_available() and get_postgres_version(as_tuple=False) < 90500:
+    Migration.operations += [Postgres94MergeJSONBMigration()]

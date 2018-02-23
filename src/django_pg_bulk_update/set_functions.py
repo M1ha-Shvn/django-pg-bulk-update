@@ -5,7 +5,7 @@ from django.db import DefaultConnectionProxy
 from django.db.models import Field
 from typing import Type, Optional, Any, Tuple
 
-from django_pg_bulk_update.compatibility import get_postgres_version, jsonb_available
+from django_pg_bulk_update.compatibility import get_postgres_version, jsonb_available, Postgres94MergeJSONBMigration
 from .utils import get_subclasses, format_field_value
 
 # When doing increment operations, we need to replace NULL values with something
@@ -39,6 +39,7 @@ if jsonb_available():
 else:
     class JSONField:
         pass
+
 
 class AbstractSetFunction(object):
     names = set()
@@ -160,7 +161,7 @@ class ConcatSetFunction(AbstractSetFunction):
         # So I've taken function to solve the problem from
         # Note, that function should be created before using this operator
         if get_postgres_version(as_tuple=False) < 90500 and isinstance(field, JSONField):
-            tpl = '"%s" = jsonb_merge(COALESCE("%s", %s), %s)'
+            tpl = '"%s" = {0}(COALESCE("%s", %s), %s)'.format(Postgres94MergeJSONBMigration.FUNCTION_NAME)
         else:
             tpl = '"%s" = COALESCE("%s", %s) || %s'
 

@@ -2,10 +2,10 @@
 This file contains number of functions to handle different software versions compatibility
 """
 import json
+from typing import Dict, Any, Optional, Union, Tuple
 
 import django
-from django.db import connection, connections, models, DefaultConnectionProxy
-from typing import Dict, Any, Optional, Union, Tuple
+from django.db import connection, connections, models, DefaultConnectionProxy, migrations
 
 
 def zip_longest(*args, **kwargs):
@@ -98,24 +98,37 @@ def get_field_db_type(field, connection):  # type: (models.Field, DefaultConnect
 # Postgres 9.4 has JSONB support, but doesn't support concat operator (||)
 # So I've taken function to solve the problem from
 # https://stackoverflow.com/questions/30101603/merging-concatenating-jsonb-columns-in-query
-POSTGRES_9_4_MERGE_JSONB_SQL = """
-CREATE OR REPLACE FUNCTION jsonb_merge(jsonb1 JSONB, jsonb2 JSONB)
-    RETURNS JSONB AS $$
-    DECLARE
-      result JSONB;
-      v RECORD;
-    BEGIN
-       result = (
-    SELECT json_object_agg(KEY,value)
-    FROM
-      (SELECT jsonb_object_keys(jsonb1) AS KEY,
-              1::int AS jsb,
-              jsonb1 -> jsonb_object_keys(jsonb1) AS value
-       UNION SELECT jsonb_object_keys(jsonb2) AS KEY,
-                    2::int AS jsb,
-                    jsonb2 -> jsonb_object_keys(jsonb2) AS value ) AS t1
-           );
-       RETURN result;
-    END;
-    $$ LANGUAGE plpgsql;
-"""
+class Postgres94MergeJSONBMigration(migrations.RunSQL):
+    FUNCTION_NAME = "django_pg_bulk_update_jsonb_merge"
+
+    SQL_TEMPLATE = """
+    CREATE OR REPLACE FUNCTION %s(jsonb1 JSONB, jsonb2 JSONB)
+        RETURNS JSONB AS $$
+        DECLARE
+          result JSONB;
+          v RECORD;
+        BEGIN
+           result = (
+             SELECT json_object_agg(KEY,value)
+             FROM (
+               SELECT jsonb_object_keys(jsonb1) AS KEY,
+                 1::INT AS jsb,
+                 jsonb1 -> jsonb_object_keys(jsonb1) AS value
+               UNION SELECT jsonb_object_keys(jsonb2) AS KEY,
+                 2::INT AS jsb,
+                 jsonb2 -> jsonb_object_keys(jsonb2) AS value ) AS t1
+            );
+                         
+            RETURN COALESCE(result, '{}'::JSONB);
+        END;
+        $$ LANGUAGE plpgsql;
+    """
+
+    REVERSE_SQL_TEMPLATE = """
+    DROP FUNCTION IF EXISTS %s(jsonb1 JSONB, jsonb2 JSONB);
+    """
+
+    def __init__(self, **kwargs):
+        sql = self.SQL_TEMPLATE % self.FUNCTION_NAME
+        kwargs['reverse_sql'] = self.REVERSE_SQL_TEMPLATE % self.FUNCTION_NAME
+        super(Postgres94MergeJSONBMigration, self).__init__(sql, **kwargs)
