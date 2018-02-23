@@ -8,11 +8,12 @@ from collections import Iterable, OrderedDict
 from itertools import zip_longest
 
 import six
-from copy import deepcopy
+from django.contrib.postgres.fields import HStoreField
 from django.db import transaction, connection, connections, DefaultConnectionProxy
 from django.db.models import Model, Q
 from typing import Any, Type, Iterable as TIterable, Union, Optional, List, Tuple
 
+from django_pg_bulk_update.utils import hstore_serialize
 from .clause_operators import AbstractClauseOperator, EqualClauseOperator
 from .set_functions import EqualSetFunction, AbstractSetFunction
 from .types import TOperators, TFieldNames, TUpdateValues, TSetFunctions, TOperatorsValid, TUpdateValuesValid, \
@@ -345,8 +346,7 @@ def _bulk_update_no_validation(model, values, conn, set_functions, key_fields_op
 
     # Execute query
     cursor = conn.cursor()
-    print(query, set_params, values_update_params)
-    cursor.execute(query, set_params + values_update_params)
+    cursor.execute(query, params=set_params + values_update_params)
     return cursor.rowcount
 
 
@@ -489,6 +489,14 @@ def bulk_update_or_create(model, values, key_fields='id', using=None, set_functi
                 # Form a list of model objects for bulk_create() method
                 kwargs = dict(zip(key_fields, key))
                 kwargs.update(updates)
+
+                # Django before 1.10 doesn't convert HStoreField values to string automatically
+                # Which causes a bug in cursor.execute(). Let's do it here
+                kwargs = {
+                    key: hstore_serialize(value) if isinstance(model._meta.get_field(key), HStoreField) else value
+                    for key, value in kwargs.items()
+                }
+
                 create_items.append(model(**kwargs))
 
         # Update existing records

@@ -1,12 +1,15 @@
 """
 Contains some project unbind helpers
 """
+import json
+
 import django
+from django.contrib.postgres.fields import HStoreField
 from django.core.exceptions import FieldError
 from django.db import DefaultConnectionProxy, connection, connections
 from django.db.models import Field
 from django.db.models.sql.subqueries import UpdateQuery
-from typing import TypeVar, Set, Any, Tuple, Union, Optional
+from typing import TypeVar, Set, Any, Tuple, Union, Optional, Dict
 
 # JSONField is available in django 1.9+ only
 # I create fake class for previous version in order to just skip isinstance(item, JSONField) if branch
@@ -83,6 +86,12 @@ def format_field_value(field, val, conn):
         # If get_db_prep_save is called, it wraps it in JSONAdapter object
         # When execute is done it tries wrapping it into JSONAdapter again and fails
         pass
+    elif isinstance(field, HStoreField):
+        # Django before 1.10 doesn't convert HStoreField values to string automatically
+        # Which causes a bug in cursor.execute(). Let's do it here
+        if isinstance(val, dict):
+            val = hstore_serialize(val)
+            val = field.get_db_prep_save(val, connection=conn)
     else:
         val = field.get_db_prep_save(val, connection=conn)
 
@@ -123,3 +132,17 @@ def jsonb_available():  # type: () -> bool
     :return: Bool
     """
     return get_postgres_version(as_tuple=False) >= 90400 and (django.VERSION[0] > 1 or django.VERSION[1] > 8)
+
+
+def hstore_serialize(value):  # type: (Dict[Any, Any]) -> Dict[str, str]
+    """
+    Django before 1.10 doesn't convert HStoreField values to string automatically
+    Which causes a bug in cursor.execute(). This function converts all key/values to string
+    :param value: A dict
+    :return:
+    """
+    val = {
+        str(k): json.dumps(v) if isinstance(v, (dict, list)) else str(v)
+        for k, v in value.items()
+    }
+    return val
