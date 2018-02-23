@@ -1,10 +1,9 @@
-dist: trusty
+dist: precise
 sudo: false
 language: python
 cache: pip
 services:
   - postgresql
-  - postgresql-contrib
 
 python:
   - 2.7
@@ -12,6 +11,14 @@ python:
   - 3.4
   - 3.5
   - 3.6
+
+addons:
+  postgresql:
+    - 9.2
+    - 9.3
+    - 9.4
+    - 9.5
+    - 9.6
 
 env:
   - DJANGO=1.7
