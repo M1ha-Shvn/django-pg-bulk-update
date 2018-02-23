@@ -50,7 +50,7 @@ matrix:
   - python: 3.6
     env: DJANGO=1.7
 
-before-install:
+before_install:
   - sudo service postgresql stop && sudo service postgresql start $PG
 
 install:
