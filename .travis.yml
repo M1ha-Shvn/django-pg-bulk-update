@@ -59,6 +59,7 @@ install:
   - python setup.py -q install
 
 before_script:
+  - psql -tc 'SHOW server_version' -U postgres
   - psql -c 'CREATE ROLE test;' -U postgres
   - psql -c 'ALTER ROLE test WITH SUPERUSER;' -U postgres
   - psql -c 'ALTER ROLE test WITH LOGIN;' -U postgres
