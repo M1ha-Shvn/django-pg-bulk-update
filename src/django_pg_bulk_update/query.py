@@ -295,7 +295,8 @@ def _bulk_update_no_validation(model, values, conn, set_functions, key_fields_op
         upd_item = []
 
         # Prepare update fields values
-        for name, val in updates.items():
+        for name in upd_keys_tuple:
+            val = updates[name]
             f = model._meta.get_field(name)
             set_func = set_functions[name]
             item_sql, item_upd_params = set_func.format_field_value(f, val, conn)
@@ -332,7 +333,8 @@ def _bulk_update_no_validation(model, values, conn, set_functions, key_fields_op
 
     # Form data for SET section
     set_items, set_params = [], []
-    for field_name, func_cls in set_functions.items():
+    for field_name in upd_keys_tuple:
+        func_cls = set_functions[field_name]
         f = model._meta.get_field(field_name)
         func_sql, params = func_cls.get_sql(f, '"sel"."upd__%s"' % field_name, conn, val_as_param=False)
         set_items.append(func_sql)
@@ -343,7 +345,6 @@ def _bulk_update_no_validation(model, values, conn, set_functions, key_fields_op
     query = query % ('"%s"' % db_table, set_sql, values_sql, sel_sql, where_sql)
 
     # Execute query
-    print(query)
     cursor = conn.cursor()
     cursor.execute(query, params=set_params + values_update_params)
     return cursor.rowcount
