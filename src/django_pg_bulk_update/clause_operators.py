@@ -1,11 +1,11 @@
 """
 This function contains operators used in WHERE query part
 """
-from django.contrib.postgres.fields import ArrayField
 from django.db import DefaultConnectionProxy
-from django.db.models import Field
+from django.db.models import Field, Model
 from typing import Type, Optional, Any, Tuple, Iterable
 
+from django_pg_bulk_update.compatibility import array_available, get_field_db_type
 from .utils import get_subclasses, format_field_value
 
 
@@ -44,7 +44,8 @@ class AbstractClauseOperator(object):
         """
         return "%s %s %s" % (table_field, self.get_sql_operator(), value)
 
-    def get_null_fix_sql(self, model, field_name, conn):  # type: (Type[Model], str, DefaultConnectionProxy) -> str:
+    def get_null_fix_sql(self, model, field_name, connection):
+        # type: (Type[Model], str, DefaultConnectionProxy) -> str
         """
         Bug fix. Postgres wants to know exact type of field to save it
         This fake update value is used for each saved column in order to get it's type
@@ -102,18 +103,9 @@ class InClauseOperator(AbstractClauseOperator):
         # We can't simply use in as format_field_value will return ARRAY, not set of records
         return '%s = ANY(%s)' % (table_field, value)
 
-    def get_null_fix_sql(self, model, field_name, conn):
+    def get_null_fix_sql(self, model, field_name, connection):
         field = model._meta.get_field(field_name)
-
-        # We should resolve value as array for IN operator.
-        # db_type() as id field returned 'serial' instead of 'integer' here
-        # reL_db_type() return integer, but it is not available before django 1.10
-        db_type = field.db_type(conn)
-        if db_type == 'serial':
-            db_type = 'integer'
-        elif db_type == 'bigserial':
-            db_type = 'biginteger'
-
+        db_type = get_field_db_type(field, connection)
         return '(SELECT ARRAY[]::%s[] LIMIT 0)' % db_type
 
     def format_field_value(self, field, val, connection, **kwargs):
@@ -121,9 +113,25 @@ class InClauseOperator(AbstractClauseOperator):
 
         # With in operator we should pass array of values instead of single field value.
         # So let's validate it as Array of this field
-        arr_field = ArrayField(field)
-        arr_field.model = field.model
-        return super(InClauseOperator, self).format_field_value(arr_field, val, connection, **kwargs)
+        if array_available():
+            from django.contrib.postgres.fields import ArrayField
+            arr_field = ArrayField(field)
+            arr_field.model = field.model
+            return super(InClauseOperator, self).format_field_value(arr_field, val, connection, **kwargs)
+        else:
+            # This means, we use django < 1.8. Try converting it manually
+            db_type = get_field_db_type(field, connection)
+            tpl = "ARRAY[%s]::%s[]"
+            val = list(val)
+
+            placeholders, values = [], []
+            for item in val:
+                p, v = super(InClauseOperator, self).format_field_value(field, item, connection, **kwargs)
+                placeholders.append(p)
+                values.append(v)
+
+            query = tpl % (', '.join(placeholders), db_type)
+            return query, values
 
 
 class NotInClauseOperation(InClauseOperator):

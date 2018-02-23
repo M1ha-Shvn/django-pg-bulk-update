@@ -3,12 +3,6 @@ This file contains django settings to run tests with runtests.py
 """
 SECRET_KEY = 'fake-key'
 
-INSTALLED_APPS = [
-    "django.contrib.postgres",
-    "src",
-    "tests"
-]
-
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql_psycopg2',
@@ -19,3 +13,16 @@ DATABASES = {
         'PORT': '5432'
     }
 }
+
+# DATABASES should be defined before this call
+from django_pg_bulk_update.compatibility import jsonb_available, array_available, hstore_available
+
+INSTALLED_APPS = []
+
+if hstore_available() or jsonb_available() or array_available():
+    INSTALLED_APPS.append("django.contrib.postgres")
+
+INSTALLED_APPS.extend([
+    "src",
+    "tests"
+])

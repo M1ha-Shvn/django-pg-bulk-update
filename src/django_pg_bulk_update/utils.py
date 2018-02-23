@@ -1,21 +1,27 @@
 """
 Contains some project unbind helpers
 """
-from django.contrib.postgres.fields import HStoreField
 from django.core.exceptions import FieldError
 from django.db import DefaultConnectionProxy
 from django.db.models import Field
 from django.db.models.sql.subqueries import UpdateQuery
 from typing import TypeVar, Set, Any, Tuple
+from .compatibility import hstore_serialize, hstore_available, jsonb_available
 
 # JSONField is available in django 1.9+ only
 # I create fake class for previous version in order to just skip isinstance(item, JSONField) if branch
-from .compatibility import hstore_serialize
-
-try:
+if jsonb_available():
     from django.contrib.postgres.fields import JSONField
-except ImportError:
-    class JSONField(object):
+else:
+    class JSONField:
+        pass
+
+# django.contrib.postgres is available in django 1.8+ only
+# I create fake class for previous version in order to just skip isinstance(item, HStoreField) if branch
+if hstore_available():
+    from django.contrib.postgres.fields import HStoreField
+else:
+    class HStoreField:
         pass
 
 T = TypeVar('T')

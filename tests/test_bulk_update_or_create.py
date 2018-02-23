@@ -4,7 +4,7 @@ from django.test import TestCase
 
 from django_pg_bulk_update.query import bulk_update_or_create
 from django_pg_bulk_update.set_functions import ConcatSetFunction
-from django_pg_bulk_update.compatibility import jsonb_available
+from django_pg_bulk_update.compatibility import jsonb_available, array_available, hstore_available
 from tests.models import TestModel
 
 
@@ -292,6 +292,7 @@ class TestSetFunctions(TestCase):
             else:
                 self.assertIsNone(name)
 
+    @skipIf(not array_available(), "ArrayField is available in Django 1.8+")
     def test_concat_array(self):
         for i in range(1, 5):
             res = bulk_update_or_create(TestModel, [{'id': 1, 'array_field': [1]},
@@ -317,6 +318,7 @@ class TestSetFunctions(TestCase):
             else:
                 self.assertIsNone(name)
 
+    @skipIf(not hstore_available(), "HStoreField is available in Django 1.8+")
     def test_concat_hstore(self):
         for i in range(1, 5):
             res = bulk_update_or_create(TestModel, [{'id': 1, 'hstore_field': {i: 1}},
@@ -373,6 +375,7 @@ class TestManager(TestCase):
 class TestFieldTypes(TestCase):
     fixtures = ['test_model']
 
+    @skipIf(not array_available(), "ArrayField is available in Django 1.8+")
     def test_array(self):
         res = bulk_update_or_create(TestModel, [{'id': 1, 'array_field': [1]},
                                                 {'id': 2, 'array_field': [2]},
@@ -415,6 +418,7 @@ class TestFieldTypes(TestCase):
             else:
                 self.assertIsNone(name)
 
+    @skipIf(not hstore_available(), "HStoreField is available in Django 1.8+")
     def test_hstore(self):
         res = bulk_update_or_create(TestModel, [{'id': 1, 'hstore_field': {'test': '1'}},
                                                 {'id': 2, 'hstore_field': {'test': '2'}},

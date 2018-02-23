@@ -7,13 +7,12 @@ import json
 from collections import Iterable, OrderedDict
 
 import six
-from django.contrib.postgres.fields import HStoreField
 from django.db import transaction, connection, connections, DefaultConnectionProxy
 from django.db.models import Model, Q
 from typing import Any, Type, Iterable as TIterable, Union, Optional, List, Tuple
 
 from .clause_operators import AbstractClauseOperator, EqualClauseOperator
-from .compatibility import zip_longest, hstore_serialize
+from .compatibility import zip_longest, hstore_serialize, hstore_available
 from .set_functions import EqualSetFunction, AbstractSetFunction
 from .types import TOperators, TFieldNames, TUpdateValues, TSetFunctions, TOperatorsValid, TUpdateValuesValid, \
     TSetFunctionsValid
@@ -344,6 +343,7 @@ def _bulk_update_no_validation(model, values, conn, set_functions, key_fields_op
     query = query % ('"%s"' % db_table, set_sql, values_sql, sel_sql, where_sql)
 
     # Execute query
+    print(query)
     cursor = conn.cursor()
     cursor.execute(query, params=set_params + values_update_params)
     return cursor.rowcount
@@ -489,12 +489,14 @@ def bulk_update_or_create(model, values, key_fields='id', using=None, set_functi
                 kwargs = dict(zip(key_fields, key))
                 kwargs.update(updates)
 
-                # Django before 1.10 doesn't convert HStoreField values to string automatically
-                # Which causes a bug in cursor.execute(). Let's do it here
-                kwargs = {
-                    key: hstore_serialize(value) if isinstance(model._meta.get_field(key), HStoreField) else value
-                    for key, value in kwargs.items()
-                }
+                if hstore_available():
+                    # Django before 1.10 doesn't convert HStoreField values to string automatically
+                    # Which causes a bug in cursor.execute(). Let's do it here
+                    from django.contrib.postgres.fields import HStoreField
+                    kwargs = {
+                        key: hstore_serialize(value) if isinstance(model._meta.get_field(key), HStoreField) else value
+                        for key, value in kwargs.items()
+                    }
 
                 create_items.append(model(**kwargs))
 
