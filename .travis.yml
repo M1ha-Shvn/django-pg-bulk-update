@@ -14,9 +14,6 @@ python:
   - 3.6
   - pypy
 
-virtualenv:
-  system_site_packages: true
-
 env:
   - DJANGO=1.7
   - DJANGO=1.8
