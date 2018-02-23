@@ -2,6 +2,8 @@ dist: trusty
 sudo: true
 language: python
 cache: pip
+services:
+  - postgresql
 
 python:
   - 2.7
@@ -48,19 +50,20 @@ matrix:
   - python: 3.6
     env: DJANGO=1.7
 
+before-install:
+  - sudo service postgresql stop && sudo service postgresql start $PG
+
 install:
   - pip install -r requirements.txt
   - pip install -q Django==$DJANGO
   - python setup.py -q install
-  - add-apt-repository "deb http://apt.postgresql.org/pub/repos/apt/ $(lsb_release -sc)-pgdg main"
-  - wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
-  - apt-get update
-  - apt-get install postgresql-$PG postgresql-contrib-$PG -y --no-install-recommends
+
 before_script:
   - psql -c 'CREATE ROLE test;' -U postgres
   - psql -c 'ALTER ROLE test WITH SUPERUSER;' -U postgres
   - psql -c 'ALTER ROLE test WITH LOGIN;' -U postgres
   - psql -c "ALTER ROLE test PASSWORD 'test';" -U postgres
   - psql -c 'CREATE DATABASE test OWNER test;' -U postgres
+
 script:
   python runtests.py
