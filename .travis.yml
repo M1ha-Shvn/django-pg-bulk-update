@@ -1,9 +1,7 @@
 dist: trusty
-sudo: false
+sudo: true
 language: python
 cache: pip
-services:
-  - postgresql
 
 python:
   - 2.7
