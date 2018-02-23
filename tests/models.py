@@ -1,12 +1,11 @@
 """
 This file contains sample models to use in tests
 """
-import django
 from django.contrib.postgres.fields import HStoreField, ArrayField
 from django.db import models
 
-from django_pg_bulk_update import BulkUpdateManager
-from django_pg_bulk_update.utils import get_postgres_version, jsonb_available
+from django_pg_bulk_update.manager import BulkUpdateManager
+from django_pg_bulk_update.compatibility import jsonb_available
 
 
 class TestModelBase(models.Model):

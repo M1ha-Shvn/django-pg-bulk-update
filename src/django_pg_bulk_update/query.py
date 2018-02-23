@@ -5,7 +5,6 @@ This file contains bulk_update query functions
 import inspect
 import json
 from collections import Iterable, OrderedDict
-from itertools import zip_longest
 
 import six
 from django.contrib.postgres.fields import HStoreField
@@ -13,8 +12,8 @@ from django.db import transaction, connection, connections, DefaultConnectionPro
 from django.db.models import Model, Q
 from typing import Any, Type, Iterable as TIterable, Union, Optional, List, Tuple
 
-from django_pg_bulk_update.utils import hstore_serialize
 from .clause_operators import AbstractClauseOperator, EqualClauseOperator
+from .compatibility import zip_longest, hstore_serialize
 from .set_functions import EqualSetFunction, AbstractSetFunction
 from .types import TOperators, TFieldNames, TUpdateValues, TSetFunctions, TOperatorsValid, TUpdateValuesValid, \
     TSetFunctionsValid

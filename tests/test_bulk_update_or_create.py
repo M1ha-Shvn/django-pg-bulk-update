@@ -2,9 +2,9 @@ from unittest import skipIf
 
 from django.test import TestCase
 
-from django_pg_bulk_update import bulk_update_or_create
+from django_pg_bulk_update.query import bulk_update_or_create
 from django_pg_bulk_update.set_functions import ConcatSetFunction
-from django_pg_bulk_update.utils import get_postgres_version, jsonb_available
+from django_pg_bulk_update.compatibility import jsonb_available
 from tests.models import TestModel
 
 
