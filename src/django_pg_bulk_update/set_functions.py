@@ -5,6 +5,7 @@ from django.db import DefaultConnectionProxy
 from django.db.models import Field
 from typing import Type, Optional, Any, Tuple
 
+from django_pg_bulk_update.compatibility import get_postgres_version, jsonb_available
 from .utils import get_subclasses, format_field_value
 
 # When doing increment operations, we need to replace NULL values with something
@@ -30,6 +31,14 @@ NULL_DEFAULTS = {
     # 'RangeField':
 }
 
+
+# JSONField is available in django 1.9+ only
+# I create fake class for previous version in order to just skip isinstance(item, JSONField) if branch
+if jsonb_available():
+    from django.contrib.postgres.fields import JSONField
+else:
+    class JSONField:
+        pass
 
 class AbstractSetFunction(object):
     names = set()
@@ -146,7 +155,14 @@ class ConcatSetFunction(AbstractSetFunction):
 
     def get_sql(self, field, val, connection, val_as_param=True, **kwargs):
         null_default, null_default_params = self._parse_null_default(field, connection, **kwargs)
-        tpl = '"%s" = COALESCE("%s", %s) || %s'
+
+        # Postgres 9.4 has JSONB support, but doesn't support concat operator (||)
+        # So I've taken function to solve the problem from
+        # Note, that function should be created before using this operator
+        if get_postgres_version(as_tuple=False) < 90500 and isinstance(field, JSONField):
+            tpl = '"%s" = jsonb_merge(COALESCE("%s", %s), %s)'
+        else:
+            tpl = '"%s" = COALESCE("%s", %s) || %s'
 
         if val_as_param:
             sql, params = self.format_field_value(field, val, connection)

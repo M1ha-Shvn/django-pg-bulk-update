@@ -93,3 +93,29 @@ def get_field_db_type(field, connection):  # type: (models.Field, DefaultConnect
         db_type = 'biginteger'
 
     return db_type
+
+
+# Postgres 9.4 has JSONB support, but doesn't support concat operator (||)
+# So I've taken function to solve the problem from
+# https://stackoverflow.com/questions/30101603/merging-concatenating-jsonb-columns-in-query
+POSTGRES_9_4_MERGE_JSONB_SQL = """
+CREATE OR REPLACE FUNCTION jsonb_merge(jsonb1 JSONB, jsonb2 JSONB)
+    RETURNS JSONB AS $$
+    DECLARE
+      result JSONB;
+      v RECORD;
+    BEGIN
+       result = (
+    SELECT json_object_agg(KEY,value)
+    FROM
+      (SELECT jsonb_object_keys(jsonb1) AS KEY,
+              1::int AS jsb,
+              jsonb1 -> jsonb_object_keys(jsonb1) AS value
+       UNION SELECT jsonb_object_keys(jsonb2) AS KEY,
+                    2::int AS jsb,
+                    jsonb2 -> jsonb_object_keys(jsonb2) AS value ) AS t1
+           );
+       RETURN result;
+    END;
+    $$ LANGUAGE plpgsql;
+"""
