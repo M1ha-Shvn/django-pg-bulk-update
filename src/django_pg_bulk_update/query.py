@@ -190,15 +190,15 @@ def _validate_set_functions(model, upd_keys_tuple, functions, param_name='set_fu
     return res
 
 
-def pdnf_clause(field_names, field_values, operators=()):
+def pdnf_clause(key_fields, field_values, key_fields_ops=()):
     # type: (TFieldNames, TIterable[Union[TIterable[Any], dict]], TOperators) -> Q
     """
     Forms WHERE query condition as Principal disjunctive normal form:
     WHERE (a = x AND b = y AND ...) OR (a = x1 AND b = y1  AND ...) OR ...
     If field_values are not given condition for empty result is returned.
-    :param field_names: Iterable of database field names ('a', 'b', ...)
+    :param key_fields: Iterable of database field names ('a', 'b', ...)
     :param field_values: Field values. A list of tuples ( (x, y), (x1, y1), ...) or dicts ({'a': x, 'b': y}, ...)
-    :param operators: Field compare operators.
+    :param key_fields_ops: Field compare operators.
         It can be dict with field_name as key, operation name as value
         Or an iterable of operations in field_names order.
         The default operator is eq (it will be used for all fields, not set directly).
@@ -208,8 +208,8 @@ def pdnf_clause(field_names, field_values, operators=()):
         https://docs.djangoproject.com/en/2.0/topics/db/queries/#complex-lookups-with-q-objects
     """
     # Validate input data
-    field_names = _validate_field_names("field_names", field_names)
-    operators = _validate_operators(field_names, operators, param_name='operators')
+    key_fields = _validate_field_names("key_fields", key_fields)
+    key_fields_ops = _validate_operators(key_fields, key_fields_ops, param_name='key_fields_ops')
 
     assert isinstance(field_values, Iterable), "field_values must be iterable of tuples or dicts"
     field_values = list(field_values)
@@ -221,11 +221,11 @@ def pdnf_clause(field_names, field_values, operators=()):
     or_cond = Q()
     for values_item in field_values:
         assert isinstance(values_item, (dict, Iterable)), "Each field_values item must be dict or iterable"
-        assert len(values_item) == len(field_names), \
+        assert len(values_item) == len(key_fields), \
             "All field_values must contain all fields from 'field_names' parameter"
 
         and_cond = Q()
-        for i, name in enumerate(field_names):
+        for i, name in enumerate(key_fields):
             if isinstance(values_item, dict):
                 assert name in values_item, "field_values dict '%s' doesn't have key '%s'" \
                                             % (json.dumps(values_item), name)
@@ -236,7 +236,7 @@ def pdnf_clause(field_names, field_values, operators=()):
             else:
                 raise AssertionError("Each field_values item must be dict or iterable")
 
-            op = operators[name]
+            op = key_fields_ops[name]
             kwargs = {op.get_django_filter(name): value}
             and_cond &= ~Q(**kwargs) if op.inverse else Q(**kwargs)
 
@@ -354,37 +354,6 @@ def bulk_update(model, values, key_fields='id', using=None, set_functions=None, 
     # type: (Type[Model], TUpdateValues, TFieldNames, Optional[str], TSetFunctions, TOperators) -> int
     """
     Updates multiple records of a given model, finding them by key_fields.
-
-    Example:
-    # Test model
-    class TestModel(models.Model):
-        name = models.CharField(max_length=50)
-        int_field = models.IntegerField(default=1)
-
-    # Create test data
-    TestModel.objects.bulk_create([TestModel(pk=i, name="item%d" % i) for i in range(1, 4)])
-
-    # Call update. Does only 1 database query.
-    updated = bulk_update(TestModel, {
-        "item1": {
-            "name": "updated1",
-            "int_field": 1
-        },
-        "item2": {
-            "name": "updated2",
-            "int_field": 2
-        }
-    }, key_fields="name")
-
-    print(updated)
-    # Outputs: 2
-
-    print(list(TestModel.objects.all().order_by("id").values("id", "name", "int_field")))
-    # Outputs: [
-    #     {"id": 1, "name": "updated1", "int_field": 2},
-    #     {"id": 2, "name": "updated1", "int_field": 3},
-    #     {"id": 3, "name": "item3", "int_field": 0}
-    # ]
 
     :param model: Model to update, a subclass of django.db.models.Model
     :param values: Data to update. All items must update same fields!!!

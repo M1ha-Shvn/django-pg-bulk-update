@@ -1,10 +1,10 @@
 from django.test import TestCase
 from psycopg2.tests.testutils import skipIf
 
-from django_pg_bulk_update.query import bulk_update
 from django_pg_bulk_update.clause_operators import InClauseOperator
-from django_pg_bulk_update.set_functions import ConcatSetFunction
 from django_pg_bulk_update.compatibility import jsonb_available, hstore_available, array_available
+from django_pg_bulk_update.query import bulk_update
+from django_pg_bulk_update.set_functions import ConcatSetFunction
 from tests.models import TestModel
 
 
@@ -201,6 +201,50 @@ class TestSimple(TestCase):
 
     def test_using(self):
         pass  # TODO
+
+
+class TestReadmeExample(TestCase):
+    def test_example(self):
+        TestModel.objects.bulk_create([TestModel(pk=i, name="item%d" % i, int_field=1) for i in range(1, 4)])
+
+        # Update by id field
+        updated = bulk_update(TestModel, [{
+            "id": 1,
+            "name": "updated1",
+        }, {
+            "id": 2,
+            "name": "updated2"
+        }])
+        self.assertEqual(2, updated)
+
+        updated = bulk_update(TestModel, {
+            "updated1": {
+                "int_field": 2
+            },
+            "updated2": {
+                "int_field": 3
+            }
+        }, key_fields="name")
+        self.assertEqual(2, updated)
+        self.assertListEqual([
+            {"id": 1, "name": "updated1", "int_field": 2},
+            {"id": 2, "name": "updated2", "int_field": 3},
+            {"id": 3, "name": "item3", "int_field": 1}
+        ], list(TestModel.objects.all().order_by("id").values("id", "name", "int_field")))
+
+        updated = bulk_update(TestModel, {
+            (2, 3): {
+                "int_field": 3,
+                "name": "incr"
+            }
+        }, key_fields=['id', 'int_field'], key_fields_ops={'int_field': '<', 'id': 'gte'},
+                              set_functions={'int_field': '+'})
+        self.assertEqual(1, updated)
+        self.assertListEqual([
+            {"id": 1, "name": "updated1", "int_field": 2},
+            {"id": 2, "name": "updated2", "int_field": 3},
+            {"id": 3, "name": "incr", "int_field": 4}
+        ], list(TestModel.objects.all().order_by("id").values("id", "name", "int_field")))
 
 
 class TestSetFunctions(TestCase):

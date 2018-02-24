@@ -1,8 +1,8 @@
 from django.db.models import Q
 from django.test import TestCase
 
-from tests.models import TestModel
 from django_pg_bulk_update import pdnf_clause
+from tests.models import TestModel
 
 
 class PDNFClauseTest(TestCase):
@@ -28,19 +28,19 @@ class PDNFClauseTest(TestCase):
 
         # Operations
         with self.assertRaises(AssertionError):
-            pdnf_clause(['id'], [], operators=123)
+            pdnf_clause(['id'], [], key_fields_ops=123)
 
         with self.assertRaises(AssertionError):
-            pdnf_clause(['id'], [], operators=[123])
+            pdnf_clause(['id'], [], key_fields_ops=[123])
 
         with self.assertRaises(AssertionError):
-            pdnf_clause(['id'], [], operators=["invalid"])
+            pdnf_clause(['id'], [], key_fields_ops=["invalid"])
 
         with self.assertRaises(AssertionError):
-            pdnf_clause(['id'], [], operators={"id": "invalid"})
+            pdnf_clause(['id'], [], key_fields_ops={"id": "invalid"})
 
     def _test_filter(self, expected_res, field_names, field_values, operations=()):
-        clause = pdnf_clause(field_names, field_values, operators=operations)
+        clause = pdnf_clause(field_names, field_values, key_fields_ops=operations)
         self.assertIsInstance(clause, Q)
         res = set(TestModel.objects.filter(clause).values_list('id', flat=True))
         self.assertSetEqual(expected_res, res)
@@ -78,3 +78,20 @@ class PDNFClauseTest(TestCase):
 
     def test_lte(self):
         self._test_filter({1, 2, 3, 4, 5, 6}, ['id'], [[6], [5]], operations=['lte'])
+
+
+class TestReadmeExample(TestCase):
+    def test_example(self):
+        # Skip bulk_update section (tested in other test), and init data as bulk_update_or_create start
+        TestModel.objects.bulk_create([
+            TestModel(pk=1, name="updated1", int_field=2),
+            TestModel(pk=2, name="updated2", int_field=3),
+            TestModel(pk=3, name="incr_concat1", int_field=4),
+            TestModel(pk=4, name="concat2", int_field=5)
+        ])
+
+        cond = pdnf_clause(['id', 'name'], [([1, 2, 3], 'updated2'),
+                                            ([3, 4, 5], 'concat2'),
+                                            ([2, 3, 4], 'updated1')], key_fields_ops={'id': 'in'})
+        data = TestModel.objects.filter(cond).order_by('int_field').values_list('int_field', flat=True)
+        self.assertListEqual([3, 5], list(data))

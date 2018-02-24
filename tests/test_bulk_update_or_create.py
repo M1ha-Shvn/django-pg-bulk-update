@@ -2,9 +2,9 @@ from unittest import skipIf
 
 from django.test import TestCase
 
+from django_pg_bulk_update.compatibility import jsonb_available, array_available, hstore_available
 from django_pg_bulk_update.query import bulk_update_or_create
 from django_pg_bulk_update.set_functions import ConcatSetFunction
-from django_pg_bulk_update.compatibility import jsonb_available, array_available, hstore_available
 from tests.models import TestModel
 
 
@@ -224,6 +224,35 @@ class TestSimple(TestCase):
 
     def test_using(self):
         pass  # TODO
+
+
+class TestReadmeExample(TestCase):
+    def test_example(self):
+        # Skip bulk_update section (tested in other test), and init data as bulk_update_or_create start
+        TestModel.objects.bulk_create([
+            TestModel(pk=1, name="updated1", int_field=2),
+            TestModel(pk=2, name="updated2", int_field=3),
+            TestModel(pk=3, name="incr", int_field=4),
+        ])
+
+        inserted, updated = bulk_update_or_create(TestModel, [{
+            "id": 3,
+            "name": "_concat1",
+            "int_field": 4
+        }, {
+            "id": 4,
+            "name": "concat2",
+            "int_field": 5
+        }], set_functions={'name': '||'})
+        self.assertEqual(1, inserted)
+        self.assertEqual(1, updated)
+
+        self.assertListEqual([
+            {"id": 1, "name": "updated1", "int_field": 2},
+            {"id": 2, "name": "updated2", "int_field": 3},
+            {"id": 3, "name": "incr_concat1", "int_field": 4},
+            {"id": 4, "name": "concat2", "int_field": 5},
+        ], list(TestModel.objects.all().order_by("id").values("id", "name", "int_field")))
 
 
 class TestSetFunctions(TestCase):
