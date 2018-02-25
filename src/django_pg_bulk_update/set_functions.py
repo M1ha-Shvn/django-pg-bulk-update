@@ -64,12 +64,11 @@ class AbstractSetFunction(object):
         # type: (Field, Any, DefaultConnectionProxy, bool, **Any) -> Tuple[str, Tuple[Any]]
         """
         Returns function sql and parameters for query execution
-        :param model: Model updated
         :param field: Django field to take format from
         :param val: Value to format
         :param connection: Connection used to update data
         :param val_as_param: If flag is not set, value should be converted to string and inserted into query directly.
-            Otherwise a placehloder and query parameter will be used
+            Otherwise a placeholder and query parameter will be used
         :param kwargs: Additional arguments, if needed
         :return: A tuple: sql, replacing value in update and a tuple of parameters to pass to cursor
         """

@@ -14,6 +14,11 @@ class AbstractClauseOperator(object):
     names = set()
 
     def get_django_filter(self, name):  # type: (str) -> str
+        """
+        This method should return parameter name to use in django QuerySet.fillter() kwargs
+        :param name: Name of parameter
+        :return: String with filter
+        """
         raise NotImplementedError("%s must implement get_django_filter method" % self.__class__.__name__)
 
     @classmethod

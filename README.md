@@ -272,10 +272,107 @@ class TestModel(models.Model):
 ```
 
 ### Custom clause operation
-TODO
+You can define your own clause operator, creating `AbstractClauseOperator` subclass and implementing:
+* `names` attribute
+* `def get_django_filter(self, name)` method
+* One of `def get_sql_operator(self)` or `def get_sql(self, table_field, value)`
+  When clause is formed, it calls `get_sql()` method.
+  In order to simplify method usage of simple `field <op> value` operators,
+  by default `get_sql()` forms this condition, calling  `get_sql_operator()` method, which returns <op>.
+  
+Optionally, you can change `def format_field_value(self, field, val, connection, **kwargs)` method,
+which formats value according to field rules
+
+Example:
+```python
+from django_pg_bulk_update import bulk_update
+from django_pg_bulk_update.clause_operators import AbstractClauseOperator
+
+class LTClauseOperator(AbstractClauseOperator):
+    names = {'lt', '<'}
+
+    def get_django_filter(self, name):  # type: (str) -> str
+        """
+        This method should return parameter name to use in django QuerySet.fillter() kwargs
+        :param name: Name of parameter
+        :return: String with filter
+        """
+        return '%s__lt' % name
+
+    def get_sql_operator(self):  # type: () -> str
+        """
+        If get_sql operator is simple binary operator like "field <op> val", this functions returns operator
+        :return: str
+        """
+        return '<'
+        
+
+# Usage examples
+# import you function here before calling an update
+bulk_update(TestModel, [], key_field_ops={'int_field': 'lt'})
+bulk_update(TestModel, [], key_field_ops={'int_field': LTClauseOperator()})
+```
+
+You can use class instance directly in `key_field_ops` parameter or use its aliases from `names` attribute.  
+When update function is called, it searches for all imported AbstractClauseOperator subclasses and takes first class
+which contains alias in `names` attribute.
 
 ### Custom set function
-TODO
+You can define your own set function, creating `AbstractSetFunction` subclass and implementing:
+* `names` attribute
+* `supported_field_classes` attribute
+* `def get_sql(self, field, val, connection, val_as_param=True, **kwargs)` method
+
+Optionally, you can change `def format_field_value(self, field, val, connection, **kwargs)`
+method, if input data needs special formatting.  
+
+Example:  
+
+```python
+from django_pg_bulk_update import bulk_update
+from django_pg_bulk_update.set_functions import AbstractSetFunction
+
+class CustomSetFunction(AbstractSetFunction):
+    # Set function alias names
+    names = {'func_alias_name'}
+
+    # Names of django field classes, this function supports. You can set None (default) to support any field.
+    supported_field_classes = {'IntegerField', 'FloatField', 'AutoField', 'BigAutoField'}
+
+    def get_sql(self, field, val, connection, val_as_param=True, **kwargs):
+        # type: (Field, Any, DefaultConnectionProxy, bool, **Any) -> Tuple[str, Tuple[Any]]
+        """
+        Returns function sql and parameters for query execution
+        :param field: Django field to take format from
+        :param val: Value to format
+        :param connection: Connection used to update data
+        :param val_as_param: If flag is not set, value should be converted to string and inserted into query directly.
+            Otherwise a placeholder and query parameter will be used
+        :param kwargs: Additional arguments, if needed
+        :return: A tuple: sql, replacing value in update and a tuple of parameters to pass to cursor
+        """
+        # If operation is incremental, it should be ready to get NULL in database
+        null_default, null_default_params = self._parse_null_default(field, connection, **kwargs)
+        
+        # Your function/operator should be defined here
+        tpl = '"%s" = COALESCE("%s", %s) + %s'
+
+        if val_as_param:
+            sql, params = self.format_field_value(field, val, connection)
+            return tpl % (field.column, field.column, null_default, sql), null_default_params + params
+        else:
+            return tpl % (field.column, field.column, null_default, str(val)), null_default_params
+            
+            
+# Usage examples
+# import you function here before calling an update
+bulk_update(TestModel, [], set_functions={'int_field': 'func_alias_name'})
+bulk_update(TestModel, [], set_functions={'int_field': CustomSetFunction()})
+```
+
+You can use class instance directly in `set_functions` parameter or use its aliases from `names` attribute.  
+When update function is called, it searches for all imported AbstractSetFunction subclasses and takes first class
+which contains alias in `names` attribute.
 
 
 ## Compatibility
@@ -305,5 +402,14 @@ class Migration(migrations.Migration):
 TODO
 
 ## [django-bulk-update](https://github.com/aykut/django-bulk-update) difference
-TODO
+Pros:
+* bulk_update_or_create() method
+* Ability to use complex set functions
+* Ability to use complex conditions
+* pdnf_clause helper
+* Django 1.7 support
+
+Corns:
+* PostgreSQL only
+* No batch_size parameter (planned for next release)
 
