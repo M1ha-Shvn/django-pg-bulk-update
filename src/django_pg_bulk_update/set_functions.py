@@ -1,9 +1,12 @@
 """
 This file contains classes, describing functions which set values to fields.
 """
+import datetime
+from typing import Type, Optional, Any, Tuple
+
+import pytz
 from django.db import DefaultConnectionProxy
 from django.db.models import Field
-from typing import Type, Optional, Any, Tuple
 
 from django_pg_bulk_update.compatibility import get_postgres_version, jsonb_available, Postgres94MergeJSONBMigration
 from .utils import get_subclasses, format_field_value
@@ -11,13 +14,39 @@ from .utils import get_subclasses, format_field_value
 # When doing increment operations, we need to replace NULL values with something
 # This dictionary contains field defaults by it's class name.
 # I don't use classes as keys not to import them here
+base_datetime = datetime.datetime(1970, 1, 1, 0, 0, 0, tzinfo=pytz.utc)
 NULL_DEFAULTS = {
     # Standard django types
     'IntegerField': 0,
+    'BigIntegerField': 0,
+    'SmallIntegerField': 0,
+    'PositiveIntegerField': 0,
+    'PositiveSmallIntegerField': 0,
     'FloatField': 0,
+    'DecimalField': 0,
+
     'CharField': '',
     'TextField': '',
+    'EmailField': '',
+    'FilePathField': '',
+    'SlugField': '',
+    'CommaSeparatedIntegerField': '0,0',
+    'URLField': '',
+    'BinaryField': b'',
+    'UUIDField': '',
 
+    'DateField': base_datetime.date(),
+    'DateTimeField': base_datetime,
+    'DurationField': datetime.timedelta(seconds=0),
+    'TimeField': base_datetime.time(),
+
+    # This may be incorrect, but there is no any chance to understand, what is correct here
+    'BooleanField': True,
+    'NullBooleanField': True,
+
+    # These fields can't be null, but I add them for compatibility
+    'AutoField': 0,
+    'BigAutoField': 0,
 
     # Postgres specific types
     'ArrayField': [],
@@ -25,10 +54,13 @@ NULL_DEFAULTS = {
     'CIEmailField': '',
     'CITextField': '',
     'HStoreField': {},
-    'JSONField': {}
+    'JSONField': {},
 
-    # TODO django.contrib.postgres.fields.ranges
-    # 'RangeField':
+    'IntegerRangeField': (0, 0),
+    'BigIntegerRangeField': (0, 0),
+    'FloatRangeField': (0, 0),
+    'DateTimeRangeField': (base_datetime, base_datetime),
+    'DateRangeField': (base_datetime.date(), base_datetime.date())
 }
 
 
@@ -132,8 +164,10 @@ class EqualSetFunction(AbstractSetFunction):
 class PlusSetFunction(AbstractSetFunction):
     names = {'+', 'incr'}
 
-    # TODO list all supported classes from django.db.models.fileds
-    supported_field_classes = {'IntegerField', 'FloatField', 'AutoField', 'BigAutoField'}
+    supported_field_classes = {'IntegerField', 'FloatField', 'AutoField', 'BigAutoField', 'BigIntegerField',
+                               'SmallIntegerField', 'PositiveIntegerField', 'PositiveSmallIntegerField', 'DecimalField',
+                               'IntegerRangeField', 'BigIntegerRangeField', 'FloatRangeField', 'DateTimeRangeField',
+                               'DateRangeField'}
 
     def get_sql(self, field, val, connection, val_as_param=True, **kwargs):
         null_default, null_default_params = self._parse_null_default(field, connection, **kwargs)
@@ -149,9 +183,9 @@ class PlusSetFunction(AbstractSetFunction):
 class ConcatSetFunction(AbstractSetFunction):
     names = {'||', 'concat'}
 
-    # TODO list all supported classes from django.db.models.fileds
-    supported_field_classes = {'CharField', 'TextField', 'HStoreField', 'JSONField', 'ArrayField', 'CITextField',
-                               'CICharField', 'CIEmailField'}
+    supported_field_classes = {'CharField', 'TextField', 'EmailField', 'FilePathField', 'SlugField', 'HStoreField',
+                               'URLField', 'BinaryField', 'JSONField', 'ArrayField', 'CITextField', 'CICharField',
+                               'CIEmailField'}
 
     def get_sql(self, field, val, connection, val_as_param=True, **kwargs):
         null_default, null_default_params = self._parse_null_default(field, connection, **kwargs)
