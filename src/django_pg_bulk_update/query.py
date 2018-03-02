@@ -388,6 +388,10 @@ def bulk_update(model, values, key_fields='id', using=None, set_functions=None, 
 
     key_fields = _validate_field_names("key_fields", key_fields)
     upd_keys_tuple, values = _validate_update_values(key_fields, values)
+
+    if len(values) == 0:
+        return 0
+
     key_fields_ops = _validate_operators(key_fields, key_fields_ops, param_name='key_fields_ops')
     set_functions = _validate_set_functions(model, upd_keys_tuple, set_functions)
     conn = connection if using is None else connections[using]
@@ -430,6 +434,10 @@ def bulk_update_or_create(model, values, key_fields='id', using=None, set_functi
 
     key_fields = _validate_field_names("key_fields", key_fields)
     upd_keys_tuple, values = _validate_update_values(key_fields, values)
+
+    if len(values) == 0:
+        return (0, 0)
+
     set_functions = _validate_set_functions(model, upd_keys_tuple, set_functions)
     conn = connection if using is None else connections[using]
 
