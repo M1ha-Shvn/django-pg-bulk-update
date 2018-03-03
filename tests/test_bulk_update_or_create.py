@@ -138,6 +138,7 @@ class TestInputFormats(TestCase):
 
 class TestSimple(TestCase):
     fixtures = ['test_model']
+    multi_db = True
 
     def test_update(self):
         res = bulk_update_or_create(TestModel, [{
@@ -223,7 +224,37 @@ class TestSimple(TestCase):
                 self.assertIsNone(int_field)
 
     def test_using(self):
-        pass  # TODO
+        res = bulk_update_or_create(TestModel, [{
+            'id': 1,
+            'name': 'bulk_update_1'
+        }, {
+            'id': 5,
+            'name': 'bulk_update_5'
+        }, {
+            'id': 11,
+            'name': 'bulk_update_11'
+        }], using='secondary')
+        self.assertTupleEqual((1, 2), res)
+
+        # 9 from fixture + 1 created
+        self.assertEqual(10, TestModel.objects.all().using('secondary').count())
+        self.assertEqual(9, TestModel.objects.all().using('default').count())
+
+        for pk, name, int_field in TestModel.objects.all().using('secondary').order_by('id').\
+                values_list('id', 'name', 'int_field'):
+            if pk in {1, 5, 11}:
+                self.assertEqual('bulk_update_%d' % pk, name)
+            else:
+                self.assertEqual('test%d' % pk, name)
+
+            if pk == 11:
+                self.assertIsNone(int_field)
+            else:
+                self.assertEqual(pk, int_field)
+
+        for pk, name, int_field in TestModel.objects.all().order_by('id').values_list('id', 'name', 'int_field'):
+            self.assertEqual('test%d' % pk, name)
+            self.assertEqual(pk, int_field)
 
 
 class TestReadmeExample(TestCase):
@@ -369,6 +400,7 @@ class TestSetFunctions(TestCase):
 
 class TestManager(TestCase):
     fixtures = ['test_model']
+    multi_db = True
 
     def test_bulk_update_or_create(self):
         res = TestModel.objects.bulk_update_or_create([{
@@ -398,7 +430,37 @@ class TestManager(TestCase):
                 self.assertEqual(pk, int_field)
 
     def test_using(self):
-        pass  # TODO
+        res = TestModel.objects.db_manager('secondary').bulk_update_or_create([{
+            'id': 1,
+            'name': 'bulk_update_1'
+        }, {
+            'id': 5,
+            'name': 'bulk_update_5'
+        }, {
+            'id': 11,
+            'name': 'bulk_update_11'
+        }])
+        self.assertTupleEqual((1, 2), res)
+
+        # 9 from fixture + 1 created
+        self.assertEqual(10, TestModel.objects.all().using('secondary').count())
+        self.assertEqual(9, TestModel.objects.all().using('default').count())
+
+        for pk, name, int_field in TestModel.objects.all().using('secondary').order_by('id'). \
+                values_list('id', 'name', 'int_field'):
+            if pk in {1, 5, 11}:
+                self.assertEqual('bulk_update_%d' % pk, name)
+            else:
+                self.assertEqual('test%d' % pk, name)
+
+            if pk == 11:
+                self.assertIsNone(int_field)
+            else:
+                self.assertEqual(pk, int_field)
+
+        for pk, name, int_field in TestModel.objects.all().order_by('id').values_list('id', 'name', 'int_field'):
+            self.assertEqual('test%d' % pk, name)
+            self.assertEqual(pk, int_field)
 
 
 class TestFieldTypes(TestCase):

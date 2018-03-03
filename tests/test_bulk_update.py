@@ -131,6 +131,7 @@ class TestInputFormats(TestCase):
 
 class TestSimple(TestCase):
     fixtures = ['test_model']
+    multi_db = True
 
     def test_update(self):
         res = bulk_update(TestModel, [{
@@ -200,7 +201,29 @@ class TestSimple(TestCase):
             self.assertEqual(pk, int_field)
 
     def test_using(self):
-        pass  # TODO
+        res = bulk_update(TestModel, [{
+            'id': 1,
+            'name': 'bulk_update_1'
+        }, {
+            'id': 5,
+            'name': 'bulk_update_5'
+        }, {
+            'id': 8,
+            'name': 'bulk_update_8'
+        }], using='secondary')
+        self.assertEqual(3, res)
+        for pk, name, int_field in TestModel.objects.all().using('secondary').order_by('id').\
+                values_list('id', 'name', 'int_field'):
+            if pk in {1, 5, 8}:
+                self.assertEqual('bulk_update_%d' % pk, name)
+            else:
+                self.assertEqual('test%d' % pk, name)
+            self.assertEqual(pk, int_field)
+
+        for pk, name, int_field in TestModel.objects.all().using('default').order_by('id').\
+                values_list('id', 'name', 'int_field'):
+            self.assertEqual('test%d' % pk, name)
+            self.assertEqual(pk, int_field)
 
 
 class TestReadmeExample(TestCase):
@@ -464,6 +487,7 @@ class TestConditionOperators(TestCase):
 
 class TestManager(TestCase):
     fixtures = ['test_model']
+    multi_db = True
 
     def test_bulk_update(self):
         res = TestModel.objects.bulk_update([{
@@ -485,7 +509,29 @@ class TestManager(TestCase):
             self.assertEqual(pk, int_field)
 
     def test_using(self):
-        pass  # TODO
+        res = TestModel.objects.db_manager('secondary').bulk_update([{
+            'id': 1,
+            'name': 'bulk_update_1'
+        }, {
+            'id': 5,
+            'name': 'bulk_update_5'
+        }, {
+            'id': 8,
+            'name': 'bulk_update_8'
+        }])
+        self.assertEqual(3, res)
+        for pk, name, int_field in TestModel.objects.all().using('secondary').order_by('id').\
+                values_list('id', 'name', 'int_field'):
+            if pk in {1, 5, 8}:
+                self.assertEqual('bulk_update_%d' % pk, name)
+            else:
+                self.assertEqual('test%d' % pk, name)
+            self.assertEqual(pk, int_field)
+
+        for pk, name, int_field in TestModel.objects.all().using('default').order_by('id').\
+                values_list('id', 'name', 'int_field'):
+            self.assertEqual('test%d' % pk, name)
+            self.assertEqual(pk, int_field)
 
 
 class TestFieldTypes(TestCase):

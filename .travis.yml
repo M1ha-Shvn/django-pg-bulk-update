@@ -110,6 +110,7 @@ before_script:
   - psql -c 'ALTER ROLE test WITH LOGIN;' -U postgres
   - psql -c "ALTER ROLE test PASSWORD 'test';" -U postgres
   - psql -c 'CREATE DATABASE test OWNER test;' -U postgres
+  - psql -c 'CREATE DATABASE test2 OWNER test;' -U postgres
 
 script:
   python runtests.py
