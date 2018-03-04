@@ -57,7 +57,6 @@ matrix:
     env: DJANGO=2.0 PG=9.5
   - python: 2.7
     env: DJANGO=2.0 PG=9.6
-  - python: 2.7
 
   # Django 1.9+ doesn't support python 3.3
   - python: 3.3
