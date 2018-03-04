@@ -38,9 +38,27 @@ env:
   - DJANGO=1.11 PG=9.4
   - DJANGO=1.11 PG=9.5
   - DJANGO=1.11 PG=9.6
+  - DJANGO=2.0 PG=9.2
+  - DJANGO=2.0 PG=9.3
+  - DJANGO=2.0 PG=9.4
+  - DJANGO=2.0 PG=9.5
+  - DJANGO=2.0 PG=9.6
 
 matrix:
   exclude:
+  # Django 2.0+ doesn't support python 2.7
+  - python: 2.7
+    env: DJANGO=2.0 PG=9.2
+  - python: 2.7
+    env: DJANGO=2.0 PG=9.3
+  - python: 2.7
+    env: DJANGO=2.0 PG=9.4
+  - python: 2.7
+    env: DJANGO=2.0 PG=9.5
+  - python: 2.7
+    env: DJANGO=2.0 PG=9.6
+  - python: 2.7
+
   # Django 1.9+ doesn't support python 3.3
   - python: 3.3
     env: DJANGO=1.9 PG=9.2
@@ -72,6 +90,16 @@ matrix:
     env: DJANGO=1.11 PG=9.5
   - python: 3.3
     env: DJANGO=1.11 PG=9.6
+  - python: 3.3
+    env: DJANGO=2.0 PG=9.2
+  - python: 3.3
+    env: DJANGO=2.0 PG=9.3
+  - python: 3.3
+    env: DJANGO=2.0 PG=9.4
+  - python: 3.3
+    env: DJANGO=2.0 PG=9.5
+  - python: 3.3
+    env: DJANGO=2.0 PG=9.6
 
   # Django 1.7 doesn't support python 3.5+
   - python: 3.5
