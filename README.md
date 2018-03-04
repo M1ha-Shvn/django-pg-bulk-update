@@ -398,9 +398,6 @@ class Migration(migrations.Migration):
     ]
 ```
 
-## Performance
-TODO
-
 ## [django-bulk-update](https://github.com/aykut/django-bulk-update) difference
 Pros:
 * bulk_update_or_create() method
