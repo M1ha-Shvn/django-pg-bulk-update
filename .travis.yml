@@ -128,7 +128,8 @@ before_install:
 
 install:
   - pip install -r requirements.txt
-  - pip install -q Django==$DJANGO
+  # .* postfix to install latest minor version, not x.x.0 version of django
+  - pip install -q Django==$DJANGO.*
   - python setup.py -q install
 
 before_script:
