@@ -340,7 +340,7 @@ class TestSetFunctions(TestCase):
             self._test_concat_dict(i, res, 'json_field')
 
     def test_eq_not_null(self):
-        # Тестируем, что NULL обратится в NULL
+        # Test, that NULL value in db will be  NULL after update
         TestModel.objects.filter(pk=3).update(int_field=None)
 
         res = bulk_update(TestModel, [{'id': 1, 'int_field': 2},
