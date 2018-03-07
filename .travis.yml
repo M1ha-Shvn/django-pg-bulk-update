@@ -38,9 +38,26 @@ env:
   - DJANGO=1.11 PG=9.4
   - DJANGO=1.11 PG=9.5
   - DJANGO=1.11 PG=9.6
+  - DJANGO=2.0 PG=9.2
+  - DJANGO=2.0 PG=9.3
+  - DJANGO=2.0 PG=9.4
+  - DJANGO=2.0 PG=9.5
+  - DJANGO=2.0 PG=9.6
 
 matrix:
   exclude:
+  # Django 2.0+ doesn't support python 2.7
+  - python: 2.7
+    env: DJANGO=2.0 PG=9.2
+  - python: 2.7
+    env: DJANGO=2.0 PG=9.3
+  - python: 2.7
+    env: DJANGO=2.0 PG=9.4
+  - python: 2.7
+    env: DJANGO=2.0 PG=9.5
+  - python: 2.7
+    env: DJANGO=2.0 PG=9.6
+
   # Django 1.9+ doesn't support python 3.3
   - python: 3.3
     env: DJANGO=1.9 PG=9.2
@@ -72,6 +89,16 @@ matrix:
     env: DJANGO=1.11 PG=9.5
   - python: 3.3
     env: DJANGO=1.11 PG=9.6
+  - python: 3.3
+    env: DJANGO=2.0 PG=9.2
+  - python: 3.3
+    env: DJANGO=2.0 PG=9.3
+  - python: 3.3
+    env: DJANGO=2.0 PG=9.4
+  - python: 3.3
+    env: DJANGO=2.0 PG=9.5
+  - python: 3.3
+    env: DJANGO=2.0 PG=9.6
 
   # Django 1.7 doesn't support python 3.5+
   - python: 3.5
@@ -100,7 +127,8 @@ before_install:
 
 install:
   - pip install -r requirements.txt
-  - pip install -q Django==$DJANGO
+  # .* postfix to install latest minor version, not x.x.0 version of django
+  - pip install -q Django==$DJANGO.*
   - python setup.py -q install
 
 before_script:
@@ -110,6 +138,7 @@ before_script:
   - psql -c 'ALTER ROLE test WITH LOGIN;' -U postgres
   - psql -c "ALTER ROLE test PASSWORD 'test';" -U postgres
   - psql -c 'CREATE DATABASE test OWNER test;' -U postgres
+  - psql -c 'CREATE DATABASE test2 OWNER test;' -U postgres
 
 script:
   python runtests.py
