@@ -366,6 +366,35 @@ class TestSetFunctions(TestCase):
                                                     {'id': 4, 'json_field': {}}], set_functions={'json_field': '||'})
             self._test_concat_dict(i, res, 'json_field')
 
+    def test_eq_not_null(self):
+        res = bulk_update_or_create(TestModel, [{
+            'id': 1,
+            'name': 'bulk_update_1'
+        }, {
+            'id': 5,
+            'name': None
+        }, {
+            'id': 11,
+            'name': None
+        }], set_functions={'name': 'eq_not_null'})
+        self.assertTupleEqual((1, 2), res)
+
+        # 9 from fixture + 1 created
+        self.assertEqual(10, TestModel.objects.all().count())
+
+        for pk, name, int_field in TestModel.objects.all().order_by('id').values_list('id', 'name', 'int_field'):
+            if pk in {1}:
+                self.assertEqual('bulk_update_%d' % pk, name)
+            elif pk == 11:
+                self.assertIsNone(name)
+            else:
+                self.assertEqual('test%d' % pk, name)
+
+            if pk == 11:
+                self.assertIsNone(int_field)
+            else:
+                self.assertEqual(pk, int_field)
+
 
 class TestManager(TestCase):
     fixtures = ['test_model']
