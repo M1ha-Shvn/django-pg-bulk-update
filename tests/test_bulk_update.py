@@ -362,6 +362,26 @@ class TestSetFunctions(TestCase):
                                           {'id': 4, 'json_field': {}}], set_functions={'json_field': '||'})
             self._test_concat_dict(i, res, 'json_field')
 
+    def test_eq_not_null(self):
+        # Test, that NULL value in db will be  NULL after update
+        TestModel.objects.filter(pk=3).update(int_field=None)
+
+        res = bulk_update(TestModel, [{'id': 1, 'int_field': 2},
+                                      {'id': 2, 'int_field': 3},
+                                      {'id': 3, 'int_field': None},
+                                      {'id': 4, 'int_field': None}], set_functions={'int_field': 'eq_not_null'})
+        self.assertEqual(4, res)
+        for pk, name, int_field in TestModel.objects.all().order_by('id').values_list('id', 'name', 'int_field'):
+            if pk in {1, 2}:
+                self.assertEqual(pk, int_field - 1)
+            elif pk == 3:
+                self.assertIsNone(int_field)
+            elif pk == 4:
+                self.assertEqual(pk, int_field)
+            else:
+                self.assertEqual('test%d' % pk, name)
+            self.assertEqual('test%d' % pk, name)
+
 
 class TestConditionOperators(TestCase):
     fixtures = ['test_model']
