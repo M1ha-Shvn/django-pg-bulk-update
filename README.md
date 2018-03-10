@@ -16,7 +16,7 @@ Django extension to update multiple table records with similar (but not equal) c
   JSONB operations are available for PostgreSQL 9.4+.
 
 ## Installation
-Install via pip (not working, TODO):  
+Install via pip:  
 `pip install django-pg-bulk-update`    
 or via setup.py:  
 `python setup.py install`
