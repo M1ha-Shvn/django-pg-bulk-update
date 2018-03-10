@@ -17,7 +17,7 @@ Examples:
         objects = CustomManager()
 """
 from django.db import models
-from typing import Tuple
+from typing import Tuple, Optional
 
 from .types import TUpdateValues, TFieldNames, TSetFunctions, TOperators
 from .query import bulk_update, bulk_update_or_create
@@ -29,8 +29,9 @@ class BulkUpdateManagerMixin:
     It automatically fetches using and model parameters from manager.
     You can set database alias to use directly by db_manager() method
     """
-    def bulk_update(self, values, key_fields='id', set_functions=None, key_fields_ops=()):
-        # type: (TUpdateValues, TFieldNames, TSetFunctions, TOperators) -> int
+    def bulk_update(self, values, key_fields='id', set_functions=None, key_fields_ops=(), batch_size=None,
+                    batch_delay=0):
+        # type: (TUpdateValues, TFieldNames, TSetFunctions, TOperators, Optional[int], float) -> int
         """
         Updates multiple records of a given model, finding them by key_fields.
 
@@ -86,16 +87,20 @@ class BulkUpdateManagerMixin:
             The default operator is eq (it will be used for all fields, not set directly).
             Operators: [in; !in; gt, >; lt, <; gte, >=; lte, <=; !eq, <>, !=; eq, =, ==]
             Example: ('eq', 'in') or {'a': 'eq', 'b': 'in'}.
+        :param batch_size: Optional. If given, data is split it into batches of given size.
+            Each batch is queried independently.
+        :param batch_delay: Delay in seconds between batches execution, if batch_size is not None.
         :return: Number of records updated
         """
         self._for_write = True
         using = self.db
 
         return bulk_update(self.model, values, key_fields=key_fields, using=using, set_functions=set_functions,
-                           key_fields_ops=key_fields_ops)
+                           key_fields_ops=key_fields_ops, batch_size=batch_size, batch_delay=batch_delay)
 
-    def bulk_update_or_create(self, values, key_fields='id', set_functions=None, update=True):
-        # type: (TUpdateValues, TFieldNames, TSetFunctions, bool) -> Tuple[int, int]
+    def bulk_update_or_create(self, values, key_fields='id', set_functions=None, update=True, batch_size=None,
+                    batch_delay=0):
+        # type: (TUpdateValues, TFieldNames, TSetFunctions, bool, Optional[int], float) -> Tuple[int, int]
         """
         Searches for records, given in values by key_fields. If records are found, updates them from values.
         If not found - creates them from values. Note, that all fields without default value must be present in values.
@@ -116,13 +121,17 @@ class BulkUpdateManagerMixin:
             Functions: [eq, =; incr, +; concat, ||]
             Example: {'name': 'eq', 'int_fields': 'incr'}
         :param update: If this flag is not set, existing records will not be updated
+        :param batch_size: Optional. If given, data is split it into batches of given size.
+            Each batch is queried independently.
+        :param batch_delay: Delay in seconds between batches execution, if batch_size is not None.
         :return: A tuple (number of records created, number of records updated)
         """
         self._for_write = True
         using = self.db
 
         return bulk_update_or_create(self.model, values, key_fields=key_fields, using=using,
-                                     set_functions=set_functions, update=update)
+                                     set_functions=set_functions, update=update, batch_size=batch_size,
+                                     batch_delay=batch_delay)
 
 
 class BulkUpdateManager(models.Manager, BulkUpdateManagerMixin):

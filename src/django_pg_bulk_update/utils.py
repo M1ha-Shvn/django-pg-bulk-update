@@ -1,11 +1,13 @@
 """
 Contains some project unbind helpers
 """
+from time import sleep
+
 from django.core.exceptions import FieldError
 from django.db import DefaultConnectionProxy
 from django.db.models import Field
 from django.db.models.sql.subqueries import UpdateQuery
-from typing import TypeVar, Set, Any, Tuple
+from typing import TypeVar, Set, Any, Tuple, Iterable, Callable, Optional, List, Dict
 from .compatibility import hstore_serialize, hstore_available, jsonb_available
 
 # JSONField is available in django 1.9+ only
@@ -115,4 +117,49 @@ def format_field_value(field, val, conn):
         value, update_params = 'NULL', tuple()
 
     return value, update_params
+
+
+def batched_operation(handler, data, batch_size=None, batch_delay=0, args=(), kwargs=None, data_arg_index=0):
+    # type: (Callable, Iterable, Optional[int], float, Iterable, Optional[dict], int) -> List[Any]
+    """
+    Splits data to batches, configured by batch_size parameter and executes handler on each of them
+    Makes a delay between every batch.
+    Batch is passed as first handler parameter.
+    :param handler: A callable to apply to a batch
+    :param data: Data to process. Must be iterable. If dict, will be split to dicts by keys.
+    :param batch_size: Size of parts to split data to.
+    :param batch_delay: Delay between batches handling in seconds
+    :param args: Additional arguments to pass to handler
+    :param kwargs: Additional arguments to pass to handler
+    :param data_arg_index: If data is not first argument (by default), you can pass its index in args here.
+        Note, that args must contain any placeholder value, which will be replaced by batch data
+    :return: A list of results for each batch
+    """
+    assert batch_size is None or type(batch_size) is int and batch_size > 0,\
+        "batch_size must be positive integer if given"
+    assert type(batch_delay) in {int, float} and batch_delay >= 0, "batch_delay must be non negative float"
+    assert type(data_arg_index) is int and 0 <= data_arg_index < len(args),\
+        "data_arg_num must be integer between 0 and len(args)"
+
+    def _batches_iterator():
+        if batch_size is None:
+            yield data
+        elif isinstance(data, dict):
+            keys = list(data.keys())
+            for i in range(0, len(keys), batch_size):
+                yield {k: data[k] for k in keys[i:i+batch_size]}
+        else:
+            for i in range(0, len(data), batch_size):
+                yield data[i:i+batch_size]
+
+    results = []
+    args = list(args)
+    kwargs = kwargs or {}
+    for batch in _batches_iterator():
+        args[data_arg_index] = batch
+        r = handler(*args, **kwargs)
+        results.append(r)
+        sleep(batch_delay)
+
+    return results
 

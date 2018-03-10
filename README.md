@@ -29,12 +29,12 @@ You can make queries in 2 ways:
 ### Query functions
 There are 3 query helpers in this library. There parameters are unified and described in the section below.  
 
-* `bulk_update(model, values, key_fields='id', using=None, set_functions=None, key_fields_ops=())`  
+* `bulk_update(model, values, key_fields='id', using=None, set_functions=None, key_fields_ops=(), batch_size=None, batch_delay=0)`  
     This function updates multiple records of given model in single database query.  
     Functions forms raw sql query for PostgreSQL. It's work is not guaranteed on other databases.  
     Function returns number of updated records.
     
-* `bulk_update_or_create(model, values, key_fields='id', using=None, set_functions=None, update=True)`  
+* `bulk_update_or_create(model, values, key_fields='id', using=None, set_functions=None, update=True, batch_size=None, batch_delay=0)`  
     This function finds records by key_fields. It creates not existing records with data, given in values.   
     If `update` flag is set, it updates existing records with data, given in values.  
     Update is performed with bulk_udpate function above, so function work is not guaranteed on PostgreSQL only.  
@@ -119,6 +119,13 @@ There are 3 query helpers in this library. There parameters are unified and desc
     - 'gt', '>'
     - 'gte', '>='
     - You can define your own clause operation. See section below.
+    
+* `batch_size: Optional[int]`
+    If this parameter is set, values are split into batches of given size. Each batch is processed separately.
+    Note that batch_size != number of records processed if you use key_field_ops other than 'eq'
+    
+* `batch_delay: float`
+   If batch_size is set, this parameter sets time to sleep in seconds between batches execution
     
 * `update: bool`  
     If flag is not set, bulk_update_or_create function will not update existing records, only creating not existing. 
@@ -405,8 +412,8 @@ Pros:
 * Ability to use complex conditions
 * pdnf_clause helper
 * Django 1.7 support
+* Ability to make delay between batches
 
 Corns:
 * PostgreSQL only
-* No batch_size parameter (planned for next release)
 

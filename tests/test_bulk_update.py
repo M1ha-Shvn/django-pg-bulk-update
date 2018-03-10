@@ -128,6 +128,22 @@ class TestInputFormats(TestCase):
         self.assertEqual(1, bulk_update(TestModel, [{'id': [1], 'name': 'test1'}],
                                         key_fields_ops={'id': InClauseOperator()}))
 
+    def test_batch(self):
+        with self.assertRaises(AssertionError):
+            bulk_update(TestModel, [{'id': 1, 'name': 'test1'}], batch_size='abc')
+
+        with self.assertRaises(AssertionError):
+            bulk_update(TestModel, [{'id': 1, 'name': 'test1'}], batch_size=-2)
+
+        with self.assertRaises(AssertionError):
+            bulk_update(TestModel, [{'id': 1, 'name': 'test1'}], batch_size=2.5)
+
+        with self.assertRaises(AssertionError):
+            bulk_update(TestModel, [{'id': 1, 'name': 'test1'}], batch_size=1, batch_delay='abc')
+
+        with self.assertRaises(AssertionError):
+            bulk_update(TestModel, [{'id': 1, 'name': 'test1'}], batch_size=1, batch_delay=-2)
+
 
 class TestSimple(TestCase):
     fixtures = ['test_model']
@@ -224,6 +240,29 @@ class TestSimple(TestCase):
                 values_list('id', 'name', 'int_field'):
             self.assertEqual('test%d' % pk, name)
             self.assertEqual(pk, int_field)
+
+    def test_batch(self):
+        res = bulk_update(TestModel, [{
+            'id': 1,
+            'name': 'bulk_update_1'
+        }, {
+            'id': 5,
+            'name': 'bulk_update_5'
+        }, {
+            'id': 8,
+            'name': 'bulk_update_8'
+        }], batch_size=1)
+        self.assertEqual(3, res)
+        for pk, name, int_field in TestModel.objects.all().order_by('id').values_list('id', 'name', 'int_field'):
+            if pk in {1, 5, 8}:
+                self.assertEqual('bulk_update_%d' % pk, name)
+            else:
+                self.assertEqual('test%d' % pk, name)
+            self.assertEqual(pk, int_field)
+
+            # Test for empty values correct
+            res = bulk_update(TestModel, [], batch_size=10)
+            self.assertEqual(0, res)
 
 
 class TestReadmeExample(TestCase):

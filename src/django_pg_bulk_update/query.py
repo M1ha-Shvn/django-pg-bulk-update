@@ -16,6 +16,7 @@ from .compatibility import zip_longest, hstore_serialize, hstore_available
 from .set_functions import EqualSetFunction, AbstractSetFunction
 from .types import TOperators, TFieldNames, TUpdateValues, TSetFunctions, TOperatorsValid, TUpdateValuesValid, \
     TSetFunctionsValid
+from .utils import batched_operation
 
 
 def _validate_field_names(parameter_name, field_names):
@@ -350,8 +351,9 @@ def _bulk_update_no_validation(model, values, conn, set_functions, key_fields_op
     return cursor.rowcount
 
 
-def bulk_update(model, values, key_fields='id', using=None, set_functions=None, key_fields_ops=()):
-    # type: (Type[Model], TUpdateValues, TFieldNames, Optional[str], TSetFunctions, TOperators) -> int
+def bulk_update(model, values, key_fields='id', using=None, set_functions=None, key_fields_ops=(),
+                batch_size=None, batch_delay=0):
+    # type: (Type[Model], TUpdateValues, TFieldNames, Optional[str], TSetFunctions, TOperators, Optional[int], float) -> int
     """
     Updates multiple records of a given model, finding them by key_fields.
 
@@ -378,6 +380,9 @@ def bulk_update(model, values, key_fields='id', using=None, set_functions=None, 
         The default operator is eq (it will be used for all fields, not set directly).
         Operators: [in; !in; gt, >; lt, <; gte, >=; lte, <=; !eq, <>, !=; eq, =, ==]
         Example: ('eq', 'in') or {'a': 'eq', 'b': 'in'}.
+    :param batch_size: Optional. If given, data is split it into batches of given size.
+        Each batch is queried independently.
+    :param batch_delay: Delay in seconds between batches execution, if batch_size is not None.
     :return: Number of records updated
     """
     # Validate data
@@ -396,10 +401,13 @@ def bulk_update(model, values, key_fields='id', using=None, set_functions=None, 
     set_functions = _validate_set_functions(model, upd_keys_tuple, set_functions)
     conn = connection if using is None else connections[using]
 
-    return _bulk_update_no_validation(model, values, conn, set_functions, key_fields_ops)
+    batched_result = batched_operation(_bulk_update_no_validation, values,
+                                       args=(model, None, conn, set_functions, key_fields_ops),
+                                       data_arg_index=1, batch_size=batch_size, batch_delay=batch_delay)
+    return sum(batched_result)
 
 
-def bulk_update_or_create(model, values, key_fields='id', using=None, set_functions=None, update=True):
+def _bulk_update_or_create_no_validation(model, values, key_fields, using, set_functions, update):
     # type: (Type[Model], TUpdateValues, TFieldNames, Optional[str], TSetFunctions, bool) -> Tuple[int, int]
     """
     Searches for records, given in values by key_fields. If records are found, updates them from values.
@@ -407,15 +415,11 @@ def bulk_update_or_create(model, values, key_fields='id', using=None, set_functi
 
     :param model: Model to update, a subclass of django.db.models.Model
     :param values: Data to update. All items must update same fields!!!
-        It can come in 2 forms:
-        + Iterable of dicts. Each dict is update or create data. Each dict must contain all key_fields as keys.
-            You can't update key_fields with this format.
-        + Dict of key_values: update_fields_dict
+        Dict of key_values: update_fields_dict
             - key_values can be iterable or single object.
             - If iterable, key_values length must be equal to key_fields length.
             - If single object, key_fields is expected to have 1 element
-    :param key_fields: Field names, by which items would be selected.
-        It can be a string, if there's only one key field or iterable of strings for multiple keys
+    :param key_fields: Field names, by which items would be selected (tuple)
     :param using: Database alias to make query to.
     :param set_functions: Functions to set values.
         Should be a dict of field name as key, function as value.
@@ -425,20 +429,6 @@ def bulk_update_or_create(model, values, key_fields='id', using=None, set_functi
     :param update: If this flag is not set, existing records will not be updated
     :return: A tuple (number of records created, number of records updated)
     """
-    # Validate data
-    assert inspect.isclass(model), "model must be django.db.models.Model subclass"
-    assert issubclass(model, Model), "model must be django.db.models.Model subclass"
-    assert using is None or isinstance(using, six.string_types) and using in connections, \
-        "using parameter must be None or existing database alias"
-    assert type(update) is bool, "update parameter must be boolean"
-
-    key_fields = _validate_field_names("key_fields", key_fields)
-    upd_keys_tuple, values = _validate_update_values(key_fields, values)
-
-    if len(values) == 0:
-        return (0, 0)
-
-    set_functions = _validate_set_functions(model, upd_keys_tuple, set_functions)
     conn = connection if using is None else connections[using]
 
     # bulk_update_or_create searches values by key equality only. No difficult filters here
@@ -484,4 +474,56 @@ def bulk_update_or_create(model, values, key_fields='id', using=None, set_functi
         # Create abscent records
         created = len(model.objects.db_manager(using).bulk_create(create_items))
 
-    return created, updated
+        return created, updated
+
+
+def bulk_update_or_create(model, values, key_fields='id', using=None, set_functions=None, update=True, batch_size=None,
+                          batch_delay=0):
+    # type: (Type[Model], TUpdateValues, TFieldNames, Optional[str], TSetFunctions, bool, Optional[int], float) -> Tuple[int, int]
+    """
+    Searches for records, given in values by key_fields. If records are found, updates them from values.
+    If not found - creates them from values. Note, that all fields without default value must be present in values.
+
+    :param model: Model to update, a subclass of django.db.models.Model
+    :param values: Data to update. All items must update same fields!!!
+        It can come in 2 forms:
+        + Iterable of dicts. Each dict is update or create data. Each dict must contain all key_fields as keys.
+            You can't update key_fields with this format.
+        + Dict of key_values: update_fields_dict
+            - key_values can be iterable or single object.
+            - If iterable, key_values length must be equal to key_fields length.
+            - If single object, key_fields is expected to have 1 element
+    :param key_fields: Field names, by which items would be selected.
+        It can be a string, if there's only one key field or iterable of strings for multiple keys
+    :param using: Database alias to make query to.
+    :param set_functions: Functions to set values.
+        Should be a dict of field name as key, function as value.
+        Default function is eq.
+        Functions: [eq, =; incr, +; concat, ||]
+        Example: {'name': 'eq', 'int_fields': 'incr'}
+    :param update: If this flag is not set, existing records will not be updated
+    :param batch_size: Optional. If given, data is split it into batches of given size.
+        Each batch is queried independently.
+    :param batch_delay: Delay in seconds between batches execution, if batch_size is not None.
+    :return: A tuple (number of records created, number of records updated)
+    """
+    # Validate data
+    assert inspect.isclass(model), "model must be django.db.models.Model subclass"
+    assert issubclass(model, Model), "model must be django.db.models.Model subclass"
+    assert using is None or isinstance(using, six.string_types) and using in connections, \
+        "using parameter must be None or existing database alias"
+    assert type(update) is bool, "update parameter must be boolean"
+
+    key_fields = _validate_field_names("key_fields", key_fields)
+    upd_keys_tuple, values = _validate_update_values(key_fields, values)
+
+    if len(values) == 0:
+        return 0, 0
+
+    set_functions = _validate_set_functions(model, upd_keys_tuple, set_functions)
+
+    batched_result = batched_operation(_bulk_update_or_create_no_validation, values,
+                                       args=(model, None, key_fields, using, set_functions, update),
+                                       data_arg_index=1, batch_size=batch_size, batch_delay=batch_delay)
+
+    return tuple(int(sum(item)) for item in zip(*batched_result))
