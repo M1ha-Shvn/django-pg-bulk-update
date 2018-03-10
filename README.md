@@ -132,7 +132,7 @@ There are 3 query helpers in this library. There parameters are unified and desc
 * `update: bool`  
     If flag is not set, bulk_update_or_create function will not update existing records, only creating not existing. 
     
-* `field_values: Iterable[Union[Iterable[Any], dict]]`
+* `field_values: Iterable[Union[Iterable[Any], dict]]`  
     Field values to use in `pdnf_clause` function. They have simpler format than update functions.
     It can come in 2 formats:  
     + An iterable of tuples in key_fields order `( (x, y), (x1, y1), ...)`
