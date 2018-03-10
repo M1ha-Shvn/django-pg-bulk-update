@@ -122,11 +122,11 @@ There are 3 query helpers in this library. There parameters are unified and desc
     - 'gte', '>='
     - You can define your own clause operation. See section below.
     
-* `batch_size: Optional[int]`
+* `batch_size: Optional[int]`  
     If this parameter is set, values are split into batches of given size. Each batch is processed separately.
     Note that batch_size != number of records processed if you use key_field_ops other than 'eq'
     
-* `batch_delay: float`
+* `batch_delay: float`  
    If batch_size is set, this parameter sets time to sleep in seconds between batches execution
     
 * `update: bool`  
