@@ -91,6 +91,8 @@ There are 3 query helpers in this library. There parameters are unified and desc
       Adds field value to previous one. It can be used for all numeric database types.   
     - 'concat', '||'  
       Concatenates field value to previous one. It can be used for string types, JSONField, HStoreField, ArrayField.
+    - 'eq_not_null'  
+      This function can be used, if you want to update value only if it is not None.
     - You can define your own set function. See section below.
   
     Increment and concatenate functions concern NULL as default value. You can see default values in sections below.

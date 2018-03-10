@@ -161,6 +161,17 @@ class EqualSetFunction(AbstractSetFunction):
             return '"%s" = %s' % (field.column, str(val)), []
 
 
+class EqualNotNullSetFunction(AbstractSetFunction):
+    names = {'eq_not_null'}
+
+    def get_sql(self, field, val, connection, val_as_param=True, **kwargs):
+        if val_as_param:
+            sql, params = self.format_field_value(field, val, connection)
+            return '"%s" = COALESCE(%s, "%s")' % (field.column, sql, field.column), params
+        else:
+            return '"%s" = COALESCE(%s, "%s")' % (field.column, str(val), field.column), []
+
+
 class PlusSetFunction(AbstractSetFunction):
     names = {'+', 'incr'}
 
