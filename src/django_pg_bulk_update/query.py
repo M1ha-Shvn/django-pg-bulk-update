@@ -457,14 +457,8 @@ def _bulk_update_or_create_no_validation(model, values, key_fields, using, set_f
                 kwargs = dict(zip(key_fields, key))
                 kwargs.update(updates)
 
-                if hstore_available():
-                    # Django before 1.10 doesn't convert HStoreField values to string automatically
-                    # Which causes a bug in cursor.execute(). Let's do it here
-                    from django.contrib.postgres.fields import HStoreField
-                    kwargs = {
-                        key: hstore_serialize(value) if isinstance(model._meta.get_field(key), HStoreField) else value
-                        for key, value in kwargs.items()
-                    }
+                for k, sf in set_functions.items():
+                    sf.modify_create_params(model, k, kwargs)
 
                 create_items.append(model(**kwargs))
 

@@ -8,7 +8,7 @@ from django_pg_bulk_update.compatibility import jsonb_available, hstore_availabl
 
 # Not all fields are available in different django and postgres versions
 model_attrs = {
-    'name': models.CharField(max_length=50, null=True, blank=True),
+    'name': models.CharField(max_length=50, null=True, blank=True, default=''),
     'int_field': models.IntegerField(null=True, blank=True),
     'objects': BulkUpdateManager(),
     '__module__': __name__
