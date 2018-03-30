@@ -2,13 +2,14 @@
 This file contains classes, describing functions which set values to fields.
 """
 import datetime
-from typing import Type, Optional, Any, Tuple
+from typing import Type, Optional, Any, Tuple, Dict
 
 import pytz
 from django.db import DefaultConnectionProxy
-from django.db.models import Field
+from django.db.models import Field, Model
 
-from django_pg_bulk_update.compatibility import get_postgres_version, jsonb_available, Postgres94MergeJSONBMigration
+from .compatibility import get_postgres_version, jsonb_available, Postgres94MergeJSONBMigration, hstore_serialize,\
+    hstore_available
 from .utils import get_subclasses, format_field_value
 
 # When doing increment operations, we need to replace NULL values with something
@@ -92,6 +93,23 @@ class AbstractSetFunction(object):
         """
         return format_field_value(field, val, connection)
 
+    def modify_create_params(self, model, key, kwargs):
+        # type: (Type[Model], str, Dict[str, Any]) -> Dict[str, Any]
+        """
+        This method modifies parameters before passing them to model(**kwargs)
+        :param key: Field key, for which SetFunction is adopted
+        :param kwargs: Function parameters
+        :return: Modified params
+        """
+        if hstore_available():
+            # Django before 1.10 doesn't convert HStoreField values to string automatically
+            # Which causes a bug in cursor.execute(). Let's do it here
+            from django.contrib.postgres.fields import HStoreField
+            if isinstance(model._meta.get_field(key), HStoreField):
+                kwargs[key] = hstore_serialize(kwargs[key])
+
+        return kwargs
+
     def get_sql(self, field, val, connection, val_as_param=True, **kwargs):
         # type: (Field, Any, DefaultConnectionProxy, bool, **Any) -> Tuple[str, Tuple[Any]]
         """
@@ -163,6 +181,12 @@ class EqualSetFunction(AbstractSetFunction):
 
 class EqualNotNullSetFunction(AbstractSetFunction):
     names = {'eq_not_null'}
+
+    def modify_create_params(self, model, key, kwargs):
+        if kwargs[key] is None:
+            del kwargs[key]
+
+        return kwargs
 
     def get_sql(self, field, val, connection, val_as_param=True, **kwargs):
         if val_as_param:
