@@ -357,7 +357,7 @@ class TestSetFunctions(TestCase):
             if pk != 11:
                 self.assertEqual('test%d' % pk, name)
             else:
-                self.assertIsNone(name)
+                self.assertEqual('', name)
 
     def test_concat_str(self):
         res = bulk_update_or_create(TestModel, [{
@@ -397,7 +397,7 @@ class TestSetFunctions(TestCase):
             if pk != 11:
                 self.assertEqual('test%d' % pk, name)
             else:
-                self.assertIsNone(name)
+                self.assertEqual('', name)
 
     @skipIf(not array_available(), "ArrayField is available in Django 1.8+")
     def test_concat_array(self):
@@ -423,7 +423,7 @@ class TestSetFunctions(TestCase):
             if pk != 11:
                 self.assertEqual('test%d' % pk, name)
             else:
-                self.assertIsNone(name)
+                self.assertEqual('', name)
 
     @skipIf(not hstore_available(), "HStoreField is available in Django 1.8+")
     def test_concat_hstore(self):
@@ -464,7 +464,8 @@ class TestSetFunctions(TestCase):
             if pk in {1}:
                 self.assertEqual('bulk_update_%d' % pk, name)
             elif pk == 11:
-                self.assertIsNone(name)
+                # Default name, not None, look https://github.com/M1hacka/django-pg-bulk-update/issues/2
+                self.assertEqual('', name)
             else:
                 self.assertEqual('test%d' % pk, name)
 
@@ -560,7 +561,7 @@ class TestFieldTypes(TestCase):
             if pk != 11:
                 self.assertEqual('test%d' % pk, name)
             else:
-                self.assertIsNone(name)
+                self.assertEqual('', name)
 
     @skipIf(not jsonb_available(), "JSONB type is available in Postgres 9.4+ and django 1.9+ only")
     def test_jsonb(self):
@@ -583,7 +584,7 @@ class TestFieldTypes(TestCase):
             if pk != 11:
                 self.assertEqual('test%d' % pk, name)
             else:
-                self.assertIsNone(name)
+                self.assertEqual('', name)
 
     @skipIf(not hstore_available(), "HStoreField is available in Django 1.8+")
     def test_hstore(self):
@@ -606,4 +607,4 @@ class TestFieldTypes(TestCase):
             if item.pk != 11:
                 self.assertEqual('test%d' % item.pk, item.name)
             else:
-                self.assertIsNone(item.name)
+                self.assertEqual('', item.name)
