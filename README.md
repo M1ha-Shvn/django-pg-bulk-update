@@ -93,9 +93,12 @@ There are 3 query helpers in this library. There parameters are unified and desc
       Concatenates field value to previous one. It can be used for string types, JSONField, HStoreField, ArrayField.
     - 'eq_not_null'  
       This function can be used, if you want to update value only if it is not None.
+    - 'union'  
+      This function combines ArrayField value with previous one, removing duplicates.
     - You can define your own set function. See section below.
   
-    Increment and concatenate functions concern NULL as default value. You can see default values in sections below.
+    Increment, union and concatenate functions concern NULL as default value.
+    You can see default values in sections below.
     
 * `key_field_ops: Union[Dict[str, Union[str, AbstractClauseOperator]], Iterable[Union[str, AbstractClauseOperator]]]`
     Optional. Operators, which are used to fined records for update. Operators are applied to `key_fields`.  
@@ -330,10 +333,17 @@ which contains alias in `names` attribute.
 You can define your own set function, creating `AbstractSetFunction` subclass and implementing:
 * `names` attribute
 * `supported_field_classes` attribute
-* `def get_sql(self, field, val, connection, val_as_param=True, **kwargs)` method
+* One of:  
+  - `def get_sql_value(self, field, val, connection, val_as_param=True, **kwargs)` method
+  This method defines new value to set for parameter. It is called from `get_sql(...)` method by default.
+  - `def get_sql(self, field, val, connection, val_as_param=True, **kwargs)` method
+  This method sets full sql and it params to use in set section of update query.  
+  By default it returns: `"%s" = self.get_sql_value(...)`, params
 
-Optionally, you can change `def format_field_value(self, field, val, connection, **kwargs)`
-method, if input data needs special formatting.  
+Optionally, you can change:
+* `def format_field_value(self, field, val, connection, **kwargs)` method, if input data needs special formatting. 
+* `def modify_create_params(self, model, key, kwargs)` method, to change data before passing them to model constructor
+in `bulk_update_or_create()`
 
 Example:  
 
@@ -348,10 +358,10 @@ class CustomSetFunction(AbstractSetFunction):
     # Names of django field classes, this function supports. You can set None (default) to support any field.
     supported_field_classes = {'IntegerField', 'FloatField', 'AutoField', 'BigAutoField'}
 
-    def get_sql(self, field, val, connection, val_as_param=True, **kwargs):
-        # type: (Field, Any, DefaultConnectionProxy, bool, **Any) -> Tuple[str, Tuple[Any]]
+    def get_sql_value(self, field, val, connection, val_as_param=True, **kwargs):
         """
-        Returns function sql and parameters for query execution
+        Returns value sql to set into field and parameters for query execution
+        This method is called from get_sql() by default.
         :param field: Django field to take format from
         :param val: Value to format
         :param connection: Connection used to update data
@@ -364,13 +374,13 @@ class CustomSetFunction(AbstractSetFunction):
         null_default, null_default_params = self._parse_null_default(field, connection, **kwargs)
         
         # Your function/operator should be defined here
-        tpl = '"%s" = COALESCE("%s", %s) + %s'
+        tpl = 'COALESCE("%s", %s) + %s'
 
         if val_as_param:
             sql, params = self.format_field_value(field, val, connection)
-            return tpl % (field.column, field.column, null_default, sql), null_default_params + params
+            return tpl % (field.column, null_default, sql), null_default_params + params
         else:
-            return tpl % (field.column, field.column, null_default, str(val)), null_default_params
+            return tpl % (field.column, null_default, str(val)), null_default_params
             
             
 # Usage examples

@@ -408,6 +408,34 @@ class TestSetFunctions(TestCase):
                                                     {'id': 4, 'array_field': []}], set_functions={'array_field': '||'})
             self._test_concat_array(i, res)
 
+    def _test_union_array(self, iteration, res):
+        self.assertTupleEqual((1, 3) if iteration == 1 else (0, 4), res)
+        for pk, name, array_field in TestModel.objects.all().order_by('id').values_list('id', 'name', 'array_field'):
+            if pk == 1:
+                self.assertListEqual([pk], array_field)
+            elif pk in {2, 11}:
+                # Union doesn't save order, let's sort result
+                array_field.sort()
+                self.assertListEqual(list(range(1, iteration + 1)), array_field)
+            elif pk == 4:
+                self.assertListEqual([], array_field)
+            else:
+                self.assertIsNone(array_field)
+
+            if pk != 11:
+                self.assertEqual('test%d' % pk, name)
+            else:
+                self.assertEqual('', name)
+
+    @skipIf(not array_available(), "ArrayField is available in Django 1.8+")
+    def test_union_array(self):
+        for i in range(1, 5):
+            res = bulk_update_or_create(TestModel, [{'id': 1, 'array_field': [1]},
+                                                    {'id': 2, 'array_field': [i]},
+                                                    {'id': 11, 'array_field': [i]},
+                                                    {'id': 4, 'array_field': []}], set_functions={'array_field': 'union'})
+            self._test_union_array(i, res)
+
     def _test_concat_dict(self, iteration, res, field_name, val_as_str=False):
         self.assertTupleEqual((1, 3) if iteration == 1 else (0, 4), res)
         for pk, name, dict_field in TestModel.objects.all().order_by('id').values_list('id', 'name', field_name):
