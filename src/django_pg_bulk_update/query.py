@@ -4,7 +4,7 @@ This file contains bulk_update query functions
 
 import inspect
 import json
-from collections import Iterable, OrderedDict
+from collections import Iterable
 
 import six
 from django.db import transaction, connection, connections, DefaultConnectionProxy
@@ -12,7 +12,7 @@ from django.db.models import Model, Q
 from typing import Any, Type, Iterable as TIterable, Union, Optional, List, Tuple
 
 from .clause_operators import AbstractClauseOperator, EqualClauseOperator
-from .compatibility import zip_longest, hstore_serialize, hstore_available
+from .compatibility import zip_longest
 from .set_functions import EqualSetFunction, AbstractSetFunction
 from .types import TOperators, TFieldNames, TUpdateValues, TSetFunctions, TOperatorsValid, TUpdateValuesValid, \
     TSetFunctionsValid
@@ -42,7 +42,7 @@ def _validate_field_names(parameter_name, field_names):
         raise AssertionError(error_message)
 
 
-def _validate_operators(field_names, operators, param_name='values'):
+def _validate_operators(field_names, operators, param_name='key_fields_ops'):
     # type: (List[str], TOperators, str) -> TOperatorsValid
     """
     Validates operators and gets a dict of database filters with field_name as key
@@ -52,28 +52,29 @@ def _validate_operators(field_names, operators, param_name='values'):
     :param param_name: Name of parameter to output in exception
     :return: An ordered dict of field_name: (db_filter pairs, inverse)
     """
-    # Format operations as dictionary by field name
+    # Format operations as tuple (field name, AbstractClauseOperator())
     if isinstance(operators, dict):
-        for name in field_names:
-            if name not in operators:
-                operators[name] = EqualClauseOperator()
+        assert len(set(operators.keys()) - set(field_names)) == 0,\
+            "Some operators are not present in %s" % param_name
+        operators = tuple(
+            (name, EqualClauseOperator() if name not in operators else operators[name])
+            for name in field_names
+        )
     else:
         assert isinstance(operators, Iterable), \
             "'%s' parameter must be iterable of strings or AbstractClauseOperator instances" % param_name
-        operators = dict(zip_longest(field_names, operators, fillvalue=EqualClauseOperator()))
+        operators = tuple(zip_longest(field_names, operators, fillvalue=EqualClauseOperator()))
 
-    assert len(set(field_names)) == len(set(operators.keys())), "Some operators are not present in %s" % param_name
-
-    res = OrderedDict()
-    for name in field_names:
-        if isinstance(operators[name], AbstractClauseOperator):
-            res[name] = operators[name]
-        elif isinstance(operators[name], six.string_types):
-            res[name] = AbstractClauseOperator.get_operation_by_name(operators[name])()
+    res = []
+    for field_name, op in operators:
+        if isinstance(op, AbstractClauseOperator):
+            res.append((field_name, op))
+        elif isinstance(op, six.string_types):
+            res.append((field_name, AbstractClauseOperator.get_operation_by_name(op)()))
         else:
-            raise AssertionError("Invalid operator '%s'" % str(operators[name]))
+            raise AssertionError("Invalid operator '%s'" % str(op))
 
-    return res
+    return tuple(res)
 
 
 def _validate_update_values(key_fields, values, param_name='values'):
@@ -210,7 +211,7 @@ def pdnf_clause(key_fields, field_values, key_fields_ops=()):
     """
     # Validate input data
     key_fields = _validate_field_names("key_fields", key_fields)
-    key_fields_ops = _validate_operators(key_fields, key_fields_ops, param_name='key_fields_ops')
+    key_fields_ops = _validate_operators(key_fields, key_fields_ops)
 
     assert isinstance(field_values, Iterable), "field_values must be iterable of tuples or dicts"
     field_values = list(field_values)
@@ -237,7 +238,7 @@ def pdnf_clause(key_fields, field_values, key_fields_ops=()):
             else:
                 raise AssertionError("Each field_values item must be dict or iterable")
 
-            op = key_fields_ops[name]
+            op = key_fields_ops[i][1]
             kwargs = {op.get_django_filter(name): value}
             and_cond &= ~Q(**kwargs) if op.inverse else Q(**kwargs)
 
@@ -258,10 +259,9 @@ def _bulk_update_no_validation(model, values, conn, set_functions, key_fields_op
     :param set_functions: Functions to set values.
         Should be a dict of field name as key, function class as value.
     :param key_fields_ops: Key fields compare operators.
-        A dict with field_name from key_fields as key, operation name as value
+        A tuple with (field_name from key_fields, operation name) elements
     :return: Number of records updated
     """
-    key_fields = list(key_fields_ops.keys())
     upd_keys_tuple = tuple(set_functions.keys())
 
     # No any values to update. Return that everything is done.
@@ -289,7 +289,7 @@ def _bulk_update_no_validation(model, values, conn, set_functions, key_fields_op
     # This fake update value is used for each saved column in order to get it's type
     select_type_query = '(SELECT "{key}" FROM "{table}" LIMIT 0)'
     null_fix_value_item = [select_type_query.format(key=k, table=db_table) for k in upd_keys_tuple]
-    null_fix_value_item.extend([key_fields_ops[k].get_null_fix_sql(model, k, conn) for k in key_fields])
+    null_fix_value_item.extend([op.get_null_fix_sql(model, name, conn) for name, op in key_fields_ops])
     values_items.append(null_fix_value_item)
 
     for keys, updates in values.items():
@@ -305,9 +305,9 @@ def _bulk_update_no_validation(model, values, conn, set_functions, key_fields_op
             upd_item.append(item_sql)
 
         # Prepare key fields values
-        for name, val in zip(key_fields, keys):
+        for (name, op), val in zip(key_fields_ops, keys):
             f = model._meta.get_field(name)
-            item_sql, item_upd_params = key_fields_ops[name].format_field_value(f, val, conn)
+            item_sql, item_upd_params = op.format_field_value(f, val, conn)
             values_update_params.extend(item_upd_params)
             upd_item.append(item_sql)
 
@@ -320,16 +320,19 @@ def _bulk_update_no_validation(model, values, conn, set_functions, key_fields_op
     # Form data for AS sel() section
     # Names in key_fields can intersect with upd_keys_tuple and should be prefixed
     sel_items = ["upd__%s" % field_name for field_name in upd_keys_tuple]
-    sel_key_items = ["key__%s" % field_name for field_name in key_fields]
+
+    # enumerate is used to prevent same keys for duplicated key_field names
+    sel_key_items = ["key_%d__%s" % (i, name) for i, (name, _) in enumerate(key_fields_ops)]
+
     sel_sql = ', '.join(sel_items + sel_key_items)
 
     # Form data for WHERE section
     # Remember that field names in sel table have prefixes.
     where_items = []
-    for key_field, sel_field in zip(key_fields, sel_key_items):
+    for (key_field, op), sel_field in zip(key_fields_ops, sel_key_items):
         table_field = '"t"."%s"' % model._meta.get_field(key_field).column
         prefixed_sel_field = '"sel"."%s"' % sel_field
-        where_items.append(key_fields_ops[key_field].get_sql(table_field, prefixed_sel_field))
+        where_items.append(op.get_sql(table_field, prefixed_sel_field))
     where_sql = ' AND '.join(where_items)
 
     # Form data for SET section
@@ -397,7 +400,7 @@ def bulk_update(model, values, key_fields='id', using=None, set_functions=None, 
     if len(values) == 0:
         return 0
 
-    key_fields_ops = _validate_operators(key_fields, key_fields_ops, param_name='key_fields_ops')
+    key_fields_ops = _validate_operators(key_fields, key_fields_ops)
     set_functions = _validate_set_functions(model, upd_keys_tuple, set_functions)
     conn = connection if using is None else connections[using]
 
@@ -432,9 +435,7 @@ def _bulk_update_or_create_no_validation(model, values, key_fields, using, set_f
     conn = connection if using is None else connections[using]
 
     # bulk_update_or_create searches values by key equality only. No difficult filters here
-    key_fields_ops = OrderedDict()
-    for key in key_fields:
-        key_fields_ops[key] = EqualClauseOperator()
+    key_fields_ops = tuple((key, EqualClauseOperator()) for key in key_fields)
 
     with transaction.atomic(using=using):
         # Find existing values
