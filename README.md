@@ -417,6 +417,16 @@ class Migration(migrations.Migration):
     ]
 ```
 
+## Performance
+Test background:
+- Django 2.0.2
+- PostgreSQL 10.2
+- Python 3.6.3
+- 1000 pre-created records  
+Updating records one by one took 51,68 seconds.  
+Updating records with bulk_update took 0.13 seconds.  
+You can write your own tests, based on test.test_performance and running it.
+
 ## [django-bulk-update](https://github.com/aykut/django-bulk-update) difference
 Pros:
 * bulk_update_or_create() method
