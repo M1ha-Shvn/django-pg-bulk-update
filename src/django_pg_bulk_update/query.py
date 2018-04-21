@@ -4,7 +4,7 @@ This file contains bulk_update query functions
 
 import inspect
 import json
-from collections import Iterable, OrderedDict
+from collections import Iterable
 
 import six
 from django.db import transaction, connection, connections, DefaultConnectionProxy
@@ -54,17 +54,16 @@ def _validate_operators(field_names, operators, param_name='key_fields_ops'):
     """
     # Format operations as tuple (field name, AbstractClauseOperator())
     if isinstance(operators, dict):
-        for name in field_names:
-            if name not in operators:
-                operators[name] = EqualClauseOperator()
-        operators = tuple(operators.items())  # type: Tuple[str, Union[str, AbstractClauseOperator]]
+        assert len(set(operators.keys()) - set(field_names)) == 0,\
+            "Some operators are not present in %s" % param_name
+        operators = tuple(
+            (name, EqualClauseOperator() if name not in operators else operators[name])
+            for name in field_names
+        )
     else:
         assert isinstance(operators, Iterable), \
             "'%s' parameter must be iterable of strings or AbstractClauseOperator instances" % param_name
         operators = tuple(zip_longest(field_names, operators, fillvalue=EqualClauseOperator()))
-
-    # I'm not sure what this is about
-    # assert len(set(field_names)) == len(set(operators.keys())), "Some operators are not present in %s" % param_name
 
     res = []
     for field_name, op in operators:
