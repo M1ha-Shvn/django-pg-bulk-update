@@ -108,7 +108,7 @@ class AbstractArrayValueOperator(AbstractClauseOperator):
             for item in val:
                 p, v = super(AbstractArrayValueOperator, self).format_field_value(field, item, connection, **kwargs)
                 placeholders.append(p)
-                values.append(v)
+                values.extend(v)
 
             query = tpl % (', '.join(placeholders), db_type)
             return query, values
