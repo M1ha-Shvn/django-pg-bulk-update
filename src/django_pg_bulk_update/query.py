@@ -239,7 +239,7 @@ def pdnf_clause(key_fields, field_values, key_fields_ops=()):
                 raise AssertionError("Each field_values item must be dict or iterable")
 
             op = key_fields_ops[i][1]
-            kwargs = {op.get_django_filter(name): value}
+            kwargs = op.get_django_filters(name, value)
             and_cond &= ~Q(**kwargs) if op.inverse else Q(**kwargs)
 
         or_cond |= and_cond
