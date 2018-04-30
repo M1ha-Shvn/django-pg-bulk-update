@@ -18,6 +18,8 @@ from .types import TOperators, TFieldNames, TUpdateValues, TSetFunctions, TOpera
     TSetFunctionsValid
 from .utils import batched_operation
 
+__all__ = ['pdnf_clause', 'bulk_update', 'bulk_update_or_create']
+
 
 def _validate_field_names(parameter_name, field_names):
     # type: (str, TFieldNames) -> List[str]
@@ -247,11 +249,10 @@ def pdnf_clause(key_fields, field_values, key_fields_ops=()):
     return or_cond
 
 
-def _bulk_update_no_validation(model, values, conn, set_functions, key_fields_ops):
-    # type: (Type[Model], TUpdateValuesValid, DefaultConnectionProxy, TSetFunctionsValid, TOperatorsValid) -> int
+def _with_values_query_part(model, values, conn, set_functions, key_fields_ops):
+    # type: (Type[Model], TUpdateValuesValid, DefaultConnectionProxy, TSetFunctionsValid, TOperatorsValid) -> Tuple[List[str], str, List[Any]]
     """
-    Does bulk update, skipping parameters validation.
-    It is used for speed up in bulk_update_or_create, where parameters are already formatted.
+    Forms query part, selecting input values
     :param model: Model to update, a subclass of django.db.models.Model
     :param values: Data to update. All items must update same fields!!!
         Dict of key_values_tuple: update_fields_dict
@@ -260,27 +261,15 @@ def _bulk_update_no_validation(model, values, conn, set_functions, key_fields_op
         Should be a dict of field name as key, function class as value.
     :param key_fields_ops: Key fields compare operators.
         A tuple with (field_name from key_fields, operation name) elements
-    :return: Number of records updated
+    :return: A tuple of sql and it's parameters
     """
-    upd_keys_tuple = tuple(set_functions.keys())
-
-    # No any values to update. Return that everything is done.
-    if not upd_keys_tuple or not values:
-        return len(values)
-
-    # Query template. We will form its substitutes in next sections
-    query = """
-        UPDATE %s AS t SET %s
-        FROM (
-            VALUES %s
-        ) AS sel(%s)
-        WHERE %s;
-    """
+    tpl = "WITH vals(%s) AS (VALUES %s)"
 
     # Table we save data to
     db_table = model._meta.db_table
+    upd_keys_tuple = tuple(set_functions.keys())
 
-    # Form data for VALUES() select.
+    # Form data for VALUES section
     # It includes both keys and update data: keys will be used in WHERE section, while update data in SET section
     values_items = []
     values_update_params = []
@@ -326,12 +315,42 @@ def _bulk_update_no_validation(model, values, conn, set_functions, key_fields_op
 
     sel_sql = ', '.join(sel_items + sel_key_items)
 
+    return sel_key_items, tpl % (sel_sql, values_sql), values_update_params
+
+
+def _bulk_update_query_part(model, sel_key_items, conn, set_functions, key_fields_ops):
+    # type: (Type[Model], List[str], DefaultConnectionProxy, TSetFunctionsValid, TOperatorsValid) -> Tuple[str, List[Any]]
+    """
+    Forms bulk update query part without values, counting that all keys and values are already in vals table
+    :param model: Model to update, a subclass of django.db.models.Model
+    :param sel_key_items: Names of field in vals table.
+        Key fields are prefixed with key_%d__
+        Values fields are prefixed with upd__
+    :param conn: Database connection used
+    :param set_functions: Functions to set values.
+        Should be a dict of field name as key, function class as value.
+    :param key_fields_ops: Key fields compare operators.
+        A tuple with (field_name from key_fields, operation name) elements
+    :return: A tuple of sql and it's parameters
+    """
+    upd_keys_tuple = tuple(set_functions.keys())
+
+    # Query template. We will form its substitutes in next sections
+    query = """
+        UPDATE %s AS t SET %s
+        FROM vals
+        WHERE %s;
+    """
+
+    # Table we save data to
+    db_table = model._meta.db_table
+
     # Form data for WHERE section
     # Remember that field names in sel table have prefixes.
     where_items = []
     for (key_field, op), sel_field in zip(key_fields_ops, sel_key_items):
         table_field = '"t"."%s"' % model._meta.get_field(key_field).column
-        prefixed_sel_field = '"sel"."%s"' % sel_field
+        prefixed_sel_field = '"vals"."%s"' % sel_field
         where_items.append(op.get_sql(table_field, prefixed_sel_field))
     where_sql = ' AND '.join(where_items)
 
@@ -340,17 +359,42 @@ def _bulk_update_no_validation(model, values, conn, set_functions, key_fields_op
     for field_name in upd_keys_tuple:
         func_cls = set_functions[field_name]
         f = model._meta.get_field(field_name)
-        func_sql, params = func_cls.get_sql(f, '"sel"."upd__%s"' % field_name, conn, val_as_param=False)
+        func_sql, params = func_cls.get_sql(f, '"vals"."upd__%s"' % field_name, conn, val_as_param=False)
         set_items.append(func_sql)
         set_params.extend(params)
     set_sql = ', '.join(set_items)
 
-    # Substitute query placeholders
-    query = query % ('"%s"' % db_table, set_sql, values_sql, sel_sql, where_sql)
+    # Substitute query placeholders and concatenate with VALUES section
+    query = query % ('"%s"' % db_table, set_sql, where_sql)
+    return query, set_params
+
+
+def _bulk_update_no_validation(model, values, conn, set_functions, key_fields_ops):
+    # type: (Type[Model], TUpdateValuesValid, DefaultConnectionProxy, TSetFunctionsValid, TOperatorsValid) -> int
+    """
+    Does bulk update, skipping parameters validation.
+    It is used for speed up in bulk_update_or_create, where parameters are already formatted.
+    :param model: Model to update, a subclass of django.db.models.Model
+    :param values: Data to update. All items must update same fields!!!
+        Dict of key_values_tuple: update_fields_dict
+    :param conn: Database connection used
+    :param set_functions: Functions to set values.
+        Should be a dict of field name as key, function class as value.
+    :param key_fields_ops: Key fields compare operators.
+        A tuple with (field_name from key_fields, operation name) elements
+    :return: Number of records updated
+    """
+    # No any values to update. Return that everything is done.
+    if not set_functions or not values:
+        return len(values)
+
+    sel_key_items, values_sql, values_params = _with_values_query_part(model, values, conn, set_functions,
+                                                                       key_fields_ops)
+    upd_sql, upd_params = _bulk_update_query_part(model, sel_key_items, conn, set_functions, key_fields_ops)
 
     # Execute query
     cursor = conn.cursor()
-    cursor.execute(query, params=set_params + values_update_params)
+    cursor.execute(values_sql + upd_sql, params=values_params + upd_params)
     return cursor.rowcount
 
 
