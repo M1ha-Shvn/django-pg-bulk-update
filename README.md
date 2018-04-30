@@ -123,6 +123,8 @@ There are 3 query helpers in this library. There parameters are unified and desc
     - 'lte', '<='
     - 'gt', '>'
     - 'gte', '>='
+    - 'between'
+      Searches for records, which have field between a and b. Value should be iterable with 2 items.
     - You can define your own clause operation. See section below.
     
 * `batch_size: Optional[int]`  
