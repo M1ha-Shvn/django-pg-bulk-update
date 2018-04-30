@@ -264,6 +264,25 @@ class TestSimple(TestCase):
             res = bulk_update(TestModel, [], batch_size=10)
             self.assertEqual(0, res)
 
+    def test_same_key_fields(self):
+        res = bulk_update(TestModel, {
+            (1, 3): {
+                "name": "first"
+            },
+            (6, 8): {
+                "name": "second"
+            }
+        }, key_fields=('id', 'id'), key_fields_ops=('>=', '<'))
+        self.assertEqual(4, res)
+        for pk, name, int_field in TestModel.objects.all().order_by('id').values_list('id', 'name', 'int_field'):
+            if pk in {1, 2}:
+                self.assertEqual('first', name)
+            elif pk in {6, 7}:
+                self.assertEqual('second', name)
+            else:
+                self.assertEqual('test%d' % pk, name)
+            self.assertEqual(pk, int_field)
+
 
 class TestReadmeExample(TestCase):
     def test_example(self):

@@ -5,8 +5,7 @@ from .set_functions import AbstractSetFunction
 
 TFieldNames = Union[str, Iterable[str]]
 
-# TODO It's better to use more strict OrderedDict here
-TOperatorsValid = Dict[str, AbstractClauseOperator]
+TOperatorsValid = Tuple[Tuple[str, AbstractClauseOperator]]
 
 TOperators = Union[Dict[str, Union[str, AbstractClauseOperator]], Iterable[Union[str, AbstractClauseOperator]]]
 TUpdateValuesValid = Dict[Tuple[Any], Dict[str, Any]]
