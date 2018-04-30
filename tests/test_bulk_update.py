@@ -446,7 +446,7 @@ class TestSetFunctions(TestCase):
             self.assertEqual('test%d' % pk, name)
 
 
-class TestConditionOperators(TestCase):
+class TestClauseOperators(TestCase):
     fixtures = ['test_model']
 
     def test_in(self):
@@ -562,6 +562,19 @@ class TestConditionOperators(TestCase):
         self.assertEqual(5, res)
         for pk, name, int_field in TestModel.objects.all().order_by('id').values_list('id', 'name', 'int_field'):
             if pk in {5, 6, 7, 8, 9}:
+                self.assertEqual('1', name)
+            else:
+                self.assertEqual('test%d' % pk, name)
+            self.assertEqual(pk, int_field)
+
+    def test_between(self):
+        res = bulk_update(TestModel, [{
+            'id': [2, 5],
+            'name': '1'
+        }], key_fields_ops=['between'])
+        self.assertEqual(4, res)
+        for pk, name, int_field in TestModel.objects.all().order_by('id').values_list('id', 'name', 'int_field'):
+            if pk in {2, 3, 4, 5}:
                 self.assertEqual('1', name)
             else:
                 self.assertEqual('test%d' % pk, name)

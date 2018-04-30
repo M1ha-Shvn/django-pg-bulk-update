@@ -79,6 +79,9 @@ class PDNFClauseTest(TestCase):
     def test_lte(self):
         self._test_filter({1, 2, 3, 4, 5, 6}, ['id'], [[6], [5]], operations=['lte'])
 
+    def test_between(self):
+        self._test_filter({2, 3, 4}, ['id'], [[[2, 4]]], operations=['between'])
+
 
 class TestReadmeExample(TestCase):
     def test_example(self):
