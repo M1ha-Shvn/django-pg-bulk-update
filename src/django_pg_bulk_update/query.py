@@ -12,7 +12,7 @@ from django.db.models import Model, Q
 from typing import Any, Type, Iterable as TIterable, Union, Optional, List, Tuple
 
 from .clause_operators import AbstractClauseOperator, EqualClauseOperator
-from .compatibility import zip_longest
+from .compatibility import zip_longest, get_postgres_version
 from .set_functions import EqualSetFunction, AbstractSetFunction
 from .types import TOperators, TFieldNames, TUpdateValues, TSetFunctions, TOperatorsValid, TUpdateValuesValid, \
     TSetFunctionsValid
@@ -260,6 +260,7 @@ def _bulk_update_no_validation(model, values, conn, set_functions, key_fields_op
         Should be a dict of field name as key, function class as value.
     :param key_fields_ops: Key fields compare operators.
         A tuple with (field_name from key_fields, operation name) elements
+    :param on_conflict: Additional query for ON CONFLICT section
     :return: Number of records updated
     """
     upd_keys_tuple = tuple(set_functions.keys())
