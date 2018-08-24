@@ -1,5 +1,8 @@
 from setuptools import setup
 
+with open("README.md", "r") as fh:
+    long_description = fh.read()
+
 requires = []
 with open('requirements.txt') as f:
     for line in f.readlines():
@@ -18,5 +21,7 @@ setup(
     author='Mikhail Shvein',
     author_email='work_shvein_mihail@mail.ru',
     description='Django extension, executing bulk update operations for PostgreSQL',
+    long_description=long_description,
+    long_description_content_type="text/markdown",
     requires=requires
 )

@@ -12,7 +12,7 @@ from django.db.models import Model, Q
 from typing import Any, Type, Iterable as TIterable, Union, Optional, List, Tuple
 
 from .clause_operators import AbstractClauseOperator, EqualClauseOperator
-from .compatibility import zip_longest
+from .compatibility import zip_longest, get_postgres_version
 from .set_functions import EqualSetFunction, AbstractSetFunction
 from .types import TOperators, TFieldNames, TUpdateValues, TSetFunctions, TOperatorsValid, TUpdateValuesValid, \
     TSetFunctionsValid
@@ -241,7 +241,7 @@ def pdnf_clause(key_fields, field_values, key_fields_ops=()):
                 raise AssertionError("Each field_values item must be dict or iterable")
 
             op = key_fields_ops[i][1]
-            kwargs = {op.get_django_filter(name): value}
+            kwargs = op.get_django_filters(name, value)
             and_cond &= ~Q(**kwargs) if op.inverse else Q(**kwargs)
 
         or_cond |= and_cond

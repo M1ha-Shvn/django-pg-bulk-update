@@ -22,6 +22,10 @@ from typing import Tuple, Optional
 from .types import TUpdateValues, TFieldNames, TSetFunctions, TOperators
 from .query import bulk_update, bulk_update_or_create
 
+class BulkUpdateQuerySet(models.QuerySet):
+    def bulk_create(self, objs, batch_size=None, conflict_target=None, conflict_action=None):
+        pass
+
 
 class BulkUpdateManagerMixin:
     """

@@ -1,11 +1,12 @@
 """
 This function contains operators used in WHERE query part
 """
+from typing import Type, Optional, Any, Tuple, Iterable, Dict
+
 from django.db import DefaultConnectionProxy
 from django.db.models import Field, Model
-from typing import Type, Optional, Any, Tuple, Iterable
 
-from django_pg_bulk_update.compatibility import array_available, get_field_db_type
+from .compatibility import array_available, get_field_db_type
 from .utils import get_subclasses, format_field_value
 
 
@@ -13,11 +14,13 @@ class AbstractClauseOperator(object):
     inverse = False
     names = set()
 
-    def get_django_filter(self, name):  # type: (str) -> str
+    def get_django_filters(self, name, value):
+        # type: (str, Any) -> Dict[str, Any]
         """
         This method should return parameter name to use in django QuerySet.fillter() kwargs
-        :param name: Name of parameter
-        :return: String with filter
+        :param name: Name of the parameter
+        :param value: Value of the parameter
+        :return: kwargs to pass to Q() object constructor
         """
         raise NotImplementedError("%s must implement get_django_filter method" % self.__class__.__name__)
 
@@ -76,38 +79,10 @@ class AbstractClauseOperator(object):
         return format_field_value(field, val, connection)
 
 
-class EqualClauseOperator(AbstractClauseOperator):
-    names = {'eq', '=', '=='}
-
-    def get_django_filter(self, name):
-        return name
-
-    def get_sql_operator(self):
-        return '='
-
-
-class NotEqualClauseOperator(EqualClauseOperator):
-    names = {'!eq', '!=', '<>'}
-    inverse = True
-
-    def get_sql_operator(self):
-        return '!='
-
-
-class InClauseOperator(AbstractClauseOperator):
-    names = {'in'}
-    django_operation = 'in'
-
-    def get_django_filter(self, name):
-        return '%s__in' % name
-
-    def get_sql_operator(self):
-        return super(InClauseOperator, self).get_sql_operator()
-
-    def get_sql(self, table_field, value):
-        # We can't simply use in as format_field_value will return ARRAY, not set of records
-        return '%s = ANY(%s)' % (table_field, value)
-
+class AbstractArrayValueOperator(AbstractClauseOperator):
+    """
+    Abstract class partial, that handles an array of field values as input
+    """
     def get_null_fix_sql(self, model, field_name, connection):
         field = model._meta.get_field(field_name)
         db_type = get_field_db_type(field, connection)
@@ -122,7 +97,7 @@ class InClauseOperator(AbstractClauseOperator):
             from django.contrib.postgres.fields import ArrayField
             arr_field = ArrayField(field)
             arr_field.model = field.model
-            return super(InClauseOperator, self).format_field_value(arr_field, val, connection, **kwargs)
+            return super(AbstractArrayValueOperator, self).format_field_value(arr_field, val, connection, **kwargs)
         else:
             # This means, we use django < 1.8. Try converting it manually
             db_type = get_field_db_type(field, connection)
@@ -131,12 +106,46 @@ class InClauseOperator(AbstractClauseOperator):
 
             placeholders, values = [], []
             for item in val:
-                p, v = super(InClauseOperator, self).format_field_value(field, item, connection, **kwargs)
+                p, v = super(AbstractArrayValueOperator, self).format_field_value(field, item, connection, **kwargs)
                 placeholders.append(p)
-                values.append(v)
+                values.extend(v)
 
             query = tpl % (', '.join(placeholders), db_type)
             return query, values
+
+
+class EqualClauseOperator(AbstractClauseOperator):
+    names = {'eq', '=', '=='}
+
+    def get_django_filters(self, name, value):
+        return {name: value}
+
+    def get_sql_operator(self):
+        return '='
+
+
+class NotEqualClauseOperator(EqualClauseOperator):
+    names = {'!eq', '!=', '<>'}
+    inverse = True
+
+    def get_sql_operator(self):
+        return '!='
+
+
+class InClauseOperator(AbstractArrayValueOperator):
+    names = {'in'}
+    django_operation = 'in'
+
+    def get_django_filters(self, name, value):
+        return {'%s__in' % name: value}
+
+    def get_sql_operator(self):  # type: () -> str
+        raise NotImplementedError("%s implements get_sql method, this method shouldn't be called"
+                                  % self.__class__.__name__)
+
+    def get_sql(self, table_field, value):
+        # We can't simply use in as format_field_value will return ARRAY, not set of records
+        return '%s = ANY(%s)' % (table_field, value)
 
 
 class NotInClauseOperation(InClauseOperator):
@@ -153,8 +162,8 @@ class NotInClauseOperation(InClauseOperator):
 class LTClauseOperator(AbstractClauseOperator):
     names = {'lt', '<'}
 
-    def get_django_filter(self, name):
-        return '%s__lt' % name
+    def get_django_filters(self, name, value):
+        return {'%s__lt' % name: value}
 
     def get_sql_operator(self):
         return '<'
@@ -163,8 +172,8 @@ class LTClauseOperator(AbstractClauseOperator):
 class GTClauseOperator(AbstractClauseOperator):
     names = {'gt', '>'}
 
-    def get_django_filter(self, name):
-        return '%s__gt' % name
+    def get_django_filters(self, name, value):
+        return {'%s__gt' % name: value}
 
     def get_sql_operator(self):
         return '>'
@@ -173,8 +182,8 @@ class GTClauseOperator(AbstractClauseOperator):
 class GTEClauseOperator(AbstractClauseOperator):
     names = {'gte', '>='}
 
-    def get_django_filter(self, name):
-        return '%s__gte' % name
+    def get_django_filters(self, name, value):
+        return {'%s__gte' % name: value}
 
     def get_sql_operator(self):
         return '>='
@@ -183,8 +192,24 @@ class GTEClauseOperator(AbstractClauseOperator):
 class LTEClauseOperator(AbstractClauseOperator):
     names = {'lte', '<='}
 
-    def get_django_filter(self, name):
-        return '%s__lte' % name
+    def get_django_filters(self, name, value):
+        return {'%s__lte' % name: value}
 
     def get_sql_operator(self):
         return '<='
+
+
+class BetweenClauseOperator(AbstractArrayValueOperator):
+    names = {'between'}
+
+    def get_django_filters(self, name, value):
+        assert isinstance(value, Iterable) and len(value) == 2, "value must be iterable of size 2"
+        return {'%s__gte' % name: value[0], '%s__lte' % name: value[1]}
+
+    def get_sql_operator(self):  # type: () -> str
+        raise NotImplementedError("%s implements get_sql method, this method shouldn't be called"
+                                  % self.__class__.__name__)
+
+    def get_sql(self, table_field, value):  # type: (str, str) -> str
+        # Postgres enumerates arrays from 1
+        return "%s BETWEEN %s[1] AND %s[2]" % (table_field, value, value)
