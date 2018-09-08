@@ -499,7 +499,7 @@ def _bulk_update_or_create_no_validation(model, values, key_fds, upd_fds, using,
         for key, updates in values.items():
             if key in existing_values_dict:
                 # Form a list of updates, if they are enabled
-                if update:
+                if update and upd_fds:
                     update_items[key] = updates
             else:
                 # Form a list of model objects for bulk_create() method
@@ -693,7 +693,7 @@ def bulk_update_or_create(model, values, key_fields='id', using=None, set_functi
     upd_fds = _validate_set_functions(model, upd_fds, set_functions)
 
     # Insert on conflict is supported in PostgreSQL 9.5 and only with constraint
-    if get_postgres_version(using=using) > (9, 4) and key_is_unique:
+    if get_postgres_version(using=using) >= (9, 5) and key_is_unique:
         batch_func = _insert_on_conflict_no_validation
     else:
         batch_func = _bulk_update_or_create_no_validation

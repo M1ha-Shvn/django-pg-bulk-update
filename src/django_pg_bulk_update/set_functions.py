@@ -273,7 +273,7 @@ class ConcatSetFunction(AbstractSetFunction):
         # Note, that function should be created before using this operator
         if not for_update:
             tpl = '%s'
-        elif get_postgres_version(as_tuple=False) < 90500 and isinstance(field, JSONField):
+        elif get_postgres_version() < (9, 5) and isinstance(field, JSONField):
             tpl = '{0}(COALESCE(%s, %s), %s)'.format(Postgres94MergeJSONBMigration.FUNCTION_NAME)
         else:
             tpl = 'COALESCE(%s, %s) || %s'

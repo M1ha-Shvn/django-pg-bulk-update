@@ -65,6 +65,7 @@ class TestInputFormats(TestCase):
         values[1]['id'] += 1
         self.assertEqual(2, bulk_update_or_create(TestModel, values, key_fields=['id']))
         values[1]['id'] += 1
+        # All fields to update are in key_fields. So we can skip update
         self.assertEqual(1, bulk_update_or_create(TestModel, values, key_fields=['id', 'name']))
         values[1]['id'] += 1
         values[1]['name'] += '1'

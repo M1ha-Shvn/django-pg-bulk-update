@@ -46,5 +46,5 @@ if hstore_available():
     from django.contrib.postgres.operations import HStoreExtension
     Migration.operations = [HStoreExtension()] + Migration.operations
 
-if jsonb_available() and get_postgres_version(as_tuple=False) < 90500:
+if jsonb_available() and get_postgres_version() < (9, 5):
     Migration.operations += [Postgres94MergeJSONBMigration()]

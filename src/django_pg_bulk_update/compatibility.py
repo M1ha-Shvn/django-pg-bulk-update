@@ -30,7 +30,7 @@ def jsonb_available():  # type: () -> bool
     It is available since django 1.9 and doesn't support Postgres < 9.4
     :return: Bool
     """
-    return get_postgres_version(as_tuple=False) >= 90400 and (django.VERSION[0] > 1 or django.VERSION[1] > 8)
+    return get_postgres_version() >= (9, 4) and (django.VERSION[0] > 1 or django.VERSION[1] > 8)
 
 
 def hstore_available():  # type: () -> bool
@@ -76,7 +76,7 @@ def get_postgres_version(using=None, as_tuple=True):
     """
     conn = connection if using is None else connections[using]
     num = conn.cursor().connection.server_version
-    return (num / 10000, num % 10000 / 100, num % 100) if as_tuple else num
+    return (int(num / 10000), int(num % 10000 / 100), num % 100) if as_tuple else num
 
 
 def get_field_db_type(field, conn):
