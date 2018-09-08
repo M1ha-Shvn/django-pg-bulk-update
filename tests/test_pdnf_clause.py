@@ -10,33 +10,33 @@ class PDNFClauseTest(TestCase):
 
     def test_assertions(self):
         # field_names
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(TypeError):
             pdnf_clause(123, [])
 
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(TypeError):
             pdnf_clause([123], [])
 
         # field_values
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(TypeError):
             pdnf_clause(['id'], 123)
 
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(TypeError):
             pdnf_clause(['id'], [123])
 
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
             pdnf_clause(['id'], [{'invalid': 123}])
 
-        # Operations
-        with self.assertRaises(AssertionError):
+        # Operators
+        with self.assertRaises(TypeError):
             pdnf_clause(['id'], [], key_fields_ops=123)
 
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(TypeError):
             pdnf_clause(['id'], [], key_fields_ops=[123])
 
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
             pdnf_clause(['id'], [], key_fields_ops=["invalid"])
 
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
             pdnf_clause(['id'], [], key_fields_ops={"id": "invalid"})
 
     def _test_filter(self, expected_res, field_names, field_values, operations=()):

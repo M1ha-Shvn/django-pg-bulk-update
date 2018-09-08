@@ -81,17 +81,18 @@ class AbstractSetFunction(object):
     # Otherwise a set of class names supported
     supported_field_classes = None
 
-    def format_field_value(self, field, val, connection, **kwargs):
-        # type: (Field, Any, DefaultConnectionProxy, **Any) -> Tuple[str, Tuple[Any]]
+    def format_field_value(self, field, val, connection, cast_type=False, **kwargs):
+        # type: (Field, Any, DefaultConnectionProxy, bool, **Any) -> Tuple[str, Tuple[Any]]
         """
         Formats value, according to field rules
         :param field: Django field to take format from
         :param val: Value to format
         :param connection: Connection used to update data
+        :param cast_type: Adds type casting to sql if flag is True
         :param kwargs: Additional arguments, if needed
         :return: A tuple: sql, replacing value in update and a tuple of parameters to pass to cursor
         """
-        return format_field_value(field, val, connection)
+        return format_field_value(field, val, connection, cast_type=cast_type)
 
     def modify_create_params(self, model, key, kwargs):
         # type: (Type[Model], str, Dict[str, Any]) -> Dict[str, Any]
@@ -111,8 +112,8 @@ class AbstractSetFunction(object):
 
         return kwargs
 
-    def get_sql_value(self, field, val, connection, val_as_param=True, **kwargs):
-        # type: (Field, Any, DefaultConnectionProxy, bool, **Any) -> Tuple[str, Tuple[Any]]
+    def get_sql_value(self, field, val, connection, val_as_param=True, with_table=False, for_update=True, **kwargs):
+        # type: (Field, Any, DefaultConnectionProxy, bool, bool, bool, **Any) -> Tuple[str, Tuple[Any]]
         """
         Returns value sql to set into field and parameters for query execution
         This method is called from get_sql() by default.
@@ -121,13 +122,15 @@ class AbstractSetFunction(object):
         :param connection: Connection used to update data
         :param val_as_param: If flag is not set, value should be converted to string and inserted into query directly.
             Otherwise a placeholder and query parameter will be used
+        :param with_table: If flag is set, column name in sql is prefixed by table name
+        :param for_update: If flag is set, returns update sql. Otherwise - insert SQL
         :param kwargs: Additional arguments, if needed
         :return: A tuple: sql, replacing value in update and a tuple of parameters to pass to cursor
         """
         raise NotImplementedError("'%s' must define get_sql method" % self.__class__.__name__)
 
-    def get_sql(self, field, val, connection, val_as_param=True, **kwargs):
-        # type: (Field, Any, DefaultConnectionProxy, bool, **Any) -> Tuple[str, Tuple[Any]]
+    def get_sql(self, field, val, connection, val_as_param=True, with_table=False, for_update=True, **kwargs):
+        # type: (Field, Any, DefaultConnectionProxy, bool, bool, bool, **Any) -> Tuple[str, Tuple[Any]]
         """
         Returns function sql and parameters for query execution
         :param field: Django field to take format from
@@ -135,10 +138,13 @@ class AbstractSetFunction(object):
         :param connection: Connection used to update data
         :param val_as_param: If flag is not set, value should be converted to string and inserted into query directly.
             Otherwise a placeholder and query parameter will be used
+        :param with_table: If flag is set, column name in sql is prefixed by table name
+        :param for_update: If flag is set, returns update sql. Otherwise - insert SQL
         :param kwargs: Additional arguments, if needed
         :return: A tuple: sql, replacing value in update and a tuple of parameters to pass to cursor
         """
-        val, params = self.get_sql_value(field, val, connection, val_as_param=val_as_param, **kwargs)
+        val, params = self.get_sql_value(field, val, connection, val_as_param=val_as_param, with_table=with_table,
+                                         for_update=for_update, **kwargs)
         return '"%s" = %s' % (field.column, val), params
 
     @classmethod
@@ -151,7 +157,7 @@ class AbstractSetFunction(object):
         try:
             return next(sub_cls for sub_cls in get_subclasses(cls, recursive=True) if name in sub_cls.names)
         except StopIteration:
-            raise AssertionError("Operation with name '%s' doesn't exist" % name)
+            raise ValueError("Operation with name '%s' doesn't exist" % name)
 
     def field_is_supported(self, field):  # type: (Field) -> bool
         """
@@ -184,11 +190,22 @@ class AbstractSetFunction(object):
 
         return self.format_field_value(field, null_default, connection)
 
+    def _get_field_column(self, field, with_table=False):
+        # type: (Field, bool) -> str
+        """
+        Returns quoted field column, prefixed with table name if needed
+        :param field: Field instance
+        :param with_table: Boolean flag - add table or not
+        :return: String name
+        """
+        table = '"%s".' % field.model._meta.db_table if with_table else ''
+        return '%s"%s"' % (table, field.column)
+
 
 class EqualSetFunction(AbstractSetFunction):
     names = {'eq', '='}
 
-    def get_sql_value(self, field, val, connection, val_as_param=True, **kwargs):
+    def get_sql_value(self, field, val, connection, val_as_param=True, with_table=False, for_update=True, **kwargs):
         if val_as_param:
             return self.format_field_value(field, val, connection)
         else:
@@ -204,13 +221,17 @@ class EqualNotNullSetFunction(AbstractSetFunction):
 
         return kwargs
 
-    def get_sql_value(self, field, val, connection, val_as_param=True, **kwargs):
-        tpl = 'COALESCE(%s, "%s")'
+    def get_sql_value(self, field, val, connection, val_as_param=True, with_table=False, for_update=True, **kwargs):
+        tpl = 'COALESCE(%s, %s)'
+        if for_update:
+            default_value, default_params = self._get_field_column(field, with_table=with_table), []
+        else:
+            default_value, default_params = self.format_field_value(field, field.get_default(), connection)
         if val_as_param:
             sql, params = self.format_field_value(field, val, connection)
-            return tpl % (sql, field.column), params
+            return tpl % (sql, default_value), params + default_params
         else:
-            return tpl % (str(val), field.column), []
+            return tpl % (str(val), default_value), default_params
 
 
 class PlusSetFunction(AbstractSetFunction):
@@ -221,15 +242,20 @@ class PlusSetFunction(AbstractSetFunction):
                                'IntegerRangeField', 'BigIntegerRangeField', 'FloatRangeField', 'DateTimeRangeField',
                                'DateRangeField'}
 
-    def get_sql_value(self, field, val, connection, val_as_param=True, **kwargs):
+    def get_sql_value(self, field, val, connection, val_as_param=True, with_table=False, for_update=True, **kwargs):
         null_default, null_default_params = self._parse_null_default(field, connection, **kwargs)
-        tpl = 'COALESCE("%s", %s) + %s'
 
         if val_as_param:
             sql, params = self.format_field_value(field, val, connection)
-            return tpl % (field.column, null_default, sql), null_default_params + params
         else:
-            return tpl % (field.column, null_default, str(val)), null_default_params
+            sql, params = str(val), []
+
+        if for_update:
+            tpl = 'COALESCE(%s, %s) + %s'
+            return tpl % (self._get_field_column(field, with_table=with_table), null_default, sql),\
+                   null_default_params + params
+        else:
+            return sql, params
 
 
 class ConcatSetFunction(AbstractSetFunction):
@@ -239,22 +265,28 @@ class ConcatSetFunction(AbstractSetFunction):
                                'URLField', 'BinaryField', 'JSONField', 'ArrayField', 'CITextField', 'CICharField',
                                'CIEmailField'}
 
-    def get_sql_value(self, field, val, connection, val_as_param=True, **kwargs):
+    def get_sql_value(self, field, val, connection, val_as_param=True, with_table=False, for_update=True, **kwargs):
         null_default, null_default_params = self._parse_null_default(field, connection, **kwargs)
 
         # Postgres 9.4 has JSONB support, but doesn't support concat operator (||)
         # So I've taken function to solve the problem from
         # Note, that function should be created before using this operator
-        if get_postgres_version(as_tuple=False) < 90500 and isinstance(field, JSONField):
-            tpl = '{0}(COALESCE("%s", %s), %s)'.format(Postgres94MergeJSONBMigration.FUNCTION_NAME)
+        if not for_update:
+            tpl = '%s'
+        elif get_postgres_version() < (9, 5) and isinstance(field, JSONField):
+            tpl = '{0}(COALESCE(%s, %s), %s)'.format(Postgres94MergeJSONBMigration.FUNCTION_NAME)
         else:
-            tpl = 'COALESCE("%s", %s) || %s'
+            tpl = 'COALESCE(%s, %s) || %s'
 
         if val_as_param:
-            sql, params = self.format_field_value(field, val, connection)
-            return tpl % (field.column, null_default, sql), null_default_params + params
+            val_sql, params = self.format_field_value(field, val, connection)
         else:
-            return tpl % (field.column, null_default, str(val)), null_default_params
+            val_sql, params = str(val), []
+
+        if not for_update:
+            return tpl % val_sql, params
+        else:
+            return tpl % (self._get_field_column(field, with_table=with_table), null_default, val_sql), null_default_params + params
 
 
 class UnionSetFunction(AbstractSetFunction):
@@ -262,8 +294,13 @@ class UnionSetFunction(AbstractSetFunction):
 
     supported_field_classes = {'ArrayField'}
 
-    def get_sql_value(self, field, val, connection, val_as_param=True, **kwargs):
-        sub_func = ConcatSetFunction()
-        sql, params = sub_func.get_sql_value(field, val, connection, val_as_param=val_as_param, **kwargs)
-        sql = 'ARRAY(SELECT DISTINCT UNNEST(%s))' % sql
+    def get_sql_value(self, field, val, connection, val_as_param=True, with_table=False, for_update=True, **kwargs):
+        if for_update:
+            sub_func = ConcatSetFunction()
+            sql, params = sub_func.get_sql_value(field, val, connection, val_as_param=val_as_param,
+                                                 with_table=with_table, **kwargs)
+            sql = 'ARRAY(SELECT DISTINCT UNNEST(%s))' % sql
+        else:
+            sql, params = val, []
+
         return sql, params

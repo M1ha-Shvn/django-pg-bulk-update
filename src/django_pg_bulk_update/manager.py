@@ -99,12 +99,12 @@ class BulkUpdateManagerMixin:
         self._for_write = True
         using = self.db
 
-        return bulk_update(self.model, values, key_fields=key_fields, using=using, set_functions=set_functions,
+        return bulk_update(self.model, values, key_fds=key_fields, using=using, set_functions=set_functions,
                            key_fields_ops=key_fields_ops, batch_size=batch_size, batch_delay=batch_delay)
 
-    def bulk_update_or_create(self, values, key_fields='id', set_functions=None, update=True, batch_size=None,
-                    batch_delay=0):
-        # type: (TUpdateValues, TFieldNames, TSetFunctions, bool, Optional[int], float) -> Tuple[int, int]
+    def bulk_update_or_create(self, values, key_fields='id', set_functions=None, update=True, key_is_unique=True,
+                              batch_size=None, batch_delay=0):
+        # type: (TUpdateValues, TFieldNames, TSetFunctions, bool, bool, Optional[int], float) -> int
         """
         Searches for records, given in values by key_fields. If records are found, updates them from values.
         If not found - creates them from values. Note, that all fields without default value must be present in values.
@@ -125,17 +125,19 @@ class BulkUpdateManagerMixin:
             Functions: [eq, =; incr, +; concat, ||]
             Example: {'name': 'eq', 'int_fields': 'incr'}
         :param update: If this flag is not set, existing records will not be updated
+        :param key_is_unique: Settings this flag to False forces library to use 3-query transactional update,
+            not INSERT ... ON CONFLICT.
         :param batch_size: Optional. If given, data is split it into batches of given size.
             Each batch is queried independently.
         :param batch_delay: Delay in seconds between batches execution, if batch_size is not None.
-        :return: A tuple (number of records created, number of records updated)
+        :return: Number of records created or updated
         """
         self._for_write = True
         using = self.db
 
         return bulk_update_or_create(self.model, values, key_fields=key_fields, using=using,
-                                     set_functions=set_functions, update=update, batch_size=batch_size,
-                                     batch_delay=batch_delay)
+                                     set_functions=set_functions, update=update, key_is_unique=key_is_unique,
+                                     batch_size=batch_size, batch_delay=batch_delay)
 
 
 class BulkUpdateManager(models.Manager, BulkUpdateManagerMixin):

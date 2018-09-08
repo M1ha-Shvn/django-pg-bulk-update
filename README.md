@@ -14,6 +14,7 @@ Django extension to update multiple table records with similar (but not equal) c
 * PostgreSQL 9.2+   
   Previous versions may also work, but haven't been tested.  
   JSONB operations are available for PostgreSQL 9.4+.
+  INSERT .. ON CONFLICT is used for PostgreSQL 9.5+.
 
 ## Installation
 Install via pip:  
@@ -34,17 +35,21 @@ There are 3 query helpers in this library. There parameters are unified and desc
     Functions forms raw sql query for PostgreSQL. It's work is not guaranteed on other databases.  
     Function returns number of updated records.
     
-* `bulk_update_or_create(model, values, key_fields='id', using=None, set_functions=None, update=True, batch_size=None, batch_delay=0)`  
+* `bulk_update_or_create(model, values, key_fields='id', using=None, set_functions=None, update=True, key_is_unique=True, batch_size=None, batch_delay=0)`  
     This function finds records by key_fields. It creates not existing records with data, given in values.   
     If `update` flag is set, it updates existing records with data, given in values.  
-    Update is performed with bulk_udpate function above, so function work is not guaranteed on PostgreSQL only.  
     
-    Function is done in transaction in 3 queries:  
-    + Search for existing records  
-    + Create not existing records (if values have any)  
-    + Update existing records (if values have any and `update` flag is set)
+    There are two ways, this function may work:
+    1) Use INSERT ... ON CONFLICT statement. It is safe, but requires PostgreSQL 9.5+ and unique index on key fields.
+    This behavior is used by default.
+    2) 3-query transaction:  
+      + Search for existing records  
+      + Create not existing records (if values have any)  
+      + Update existing records (if values have any and `update` flag is set)  
+    This behavior is used by default on PostgreSQL before 9.5 and if key_is_unique parameter is set to False.
+    Note that transactional update has a known [race condition issue](https://github.com/M1hacka/django-pg-bulk-update/issues/14) that can't be fixed.
       
-    Function returns a tuple, containing number of records inserted and records updated.
+    Function returns number of records inserted or updated by query.
     
 * `pdnf_clause(key_fields, field_values, key_fields_ops=())`  
   Pure django implementation of principal disjunctive normal form. It is base on combining Q() objects.  
@@ -137,6 +142,9 @@ There are 3 query helpers in this library. There parameters are unified and desc
 * `update: bool`  
     If flag is not set, bulk_update_or_create function will not update existing records, only creating not existing. 
     
+* `key_is_unique: bool`
+    Defaults to True. Settings this flag to False forces library to use 3-query transactional update_or_create.
+    
 * `field_values: Iterable[Union[Iterable[Any], dict]]`  
     Field values to use in `pdnf_clause` function. They have simpler format than update functions.
     It can come in 2 formats:  
@@ -208,7 +216,7 @@ print(list(TestModel.objects.all().order_by("id").values("id", "name", "int_fiel
 # ]
  
  
-inserted, updated = bulk_update_or_create(TestModel, [{
+res = bulk_update_or_create(TestModel, [{
     "id": 3,
     "name": "_concat1",
     "int_field": 4
@@ -218,8 +226,8 @@ inserted, updated = bulk_update_or_create(TestModel, [{
     "int_field": 5
 }], set_functions={'name': '||'})
 
-print(inserted, updated)
-# Outputs: 1, 1
+print(res)
+# Outputs: 2
 
 print(list(TestModel.objects.all().order_by("id").values("id", "name", "int_field")))
 # Outputs: [
@@ -294,7 +302,7 @@ You can define your own clause operator, creating `AbstractClauseOperator` subcl
   In order to simplify method usage of simple `field <op> value` operators,
   by default `get_sql()` forms this condition, calling  `get_sql_operator()` method, which returns <op>.
   
-Optionally, you can change `def format_field_value(self, field, val, connection, **kwargs)` method,
+Optionally, you can change `def format_field_value(self, field, val, connection, cast_type=True, **kwargs)` method,
 which formats value according to field rules
 
 Example:
@@ -336,16 +344,17 @@ You can define your own set function, creating `AbstractSetFunction` subclass an
 * `names` attribute
 * `supported_field_classes` attribute
 * One of:  
-  - `def get_sql_value(self, field, val, connection, val_as_param=True, **kwargs)` method
+  - `def get_sql_value(self, field, val, connection, val_as_param=True, with_table=False, for_update=True, **kwargs)` method
   This method defines new value to set for parameter. It is called from `get_sql(...)` method by default.
-  - `def get_sql(self, field, val, connection, val_as_param=True, **kwargs)` method
+  - `def get_sql(self, field, val, connection, val_as_param=True, with_table=False, for_update=True, **kwargs)` method
   This method sets full sql and it params to use in set section of update query.  
   By default it returns: `"%s" = self.get_sql_value(...)`, params
 
 Optionally, you can change:
-* `def format_field_value(self, field, val, connection, **kwargs)` method, if input data needs special formatting. 
+* `def format_field_value(self, field, val, connection, cast_type=False, **kwargs)` method, if input data needs special formatting. 
 * `def modify_create_params(self, model, key, kwargs)` method, to change data before passing them to model constructor
-in `bulk_update_or_create()`
+in `bulk_update_or_create()`. This method is used in 3-query transactional update only. INSERT ... ON CONFLICT
+uses for_update flag of `get_sql()` and `get_sql_value()` functions
 
 Example:  
 
@@ -360,7 +369,7 @@ class CustomSetFunction(AbstractSetFunction):
     # Names of django field classes, this function supports. You can set None (default) to support any field.
     supported_field_classes = {'IntegerField', 'FloatField', 'AutoField', 'BigAutoField'}
 
-    def get_sql_value(self, field, val, connection, val_as_param=True, **kwargs):
+    def get_sql_value(self, field, val, connection, val_as_param=True, with_table=False, for_update=True, **kwargs):
         """
         Returns value sql to set into field and parameters for query execution
         This method is called from get_sql() by default.
@@ -369,6 +378,8 @@ class CustomSetFunction(AbstractSetFunction):
         :param connection: Connection used to update data
         :param val_as_param: If flag is not set, value should be converted to string and inserted into query directly.
             Otherwise a placeholder and query parameter will be used
+        :param with_table: If flag is set, column name in sql is prefixed by table name
+        :param for_update: If flag is set, returns update sql. Otherwise - insert SQL
         :param kwargs: Additional arguments, if needed
         :return: A tuple: sql, replacing value in update and a tuple of parameters to pass to cursor
         """
@@ -403,7 +414,7 @@ Library supports django.contrib.postgres.fields:
 + HStoreField  
 
 Note that ArrayField and HStoreField are available since django 1.8, JSONField - since django 1.9.  
-Also PostgreSQL before 9.4 doesn't support jsonb, and so - JSONField.  
+PostgreSQL before 9.4 doesn't support jsonb, and so - JSONField.  
 PostgreSQL 9.4 supports JSONB, but doesn't support concatenation operator (||).
 In order to support this set function a special function for postgres 9.4 was written. Add a migration to create it:
 
@@ -418,6 +429,8 @@ class Migration(migrations.Migration):
         Postgres94MergeJSONBMigration()
     ]
 ```
+
+PostgreSQL before 9.5 doesn't support INSERT ... ON CONFLICT statement. So 3-query transactional update will be used.
 
 ## Performance
 Test background:

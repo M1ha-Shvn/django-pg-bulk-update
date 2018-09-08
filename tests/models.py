@@ -6,11 +6,15 @@ from django.db import models
 from django_pg_bulk_update.manager import BulkUpdateManager
 from django_pg_bulk_update.compatibility import jsonb_available, hstore_available, array_available
 
+class Meta:
+    unique_together = ['id', 'name']
+
 # Not all fields are available in different django and postgres versions
 model_attrs = {
     'name': models.CharField(max_length=50, null=True, blank=True, default=''),
     'int_field': models.IntegerField(null=True, blank=True),
     'objects': BulkUpdateManager(),
+    'Meta': Meta,
     '__module__': __name__
 }
 
