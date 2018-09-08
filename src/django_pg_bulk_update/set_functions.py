@@ -117,12 +117,12 @@ class AbstractSetFunction(object):
         """
         Returns value sql to set into field and parameters for query execution
         This method is called from get_sql() by default.
-        :param with_table: If flag is set, column name in sql is prefixed by table name
         :param field: Django field to take format from
         :param val: Value to format
         :param connection: Connection used to update data
         :param val_as_param: If flag is not set, value should be converted to string and inserted into query directly.
             Otherwise a placeholder and query parameter will be used
+        :param with_table: If flag is set, column name in sql is prefixed by table name
         :param for_update: If flag is set, returns update sql. Otherwise - insert SQL
         :param kwargs: Additional arguments, if needed
         :return: A tuple: sql, replacing value in update and a tuple of parameters to pass to cursor
