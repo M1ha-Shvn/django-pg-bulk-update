@@ -2,7 +2,9 @@
 This file contains number of functions to handle different software versions compatibility
 """
 import json
-from typing import Dict, Any, Optional, Union, Tuple
+
+from django.db.models import Model, Field
+from typing import Dict, Any, Optional, Union, Tuple, List, Type
 
 import django
 from django.db import connection, connections, models, DefaultConnectionProxy, migrations
@@ -90,6 +92,20 @@ def get_field_db_type(field, conn):
     # rel_db_type() return integer, but it is not available before django 1.10
     db_type = field.db_type(conn)
     return db_type.replace('serial', 'integer')
+
+
+def get_model_fields(model):
+    # type: (Type[Model]) -> List[Field]
+    """
+    Returns all model fields.
+    :param model: Model to get fields for
+    :return: A list of fields
+    """
+    if hasattr(model._meta, 'get_fields'):
+        # Django 1.8+
+        return model._meta.get_fields()
+    else:
+        return [f[0] for f in model._meta.get_fields_with_model()]
 
 
 # Postgres 9.4 has JSONB support, but doesn't support concat operator (||)

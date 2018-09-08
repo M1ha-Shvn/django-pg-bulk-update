@@ -13,7 +13,7 @@ from django.db import transaction, connection, connections, DefaultConnectionPro
 from django.db.models import Model, Q
 from typing import Any, Type, Iterable as TIterable, Union, Optional, List, Tuple
 
-from .compatibility import get_postgres_version
+from .compatibility import get_postgres_version, get_model_fields
 from .set_functions import AbstractSetFunction
 from .types import TOperators, TFieldNames, TUpdateValues, TSetFunctions, TOperatorsValid, TUpdateValuesValid, \
     TSetFunctionsValid, FieldDescriptor
@@ -254,7 +254,8 @@ def _get_default_fds(model, existing_fds):
     """
     existing_fields = {fd.get_field(model) for fd in existing_fds}
     result = []
-    for f in model._meta.get_fields():
+
+    for f in get_model_fields(model):
         if f not in existing_fields:
             desc = FieldDescriptor(f.attname)
             desc.set_prefix('def')
