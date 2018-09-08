@@ -4,7 +4,7 @@ This function contains operators used in WHERE query part
 from typing import Type, Optional, Any, Tuple, Iterable, Dict
 
 from django.db import DefaultConnectionProxy
-from django.db.models import Field, Model
+from django.db.models import Field
 
 from .compatibility import array_available, get_field_db_type
 from .utils import get_subclasses, format_field_value
@@ -17,7 +17,7 @@ class AbstractClauseOperator(object):
     def get_django_filters(self, name, value):
         # type: (str, Any) -> Dict[str, Any]
         """
-        This method should return parameter name to use in django QuerySet.fillter() kwargs
+        This method should return parameter name to use in django QuerySet.filter() kwargs
         :param name: Name of the parameter
         :param value: Value of the parameter
         :return: kwargs to pass to Q() object constructor
@@ -25,7 +25,7 @@ class AbstractClauseOperator(object):
         raise NotImplementedError("%s must implement get_django_filter method" % self.__class__.__name__)
 
     @classmethod
-    def get_operation_by_name(cls, name):  # type: (str) -> Optional[Type[AbstractClauseOperator]]
+    def get_operator_by_name(cls, name):  # type: (str) -> Optional[Type[AbstractClauseOperator]]
         """
         Finds subclass of AbstractOperation applicable to given operation name
         :param name: String name to search
@@ -34,7 +34,7 @@ class AbstractClauseOperator(object):
         try:
             return next(sub_cls for sub_cls in get_subclasses(cls, recursive=True) if name in sub_cls.names)
         except StopIteration:
-            raise AssertionError("Operator with name '%s' doesn't exist" % name)
+            raise ValueError("Operator with name '%s' doesn't exist" % name)
 
     def get_sql_operator(self):  # type: () -> str
         """
@@ -52,42 +52,24 @@ class AbstractClauseOperator(object):
         """
         return "%s %s %s" % (table_field, self.get_sql_operator(), value)
 
-    def get_null_fix_sql(self, model, field_name, connection):
-        # type: (Type[Model], str, DefaultConnectionProxy) -> str
-        """
-        Bug fix. Postgres wants to know exact type of field to save it
-        This fake update value is used for each saved column in order to get it's type
-        :param model: Django model subclass
-        :param field_name: Name of field fix is got for
-        :param connection: Database connection used
-        :return: SQL string
-        """
-        db_table = model._meta.db_table
-        field = model._meta.get_field(field_name)
-        return '(SELECT "{key}" FROM "{table}" LIMIT 0)'.format(key=field.column, table=db_table)
-
-    def format_field_value(self, field, val, connection, **kwargs):
-        # type: (Field, Any, DefaultConnectionProxy, **Any) -> Tuple[str, Tuple[Any]]
+    def format_field_value(self, field, val, connection, cast_type=False, **kwargs):
+        # type: (Field, Any, DefaultConnectionProxy, bool, **Any) -> Tuple[str, Tuple[Any]]
         """
         Formats value, according to field rules
         :param field: Django field to take format from
         :param val: Value to format
         :param connection: Connection used to update data
+        :param cast_type: Adds type casting to sql if flag is True
         :param kwargs: Additional arguments, if needed
         :return: A tuple: sql, replacing value in update and a tuple of parameters to pass to cursor
         """
-        return format_field_value(field, val, connection)
+        return format_field_value(field, val, connection, cast_type=cast_type)
 
 
 class AbstractArrayValueOperator(AbstractClauseOperator):
     """
     Abstract class partial, that handles an array of field values as input
     """
-    def get_null_fix_sql(self, model, field_name, connection):
-        field = model._meta.get_field(field_name)
-        db_type = get_field_db_type(field, connection)
-        return '(SELECT ARRAY[]::%s[] LIMIT 0)' % db_type
-
     def format_field_value(self, field, val, connection, **kwargs):
         assert isinstance(val, Iterable), "'%s' value must be iterable" % self.__class__.__name__
 

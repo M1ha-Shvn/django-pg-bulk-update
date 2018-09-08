@@ -22,6 +22,21 @@ DATABASES = {
     }
 }
 
+LOGGING = {
+    'version': 1,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        'django-pg-bulk-update': {
+            'handlers': ['console'],
+            'level': 'DEBUG'
+        }
+    }
+}
+
 # DATABASES should be defined before this call
 from django_pg_bulk_update.compatibility import jsonb_available, array_available, hstore_available
 

@@ -63,11 +63,12 @@ def hstore_serialize(value):  # type: (Dict[Any, Any]) -> Dict[str, str]
     return val
 
 
-def get_postgres_version(using=None, as_tuple=True):  # type: (Optional[str], bool) -> Union(Tuple[int], int)
+def get_postgres_version(using=None, as_tuple=True):
+    # type: (Optional[str], bool) -> Union[Tuple[int], int]
     """
-    Returns Postgres server verion used
+    Returns Postgres server version used
     :param using: Connection alias to use
-    :param as_tuple: If true, returns result as tuple, otherwize as concatenated integer
+    :param as_tuple: If true, returns result as tuple, otherwise as concatenated integer
     :return: Database version as tuple (major, minor, revision) if as_tuple is true.
         A single number major*10000 + minor*100 + revision if false.
     """
@@ -76,23 +77,19 @@ def get_postgres_version(using=None, as_tuple=True):  # type: (Optional[str], bo
     return (num / 10000, num % 10000 / 100, num % 100) if as_tuple else num
 
 
-def get_field_db_type(field, connection):  # type: (models.Field, DefaultConnectionProxy) -> str
+def get_field_db_type(field, conn):
+    # type: (models.Field, DefaultConnectionProxy) -> str
     """
     Get database field type used for this field.
     :param field: django.db.models.Field instance
-    :param connection: Datbase connection used
+    :param conn: Database connection used
     :return: Database type name (str)
     """
     # We should resolve value as array for IN operator.
     # db_type() as id field returned 'serial' instead of 'integer' here
-    # reL_db_type() return integer, but it is not available before django 1.10
-    db_type = field.db_type(connection)
-    if db_type == 'serial':
-        db_type = 'integer'
-    elif db_type == 'bigserial':
-        db_type = 'biginteger'
-
-    return db_type
+    # rel_db_type() return integer, but it is not available before django 1.10
+    db_type = field.db_type(conn)
+    return db_type.replace('serial', 'integer')
 
 
 # Postgres 9.4 has JSONB support, but doesn't support concat operator (||)

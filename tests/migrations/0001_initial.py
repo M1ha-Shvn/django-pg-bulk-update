@@ -37,7 +37,8 @@ class Migration(migrations.Migration):
             options={
                 'abstract': False,
             }
-        )
+        ),
+        migrations.AlterUniqueTogether(name='TestModel', unique_together=[('id', 'name')])
     ]
 
 

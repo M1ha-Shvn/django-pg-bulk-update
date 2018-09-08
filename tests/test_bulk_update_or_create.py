@@ -12,42 +12,43 @@ class TestInputFormats(TestCase):
     fixtures = ['test_model']
 
     def test_model(self):
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(TypeError):
             bulk_update_or_create(123, [])
 
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(TypeError):
             bulk_update_or_create('123', [])
 
     def test_values(self):
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(TypeError):
             bulk_update_or_create(TestModel, 123)
 
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(TypeError):
             bulk_update_or_create(TestModel, [123])
 
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
             bulk_update_or_create(TestModel, {(1, 2): {'id': 10}})
 
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
             bulk_update_or_create(TestModel, {1: {'id': 10}}, key_fields=('id', 'name'))
 
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
             bulk_update_or_create(TestModel, [{'name': 'test'}])
 
-        self.assertTupleEqual((1, 1), bulk_update_or_create(
+        self.assertEqual(2, bulk_update_or_create(
             TestModel, [{'id': 1, 'name': 'abc'}, {'id': 21, 'name': 'create'}]))
 
-        self.assertTupleEqual((1, 1), bulk_update_or_create(
+        self.assertEqual(2, bulk_update_or_create(
             TestModel, [{'id': 1, 'name': 'abc', 'int_field': 2},
                         {'id': 20, 'name': 'abc', 'int_field': 3}], key_fields=('id', 'name')))
-        self.assertTupleEqual((1, 1), bulk_update_or_create(
+        self.assertEqual(2, bulk_update_or_create(
             TestModel, {1: {'name': 'abc'}, 19: {'name': 'created'}}))
-        self.assertTupleEqual((1, 1), bulk_update_or_create(
+        self.assertEqual(2, bulk_update_or_create(
             TestModel, {(1,): {'name': 'abc'}, (18,): {'name': 'created'}}))
-        self.assertTupleEqual((1, 1), bulk_update_or_create(
+        self.assertEqual(2, bulk_update_or_create(
             TestModel, {(2, 'test2'): {'int_field': 2}, (17, 'test2'): {'int_field': 4}}, key_fields=('id', 'name')))
-        self.assertTupleEqual((1, 1), bulk_update_or_create(
-            TestModel, {('test33',): {'int_field': 2}, ('test3',): {'int_field': 2}}, key_fields='name'))
+        self.assertEqual(2, bulk_update_or_create(
+            TestModel, {('test33',): {'int_field': 2}, ('test3',): {'int_field': 2}}, key_fields='name',
+            key_is_unique=False))
 
     def test_key_fields(self):
         values = [{
@@ -58,19 +59,19 @@ class TestInputFormats(TestCase):
             'name': 'bulk_update_or_create_2'
         }]
 
-        self.assertTupleEqual((1, 1), bulk_update_or_create(TestModel, values))
+        self.assertEqual(2, bulk_update_or_create(TestModel, values))
         values[1]['id'] += 1
-        self.assertTupleEqual((1, 1), bulk_update_or_create(TestModel, values, key_fields='id'))
+        self.assertEqual(2, bulk_update_or_create(TestModel, values, key_fields='id'))
         values[1]['id'] += 1
-        self.assertTupleEqual((1, 1), bulk_update_or_create(TestModel, values, key_fields=['id']))
+        self.assertEqual(2, bulk_update_or_create(TestModel, values, key_fields=['id']))
         values[1]['id'] += 1
-        self.assertTupleEqual((1, 1), bulk_update_or_create(TestModel, values, key_fields=['id', 'name']))
-        values[1]['id'] += 1
-        values[1]['name'] += '1'
-        self.assertTupleEqual((1, 1), bulk_update_or_create(TestModel, values, key_fields='name'))
+        self.assertEqual(1, bulk_update_or_create(TestModel, values, key_fields=['id', 'name']))
         values[1]['id'] += 1
         values[1]['name'] += '1'
-        self.assertTupleEqual((1, 1), bulk_update_or_create(TestModel, values, key_fields=['name']))
+        self.assertEqual(2, bulk_update_or_create(TestModel, values, key_fields='name', key_is_unique=False))
+        values[1]['id'] += 1
+        values[1]['name'] += '1'
+        self.assertEqual(2, bulk_update_or_create(TestModel, values, key_fields=['name'], key_is_unique=False))
 
     def test_using(self):
         values = [{
@@ -81,74 +82,69 @@ class TestInputFormats(TestCase):
             'name': 'bulk_update_or_create_2'
         }]
 
-        self.assertTupleEqual((1, 1), bulk_update_or_create(TestModel, values))
+        self.assertEqual(2, bulk_update_or_create(TestModel, values))
         values[1]['id'] += 1
-        self.assertTupleEqual((1, 1), bulk_update_or_create(TestModel, values, using='default'))
+        self.assertEqual(2, bulk_update_or_create(TestModel, values, using='default'))
 
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
             bulk_update_or_create(TestModel, values, using='invalid')
 
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(TypeError):
             bulk_update_or_create(TestModel, values, using=123)
 
     def test_set_functions(self):
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(TypeError):
             bulk_update_or_create(TestModel, [{'id': 1, 'name': 'test1'}], set_functions=123)
 
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(TypeError):
             bulk_update_or_create(TestModel, [{'id': 1, 'name': 'test1'}], set_functions=[123])
 
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
             bulk_update_or_create(TestModel, [{'id': 1, 'name': 'test1'}], set_functions={1: 'test'})
 
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
             bulk_update_or_create(TestModel, [{'id': 1, 'name': 'test1'}], set_functions={'id': 1})
 
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
             bulk_update_or_create(TestModel, [{'id': 1, 'name': 'test1'}], set_functions={'invalid': 1})
 
-        with self.assertRaises(AssertionError):
-            bulk_update_or_create(TestModel, [{'id': 1, 'name': 'test1'}], set_functions={'int_field': 'invalid'})
-
-        # int_field is not in update keys here, set_function
-        with self.assertRaises(AssertionError):
-            self.assertEqual(1, bulk_update_or_create(TestModel, [{'id': 2, 'name': 'test1'}],
-                                                      set_functions={'int_field': '+'}))
+        with self.assertRaises(ValueError):
+            bulk_update_or_create(TestModel, [{'id': 1, 'int_field': 1}], set_functions={'int_field': 'invalid'})
 
         # I don't test all set functions here, as there is another TestCase for this: TestSetFunctions
-        self.assertTupleEqual((1, 1), bulk_update_or_create(
+        self.assertEqual(2, bulk_update_or_create(
             TestModel, [{'id': 2, 'name': 'test1'}, {'id': 10, 'name': 'test1'}],
             set_functions={'name': ConcatSetFunction()}
         ))
-        self.assertTupleEqual((1, 1), bulk_update_or_create(
+        self.assertEqual(2, bulk_update_or_create(
             TestModel, [{'id': 2, 'name': 'test1'}, {'id': 11, 'name': 'test1'}], set_functions={'name': '||'}))
 
     def test_update(self):
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(TypeError):
             bulk_update_or_create(TestModel, [{'id': 1, 'name': 'test1'}], update=123)
 
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(TypeError):
             bulk_update_or_create(TestModel, [{'id': 1, 'name': ['test1']}], update='123')
 
-        self.assertTupleEqual((1, 0), bulk_update_or_create(
+        self.assertEqual(1, bulk_update_or_create(
             TestModel, [{'id': 1, 'name': 'test30'}, {'id': 20, 'name': 'test30'}], update=False))
-        self.assertTupleEqual((1, 1), bulk_update_or_create(
+        self.assertEqual(2, bulk_update_or_create(
             TestModel, [{'id': 1, 'name': 'test30'}, {'id': 19, 'name': 'test30'}], update=True))
 
     def test_batch(self):
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(TypeError):
             bulk_update_or_create(TestModel, [{'id': 1, 'name': 'test1'}], batch_size='abc')
 
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
             bulk_update_or_create(TestModel, [{'id': 1, 'name': 'test1'}], batch_size=-2)
 
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(TypeError):
             bulk_update_or_create(TestModel, [{'id': 1, 'name': 'test1'}], batch_size=2.5)
 
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(TypeError):
             bulk_update_or_create(TestModel, [{'id': 1, 'name': 'test1'}], batch_size=1, batch_delay='abc')
 
-        with self.assertRaises(AssertionError):
+        with self.assertRaises(ValueError):
             bulk_update_or_create(TestModel, [{'id': 1, 'name': 'test1'}], batch_size=1, batch_delay=-2)
 
 
@@ -167,7 +163,7 @@ class TestSimple(TestCase):
             'id': 11,
             'name': 'bulk_update_11'
         }])
-        self.assertTupleEqual((1, 2), res)
+        self.assertEqual(3, res)
 
         # 9 from fixture + 1 created
         self.assertEqual(10, TestModel.objects.all().count())
@@ -185,7 +181,7 @@ class TestSimple(TestCase):
 
     def test_empty(self):
         res = bulk_update_or_create(TestModel, [])
-        self.assertTupleEqual((0, 0), res)
+        self.assertEqual(0, res)
         for pk, name, int_field in TestModel.objects.all().order_by('id').values_list('id', 'name', 'int_field'):
             self.assertEqual('test%d' % pk, name)
             self.assertEqual(pk, int_field)
@@ -198,7 +194,7 @@ class TestSimple(TestCase):
             'id': 11,
             'name': '"'
         }])
-        self.assertTupleEqual((1, 1), res)
+        self.assertEqual(2, res)
         for pk, name, int_field in TestModel.objects.all().order_by('id').values_list('id', 'name', 'int_field'):
             if pk == 1:
                 self.assertEqual('\'', name)
@@ -214,22 +210,23 @@ class TestSimple(TestCase):
 
     def test_key_update(self):
         res = bulk_update_or_create(TestModel, {
-            ('test1',): {
+            (1, 'test1'): {
                 'id': 1,
                 'name': 'bulk_update_1'
             },
-            ('test5',): {
+            (5, 'test5'): {
                 'id': 5,
                 'name': 'bulk_update_5'
             },
-            ('bulk_update_11',): {
+            (11, 'test11'): {
                 'id': 11,
                 'name': 'bulk_update_11'
             }
-        }, key_fields='name')
-        self.assertTupleEqual((1, 2), res)
+        }, key_fields=('id', 'name'))
+        self.assertEqual(3, res)
         for pk, name, int_field in TestModel.objects.all().order_by('id').values_list('id', 'name', 'int_field'):
-            if pk in {1, 5, 11}:
+            if pk in {1, 5}:
+                # Note due to insert on conflict restrictions key fields will be prior to update ones on insert.
                 self.assertEqual('bulk_update_%d' % pk, name)
             else:
                 self.assertEqual('test%d' % pk, name)
@@ -250,7 +247,7 @@ class TestSimple(TestCase):
             'id': 11,
             'name': 'bulk_update_11'
         }], using='secondary')
-        self.assertTupleEqual((1, 2), res)
+        self.assertEqual(3, res)
 
         # 9 from fixture + 1 created
         self.assertEqual(10, TestModel.objects.all().using('secondary').count())
@@ -283,7 +280,7 @@ class TestSimple(TestCase):
             'id': 11,
             'name': 'bulk_update_11'
         }], batch_size=1)
-        self.assertTupleEqual((1, 2), res)
+        self.assertEqual(3, res)
 
         # 9 from fixture + 1 created
         self.assertEqual(10, TestModel.objects.all().count())
@@ -301,7 +298,7 @@ class TestSimple(TestCase):
 
         # Test for empty values correct
         res = bulk_update_or_create(TestModel, [], batch_size=10)
-        self.assertTupleEqual((0, 0), res)
+        self.assertEqual(0, res)
 
 
 class TestReadmeExample(TestCase):
@@ -313,7 +310,7 @@ class TestReadmeExample(TestCase):
             TestModel(pk=3, name="incr", int_field=4),
         ])
 
-        inserted, updated = bulk_update_or_create(TestModel, [{
+        res = bulk_update_or_create(TestModel, [{
             "id": 3,
             "name": "_concat1",
             "int_field": 4
@@ -322,8 +319,7 @@ class TestReadmeExample(TestCase):
             "name": "concat2",
             "int_field": 5
         }], set_functions={'name': '||'})
-        self.assertEqual(1, inserted)
-        self.assertEqual(1, updated)
+        self.assertEqual(2, res)
 
         self.assertListEqual([
             {"id": 1, "name": "updated1", "int_field": 2},
@@ -347,7 +343,7 @@ class TestSetFunctions(TestCase):
             'id': 11,
             'int_field': 11
         }], set_functions={'int_field': '+'})
-        self.assertTupleEqual((1, 2), res)
+        self.assertEqual(3, res)
         for pk, name, int_field in TestModel.objects.all().order_by('id').values_list('id', 'name', 'int_field'):
             if pk in {1, 5}:
                 self.assertEqual(2 * pk, int_field)
@@ -370,7 +366,7 @@ class TestSetFunctions(TestCase):
             'id': 11,
             'name': 'bulk_update_11'
         }], set_functions={'name': '||'})
-        self.assertTupleEqual((1, 2), res)
+        self.assertEqual(3, res)
         for pk, name, int_field in TestModel.objects.all().order_by('id').values_list('id', 'name', 'int_field'):
             if pk in {1, 5}:
                 self.assertEqual('test%dbulk_update_%d' % (pk, pk), name)
@@ -385,7 +381,7 @@ class TestSetFunctions(TestCase):
                 self.assertIsNone(int_field)
 
     def _test_concat_array(self, iteration, res):
-        self.assertTupleEqual((1, 3) if iteration == 1 else (0, 4), res)
+        self.assertEqual(4, res)
         for pk, name, array_field in TestModel.objects.all().order_by('id').values_list('id', 'name', 'array_field'):
             if pk in {1, 2, 11}:
                 self.assertListEqual([pk] * iteration, array_field)
@@ -409,7 +405,7 @@ class TestSetFunctions(TestCase):
             self._test_concat_array(i, res)
 
     def _test_union_array(self, iteration, res):
-        self.assertTupleEqual((1, 3) if iteration == 1 else (0, 4), res)
+        self.assertEqual(4, res)
         for pk, name, array_field in TestModel.objects.all().order_by('id').values_list('id', 'name', 'array_field'):
             if pk == 1:
                 self.assertListEqual([pk], array_field)
@@ -437,7 +433,7 @@ class TestSetFunctions(TestCase):
             self._test_union_array(i, res)
 
     def _test_concat_dict(self, iteration, res, field_name, val_as_str=False):
-        self.assertTupleEqual((1, 3) if iteration == 1 else (0, 4), res)
+        self.assertEqual(4, res)
         for pk, name, dict_field in TestModel.objects.all().order_by('id').values_list('id', 'name', field_name):
             if pk in {1, 2, 11}:
                 # Note that JSON standard uses only strings as keys. So json.dumps will convert it
@@ -483,7 +479,7 @@ class TestSetFunctions(TestCase):
             'id': 11,
             'name': None
         }], set_functions={'name': 'eq_not_null'})
-        self.assertTupleEqual((1, 2), res)
+        self.assertEqual(3, res)
 
         # 9 from fixture + 1 created
         self.assertEqual(10, TestModel.objects.all().count())
@@ -518,7 +514,7 @@ class TestManager(TestCase):
             'id': 11,
             'name': 'bulk_update_11'
         }])
-        self.assertTupleEqual((1, 2), res)
+        self.assertEqual(3, res)
 
         # 9 from fixture + 1 created
         self.assertEqual(10, TestModel.objects.all().count())
@@ -545,7 +541,7 @@ class TestManager(TestCase):
             'id': 11,
             'name': 'bulk_update_11'
         }])
-        self.assertTupleEqual((1, 2), res)
+        self.assertEqual(3, res)
 
         # 9 from fixture + 1 created
         self.assertEqual(10, TestModel.objects.all().using('secondary').count())
@@ -577,7 +573,7 @@ class TestFieldTypes(TestCase):
                                                 {'id': 2, 'array_field': [2]},
                                                 {'id': 11, 'array_field': [11]},
                                                 {'id': 4, 'array_field': []}])
-        self.assertTupleEqual((1, 3), res)
+        self.assertEqual(4, res)
         for pk, name, array_field in TestModel.objects.all().order_by('id').values_list('id', 'name', 'array_field'):
             if pk in {1, 2, 11}:
                 self.assertListEqual([pk], array_field)
@@ -598,7 +594,7 @@ class TestFieldTypes(TestCase):
                                                 {'id': 11, 'json_field': {'test': '11'}},
                                                 {'id': 4, 'json_field': {}},
                                                 {'id': 5, 'json_field': {'single': "'", "multi": '"'}}])
-        self.assertTupleEqual((1, 4), res)
+        self.assertEqual(5, res)
         for pk, name, json_field in TestModel.objects.all().order_by('id').values_list('id', 'name', 'json_field'):
             if pk in {1, 2, 11}:
                 self.assertDictEqual({'test': str(pk)}, json_field)
@@ -621,7 +617,7 @@ class TestFieldTypes(TestCase):
                                                 {'id': 11, 'hstore_field': {'test': '11'}},
                                                 {'id': 4, 'hstore_field': {}},
                                                 {'id': 5, 'hstore_field': {'single': "'", "multi": '"'}}])
-        self.assertTupleEqual((1, 4), res)
+        self.assertEqual(5, res)
         for item in TestModel.objects.all().order_by('id'):
             if item.pk in {1, 2, 11}:
                 self.assertDictEqual({'test': str(item.pk)}, item.hstore_field)

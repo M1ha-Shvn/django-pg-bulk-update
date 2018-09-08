@@ -1,14 +1,17 @@
 """
 Contains some project unbind helpers
 """
+import logging
 from time import sleep
 
 from django.core.exceptions import FieldError
 from django.db import DefaultConnectionProxy
 from django.db.models import Field
 from django.db.models.sql.subqueries import UpdateQuery
-from typing import TypeVar, Set, Any, Tuple, Iterable, Callable, Optional, List, Dict
-from .compatibility import hstore_serialize, hstore_available, jsonb_available
+from typing import TypeVar, Set, Any, Tuple, Iterable, Callable, Optional, List
+from .compatibility import hstore_serialize, hstore_available, jsonb_available, get_field_db_type
+
+logger = logging.getLogger('django-pg-bulk-update')
 
 # JSONField is available in django 1.9+ only
 # I create fake class for previous version in order to just skip isinstance(item, JSONField) if branch
@@ -46,13 +49,14 @@ def get_subclasses(cls, recursive=False):  # type: (T, bool) -> Set[T]
     return subclasses
 
 
-def format_field_value(field, val, conn):
-    # type: (Field, Any, DefaultConnectionProxy, **Any) -> Tuple[str, Tuple[Any]]
+def format_field_value(field, val, conn, cast_type=False):
+    # type: (Field, Any, DefaultConnectionProxy, bool) -> Tuple[str, Tuple[Any]]
     """
     Formats value, according to field rules
     :param field: Django field to take format from
     :param val: Value to format
     :param conn: Connection used to update data
+    :param cast_type: Adds type casting to sql if flag is True
     :return: A tuple: sql, replacing value in update and a tuple of parameters to pass to cursor
     """
     # This content is a part, taken from django.db.models.sql.compiler.SQLUpdateCompiler.as_sql()
@@ -116,6 +120,9 @@ def format_field_value(field, val, conn):
     else:
         value, update_params = 'NULL', tuple()
 
+    if cast_type:
+        value = 'CAST(%s AS %s)' % (value, get_field_db_type(field, conn))
+
     return value, update_params
 
 
@@ -135,11 +142,18 @@ def batched_operation(handler, data, batch_size=None, batch_delay=0, args=(), kw
         Note, that args must contain any placeholder value, which will be replaced by batch data
     :return: A list of results for each batch
     """
-    assert batch_size is None or type(batch_size) is int and batch_size > 0,\
-        "batch_size must be positive integer if given"
-    assert type(batch_delay) in {int, float} and batch_delay >= 0, "batch_delay must be non negative float"
-    assert type(data_arg_index) is int and 0 <= data_arg_index < len(args),\
-        "data_arg_num must be integer between 0 and len(args)"
+    if batch_size is not None and (type(batch_size) is not int):
+        raise TypeError("batch_size must be positive integer if given")
+    if batch_size is not None and batch_size <= 0:
+        raise ValueError("batch_size must be positive integer if given")
+    if type(batch_delay) not in {int, float}:
+        raise TypeError("batch_delay must be non negative float")
+    if batch_delay < 0:
+        raise ValueError("batch_delay must be non negative float")
+    if type(data_arg_index) is not int:
+        raise TypeError("data_arg_num must be integer between 0 and len(args)")
+    if not 0 <= data_arg_index < len(args):
+        raise ValueError("data_arg_num must be integer between 0 and len(args)")
 
     def _batches_iterator():
         if batch_size is None:
@@ -155,7 +169,8 @@ def batched_operation(handler, data, batch_size=None, batch_delay=0, args=(), kw
     results = []
     args = list(args)
     kwargs = kwargs or {}
-    for batch in _batches_iterator():
+    for j, batch in enumerate(_batches_iterator()):
+        logger.debug('Processing batch %d with size %d' % (j + 1, len(batch)))
         args[data_arg_index] = batch
         r = handler(*args, **kwargs)
         results.append(r)
