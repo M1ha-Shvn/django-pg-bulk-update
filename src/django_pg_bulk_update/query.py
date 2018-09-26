@@ -10,7 +10,7 @@ from logging import getLogger
 
 import six
 from django.db import transaction, connection, connections, DefaultConnectionProxy
-from django.db.models import Model, Q
+from django.db.models import Model, Q, AutoField
 from typing import Any, Type, Iterable as TIterable, Union, Optional, List, Tuple
 
 from .compatibility import get_postgres_version, get_model_fields
@@ -256,7 +256,7 @@ def _get_default_fds(model, existing_fds):
     result = []
 
     for f in get_model_fields(model):
-        if f not in existing_fields:
+        if f not in existing_fields and not isinstance(f, AutoField):
             desc = FieldDescriptor(f.attname)
             desc.set_prefix('def')
             result.append(desc)

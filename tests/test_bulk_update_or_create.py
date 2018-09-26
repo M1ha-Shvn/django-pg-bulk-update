@@ -5,7 +5,7 @@ from django.test import TestCase
 from django_pg_bulk_update.compatibility import jsonb_available, array_available, hstore_available
 from django_pg_bulk_update.query import bulk_update_or_create
 from django_pg_bulk_update.set_functions import ConcatSetFunction
-from tests.models import TestModel
+from tests.models import TestModel, UniqueNotPrimary
 
 
 class TestInputFormats(TestCase):
@@ -300,6 +300,24 @@ class TestSimple(TestCase):
         # Test for empty values correct
         res = bulk_update_or_create(TestModel, [], batch_size=10)
         self.assertEqual(0, res)
+
+    def test_unique_not_primary(self):
+        """
+        Test for issue https://github.com/M1hacka/django-pg-bulk-update/issues/19
+        :return:
+        """
+        # Test object
+        UniqueNotPrimary.objects.create(int_field=1)
+
+        res = bulk_update_or_create(UniqueNotPrimary, [{
+            'int_field': 1,
+        }, {
+            'int_field': 2,
+        }], key_fields='int_field')
+
+        self.assertEqual(1, res)
+        self.assertSetEqual({1, 2}, set(UniqueNotPrimary.objects.values_list('int_field', flat=True)))
+
 
 
 class TestReadmeExample(TestCase):

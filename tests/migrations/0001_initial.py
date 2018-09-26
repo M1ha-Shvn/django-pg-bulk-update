@@ -38,6 +38,16 @@ class Migration(migrations.Migration):
                 'abstract': False,
             }
         ),
+        migrations.CreateModel(
+            name='UniqueNotPrimary',
+            fields=(
+                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('int_field', models.IntegerField(unique=True)),
+            ),
+            options={
+                'abstract': False,
+            }
+        ),
         migrations.AlterUniqueTogether(name='TestModel', unique_together=[('id', 'name')])
     ]
 

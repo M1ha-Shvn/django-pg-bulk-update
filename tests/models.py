@@ -31,3 +31,10 @@ if jsonb_available():
     model_attrs['json_field'] = JSONField(null=True, blank=True)
 
 TestModel = type('TestModel', (models.Model,), model_attrs)
+
+
+class UniqueNotPrimary(models.Model):
+    """
+    Test model for https://github.com/M1hacka/django-pg-bulk-update/issues/19
+    """
+    int_field = models.IntegerField(unique=True)
