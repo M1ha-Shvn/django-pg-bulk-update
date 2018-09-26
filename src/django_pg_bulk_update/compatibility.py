@@ -3,7 +3,7 @@ This file contains number of functions to handle different software versions com
 """
 import json
 
-from django.db.models import Model, Field
+from django.db.models import Model, Field, BigIntegerField, IntegerField
 from typing import Dict, Any, Optional, Union, Tuple, List, Type
 
 import django
@@ -30,25 +30,25 @@ def jsonb_available():  # type: () -> bool
     It is available since django 1.9 and doesn't support Postgres < 9.4
     :return: Bool
     """
-    return get_postgres_version() >= (9, 4) and (django.VERSION[0] > 1 or django.VERSION[1] > 8)
+    return get_postgres_version() >= (9, 4) and django.VERSION >= (1, 9)
 
 
 def hstore_available():  # type: () -> bool
     """
     Checks if we can use HStoreField.
-    It is available since django 1.9 and doesn't support Postgres < 9.4
+    It is available since django 1.8
     :return: Bool
     """
-    return django.VERSION[0] > 1 or django.VERSION[1] >= 8
+    return django.VERSION >= (1, 8)
 
 
 def array_available():  # type: () -> bool
     """
     Checks if we can use ArrayField.
-    It is available since django 1.9 and doesn't support Postgres < 9.4
+    It is available since django 1.8
     :return: Bool
     """
-    return django.VERSION[0] > 1 or django.VERSION[1] >= 8
+    return django.VERSION >= (1, 8)
 
 
 def hstore_serialize(value):  # type: (Dict[Any, Any]) -> Dict[str, str]
@@ -87,11 +87,28 @@ def get_field_db_type(field, conn):
     :param conn: Database connection used
     :return: Database type name (str)
     """
-    # We should resolve value as array for IN operator.
     # db_type() as id field returned 'serial' instead of 'integer' here
     # rel_db_type() return integer, but it is not available before django 1.10
+    # rel_db_type() returns serial[] for arrays.
+    # cast_db_type() is not well documented and returns serial too.
     db_type = field.db_type(conn)
-    return db_type.replace('serial', 'integer')
+
+    # Some external libraries may add column fields here
+    # Let's cut them
+    cut_phrases = [
+        'CONSTRAINT', 'NOT NULL', 'NULL', 'CHECK', 'DEFAULT', 'UNIQUE', 'PRIMARY KEY', 'REFERENCES', 'COLLATE'
+    ]
+    for ph in cut_phrases:
+        db_type = db_type.split(ph, 1)[0]
+
+    db_type = db_type.strip()
+
+    if 'bigserial' in db_type:
+        db_type = db_type.replace('bigserial', BigIntegerField().db_type(conn))
+    elif 'serial' in db_type:
+        db_type = db_type.replace('serial', IntegerField().db_type(conn))
+
+    return db_type
 
 
 def get_model_fields(model):
