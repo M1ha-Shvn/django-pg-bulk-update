@@ -1,5 +1,8 @@
+from unittest import skipIf
+
+import django
 from django.db import connection
-from django.db.models import AutoField, BigAutoField, IntegerField
+from django.db.models import AutoField, IntegerField
 from django.test import TestCase
 
 from django_pg_bulk_update.compatibility import get_field_db_type
@@ -18,7 +21,9 @@ class GetFieldDbTypeTest(TestCase):
         f = AutoField()
         self.assertEqual('integer', get_field_db_type(f, connection))
 
+    @skipIf(django.VERSION < (1, 10), "BigAutoField is available since django 1.10")
     def test_big_auto_field(self):
+        from django.db.models import BigAutoField
         f = BigAutoField()
         self.assertEqual('bigint', get_field_db_type(f, connection))
 
