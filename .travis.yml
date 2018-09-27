@@ -11,6 +11,7 @@ addons:
     - postgresql-10
     - postgresql-client-10
 
+
 python:
   - 2.7
   - 3.3
@@ -194,6 +195,10 @@ matrix:
     env: DJANGO=1.7 PG=10
 
 before_install:
+  # Use default PostgreSQL 10 port
+  - sudo sed -i 's/port = 5433/port = 5432/' /etc/postgresql/10/main/postgresql.conf
+
+  # Start PostgreSQL version we need
   - sudo service postgresql stop && sudo service postgresql start $PG
 
 install:
@@ -203,6 +208,7 @@ install:
   - python setup.py -q install
 
 before_script:
+
   - psql -tc 'SHOW server_version' -U postgres
   - psql -c 'CREATE ROLE test;' -U postgres
   - psql -c 'ALTER ROLE test WITH SUPERUSER;' -U postgres
