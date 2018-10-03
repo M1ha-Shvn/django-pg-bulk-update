@@ -124,7 +124,11 @@ def get_model_fields(model, concrete_only=False):
         fields = model._meta.get_fields()
         return [f for f in fields if f.concrete] if concrete_only else fields
     else:
-        return [f[0] for f in model._meta.get_fields_with_model() if not concrete_only or f[0].concrete]
+        # Django 1.7
+        if concrete_only:
+            return [f[0] for f in model._meta.get_concrete_fields_with_model()]
+        else:
+            return [f[0] for f in model._meta.get_fields_with_model()]
 
 
 # Postgres 9.4 has JSONB support, but doesn't support concat operator (||)
