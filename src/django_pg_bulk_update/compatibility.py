@@ -111,18 +111,20 @@ def get_field_db_type(field, conn):
     return db_type
 
 
-def get_model_fields(model):
-    # type: (Type[Model]) -> List[Field]
+def get_model_fields(model, concrete_only=False):
+    # type: (Type[Model], bool) -> List[Field]
     """
     Returns all model fields.
     :param model: Model to get fields for
+    :param concrete_only: If True, returns only fields which have database columns
     :return: A list of fields
     """
     if hasattr(model._meta, 'get_fields'):
         # Django 1.8+
-        return model._meta.get_fields()
+        fields = model._meta.get_fields()
+        return [f for f in fields if f.concrete] if concrete_only else fields
     else:
-        return [f[0] for f in model._meta.get_fields_with_model()]
+        return [f[0] for f in model._meta.get_fields_with_model() if not concrete_only or f[0].concrete]
 
 
 # Postgres 9.4 has JSONB support, but doesn't support concat operator (||)
