@@ -30,12 +30,12 @@ You can make queries in 2 ways:
 ### Query functions
 There are 3 query helpers in this library. There parameters are unified and described in the section below.  
 
-* `bulk_update(model, values, key_fields='id', using=None, set_functions=None, key_fields_ops=(), batch_size=None, batch_delay=0)`  
+* `bulk_update(model, values, key_fields='id', using=None, set_functions=None, key_fields_ops=(), returning=None, batch_size=None, batch_delay=0)`  
     This function updates multiple records of given model in single database query.  
     Functions forms raw sql query for PostgreSQL. It's work is not guaranteed on other databases.  
     Function returns number of updated records.
     
-* `bulk_update_or_create(model, values, key_fields='id', using=None, set_functions=None, update=True, key_is_unique=True, batch_size=None, batch_delay=0)`  
+* `bulk_update_or_create(model, values, key_fields='id', using=None, set_functions=None, update=True, key_is_unique=True, returning=None, batch_size=None, batch_delay=0)`  
     This function finds records by key_fields. It creates not existing records with data, given in values.   
     If `update` flag is set, it updates existing records with data, given in values.  
     
@@ -132,6 +132,12 @@ There are 3 query helpers in this library. There parameters are unified and desc
       Searches for records, which have field between a and b. Value should be iterable with 2 items.
     - You can define your own clause operation. See section below.
     
+* `returning: Optional[Iteralble[str]]`  
+    If this parameter is set, it must be an iterable of column names to return. 
+    Query returns django_pg_returning.ReturningQuerySet instead of rows count.  
+    Using this feature requires [django-pg-returning](https://github.com/M1hacka/django-pg-returning/tree/v1.0.2) 
+    library installed (it is not in requirements, though).
+      
 * `batch_size: Optional[int]`  
     If this parameter is set, values are split into batches of given size. Each batch is processed separately.
     Note that batch_size != number of records processed if you use key_field_ops other than 'eq'
@@ -176,6 +182,23 @@ updated = bulk_update(TestModel, [{
 
 print(updated)
 # Outputs: 2
+
+# Update returning
+res = bulk_update(TestModel, [{
+    "id": 1,
+    "name": "updated1",
+}, {
+    "id": 2,
+    "name": "updated2"
+}], returning=('id', 'name', 'int_field'))
+
+print(type(res), list(res.values_list('id', 'name', 'int_field')))
+# Outputs: 
+# <class 'django_pg_returning.queryset.ReturningQuerySet'>
+# [
+#    (1, "updated1", 1),
+#    (2, "updated2", 1)
+# ]
 
 # Call update by name field
 updated = bulk_update(TestModel, {
@@ -450,6 +473,7 @@ Pros:
 * pdnf_clause helper
 * Django 1.7 support
 * Ability to make delay between batches
+* Ability to return affected rows instead of rowcount (using Postgres RETURNING feature)
 
 Corns:
 * PostgreSQL only
