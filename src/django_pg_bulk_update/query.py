@@ -48,24 +48,27 @@ def _validate_field_names(field_names, param_name='key_fields'):
         raise TypeError(error_message)
 
 
-def _validate_returning(returning):
-    # type: (Optional[Iterable[str]]) -> Optional[Tuple[FieldDescriptor]]
+def _validate_returning(model, returning):
+    # type: (Type[Model], Optional[TFieldNames]) -> Optional[Tuple[FieldDescriptor]]
     """
     Validates returning statement to be correct
+    :param model: Model to get fields from
     :param returning: Optional iterable of field names to return
     :return: None, if returning is None, a tuple of validated fds otherwise
     """
-    if returning:
+    if returning is None:
+        return None
+    elif returning == '*':
+        ret_fds = tuple(FieldDescriptor(f.attname) for f in get_model_fields(model, concrete_only=True))
+    else:
         returning_available(raise_exception=True)
 
         ret_fds = _validate_field_names(returning, param_name='returning')
-        for i, f in enumerate(ret_fds):
-            f.set_prefix('ret', i)
 
-        return ret_fds
-    else:
-        return None
+    for i, f in enumerate(ret_fds):
+        f.set_prefix('ret', i)
 
+    return ret_fds
 
 
 def _validate_operators(key_fds, operators):
@@ -485,7 +488,7 @@ def _concat_batched_result(batched_result, ret_fds):
 
 def bulk_update(model, values, key_fds='id', using=None, set_functions=None, key_fields_ops=(), returning=None,
                 batch_size=None, batch_delay=0):
-    # type: (Type[Model], TUpdateValues, TFieldNames, Optional[str], TSetFunctions, TOperators, Optional[Iterable[str]], Optional[int], float) -> Union[int, 'ReturningQuerySet']
+    # type: (Type[Model], TUpdateValues, TFieldNames, Optional[str], TSetFunctions, TOperators, Optional[TFieldNames], Optional[int], float) -> Union[int, 'ReturningQuerySet']
     """
     Updates multiple records of a given model, finding them by key_fields.
 
@@ -530,7 +533,7 @@ def bulk_update(model, values, key_fds='id', using=None, set_functions=None, key
 
     key_fds = _validate_field_names(key_fds)
     upd_fds, values = _validate_update_values(key_fds, values)
-    ret_fds = _validate_returning(returning)
+    ret_fds = _validate_returning(model, returning)
 
     if len(values) == 0:
         if ret_fds is None:
@@ -719,7 +722,7 @@ def _insert_on_conflict_no_validation(model, values, key_fds, upd_fds, ret_fds, 
 
 def bulk_update_or_create(model, values, key_fields='id', using=None, set_functions=None, update=True,
                           key_is_unique=True, returning=None, batch_size=None, batch_delay=0):
-    # type: (Type[Model], TUpdateValues, TFieldNames, Optional[str], TSetFunctions, bool, bool, Optional[Iterable[str]], Optional[int], float) -> Union[int, 'ReturningQuerySet']
+    # type: (Type[Model], TUpdateValues, TFieldNames, Optional[str], TSetFunctions, bool, bool, Optional[TFieldNames], Optional[int], float) -> Union[int, 'ReturningQuerySet']
     """
     Searches for records, given in values by key_fields. If records are found, updates them from values.
     If not found - creates them from values. Note, that all fields without default value must be present in values.
@@ -771,7 +774,7 @@ def bulk_update_or_create(model, values, key_fields='id', using=None, set_functi
         f.set_prefix('key', index=i)
 
     upd_fds, values = _validate_update_values(key_fds, values)
-    ret_fds = _validate_returning(returning)
+    ret_fds = _validate_returning(model, returning)
 
     if len(values) == 0:
         if ret_fds is None:

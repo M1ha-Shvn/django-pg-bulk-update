@@ -312,6 +312,26 @@ class TestSimple(TestCase):
         self.assertIsInstance(res, ReturningQuerySet)
         self.assertEqual(0, res.count())
 
+    def test_returning_all(self):
+        res = bulk_update(TestModel, [{
+            'id': 1,
+            'name': 'bulk_update_1'
+        }, {
+            'id': 5,
+            'name': 'bulk_update_5'
+        }, {
+            'id': 8,
+            'name': 'bulk_update_8'
+        }], returning='*')
+
+        from django_pg_returning import ReturningQuerySet
+        self.assertIsInstance(res, ReturningQuerySet)
+        self.assertSetEqual({
+            (1, 'bulk_update_1', 1),
+            (5, 'bulk_update_5', 5),
+            (8, 'bulk_update_8', 8)
+        }, set(res.values_list('id', 'name', 'int_field')))
+
 
 class TestReadmeExample(TestCase):
     def test_example(self):

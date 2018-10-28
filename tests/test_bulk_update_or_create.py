@@ -352,6 +352,27 @@ class TestSimple(TestCase):
             else:
                 self.assertEqual(pk, int_field)
 
+    def test_returning_all(self):
+        res = bulk_update_or_create(TestModel, [{
+            'id': 1,
+            'name': 'bulk_update_1'
+        }, {
+            'id': 5,
+            'name': 'bulk_update_5'
+        }, {
+            'id': 11,
+            'name': 'bulk_update_11'
+        }], returning='*')
+
+        from django_pg_returning import ReturningQuerySet
+        self.assertIsInstance(res, ReturningQuerySet)
+        self.assertSetEqual({
+            (1, 'bulk_update_1', 1),
+            (5, 'bulk_update_5', 5),
+            (11, 'bulk_update_11', None),
+        }, set(res.values_list('id', 'name', 'int_field')))
+
+
     def test_returning_empty(self):
         res = bulk_update_or_create(TestModel, [], returning='id')
         from django_pg_returning import ReturningQuerySet

@@ -132,8 +132,12 @@ There are 3 query helpers in this library. There parameters are unified and desc
       Searches for records, which have field between a and b. Value should be iterable with 2 items.
     - You can define your own clause operation. See section below.
     
-* `returning: Optional[Iteralble[str]]`  
-    If this parameter is set, it must be an iterable of column names to return. 
+* `returning: Optional[Union[str, Iterable[str]]]`  
+    If this parameter is set, it can be:  
+    1. A field name string  
+    2. An iterable of field names   
+    3. '*' string to return all model fields  
+    
     Query returns django_pg_returning.ReturningQuerySet instead of rows count.  
     Using this feature requires [django-pg-returning](https://github.com/M1hacka/django-pg-returning/tree/v1.0.2) 
     library installed (it is not in requirements, though).
