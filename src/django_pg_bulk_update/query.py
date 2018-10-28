@@ -474,12 +474,8 @@ def _bulk_update_or_create_no_validation(model, values, key_fds, upd_fds, using,
             - If iterable, key_values length must be equal to key_fields length.
             - If single object, key_fields is expected to have 1 element
     :param key_fds: Field names, by which items would be selected (tuple)
+    :param upd_fds: FieldDescriptor objects to update
     :param using: Database alias to make query to.
-    :param set_functions: Functions to set values.
-        Should be a dict of field name as key, function as value.
-        Default function is eq.
-        Functions: [eq, =; incr, +; concat, ||]
-        Example: {'name': 'eq', 'int_fields': 'incr'}
     :param update: If this flag is not set, existing records will not be updated
     :return: A tuple (number of records created, number of records updated)
     """
@@ -527,12 +523,9 @@ def _insert_on_conflict_query_part(model, conn, key_fds, upd_fds, default_fds, u
     """
     Forms bulk update query part without values, counting that all keys and values are already in vals table
     :param model: Model to update, a subclass of django.db.models.Model
-    :param sel_key_items: Names of field in vals table.
-        Key fields are prefixed with key_%d__
-        Values fields are prefixed with upd__
     :param conn: Database connection used
-    :param set_functions: Functions to set values.
-        Should be a dict of field name as key, function class as value.
+    :param key_fds: FieldDescriptor objects to use as key fields
+    :param upd_fds: FieldDescriptor objects to update
     :param update: If this flag is not set, existing records will not be updated
     :return: A tuple of sql and it's parameters
     """
@@ -609,13 +602,9 @@ def _insert_on_conflict_no_validation(model, values, key_fds, upd_fds, using, up
             - key_values can be iterable or single object.
             - If iterable, key_values length must be equal to key_fields length.
             - If single object, key_fields is expected to have 1 element
-    :param key_fields: Field names, by which items would be selected (tuple)
+    :param key_fds: FieldDescriptor objects to use as key fields
+    :param upd_fds: FieldDescriptor objects to update
     :param using: Database alias to make query to.
-    :param set_functions: Functions to set values.
-        Should be a dict of field name as key, function as value.
-        Default function is eq.
-        Functions: [eq, =; incr, +; concat, ||]
-        Example: {'name': 'eq', 'int_fields': 'incr'}
     :param update: If this flag is not set, existing records will not be updated
     :return: A tuple (number of records created, number of records updated)
     """
