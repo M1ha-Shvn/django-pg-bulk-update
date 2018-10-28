@@ -368,7 +368,7 @@ def _bulk_update_query_part(model, conn, key_fds, upd_fds):
     query = """
         UPDATE %s AS t SET %s
         FROM vals
-        WHERE %s;
+        WHERE %s
     """
 
     # Table we save data to
@@ -474,10 +474,13 @@ def _concat_batched_result(batched_result, ret_fds):
     """
     if ret_fds is None:
         return sum(batched_result)
+    elif len(batched_result) == 0:
+        from django_pg_returning import ReturningQuerySet
+        return ReturningQuerySet(None)
     else:
         # I can't use chain here, as it iterates over QuerySets, and I have to return ReturningQuerySet
         from django_pg_returning import ReturningQuerySet
-        return sum(batched_result, ReturningQuerySet(None))
+        return sum(batched_result[1:], batched_result[0])
 
 
 def bulk_update(model, values, key_fds='id', using=None, set_functions=None, key_fields_ops=(), returning=None,
@@ -530,7 +533,11 @@ def bulk_update(model, values, key_fds='id', using=None, set_functions=None, key
     ret_fds = _validate_returning(returning)
 
     if len(values) == 0:
-        return 0
+        if ret_fds is None:
+            return 0
+        else:
+            from django_pg_returning import ReturningQuerySet
+            return ReturningQuerySet(None)
 
     key_fds = _validate_operators(key_fds, key_fields_ops)
     upd_fds = _validate_set_functions(model, upd_fds, set_functions)
@@ -602,7 +609,7 @@ def _bulk_update_or_create_no_validation(model, values, key_fds, upd_fds, ret_fd
         else:
             # HACK There's no way to create ReturningQuerySet from already prefetched items
             res = update_result
-            res._results_cache.extend(create_items)
+            res._result_cache.extend(create_items)
             return res
 
 
@@ -767,7 +774,11 @@ def bulk_update_or_create(model, values, key_fields='id', using=None, set_functi
     ret_fds = _validate_returning(returning)
 
     if len(values) == 0:
-        return 0
+        if ret_fds is None:
+            return 0
+        else:
+            from django_pg_returning import ReturningQuerySet
+            return ReturningQuerySet(None)
 
     upd_fds = _validate_set_functions(model, upd_fds, set_functions)
 

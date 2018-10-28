@@ -279,6 +279,39 @@ class TestSimple(TestCase):
                 self.assertEqual('test%d' % pk, name)
             self.assertEqual(pk, int_field)
 
+    def test_returning(self):
+        res = bulk_update(TestModel, [{
+            'id': 1,
+            'name': 'bulk_update_1'
+        }, {
+            'id': 5,
+            'name': 'bulk_update_5'
+        }, {
+            'id': 8,
+            'name': 'bulk_update_8'
+        }], returning=('id', 'name', 'int_field'))
+
+        from django_pg_returning import ReturningQuerySet
+        self.assertIsInstance(res, ReturningQuerySet)
+        self.assertSetEqual({
+            (1, 'bulk_update_1', 1),
+            (5, 'bulk_update_5', 5),
+            (8, 'bulk_update_8', 8)
+        }, set(res.values_list('id', 'name', 'int_field')))
+
+        for pk, name, int_field in TestModel.objects.all().order_by('id').values_list('id', 'name', 'int_field'):
+            if pk in {1, 5, 8}:
+                self.assertEqual('bulk_update_%d' % pk, name)
+            else:
+                self.assertEqual('test%d' % pk, name)
+            self.assertEqual(pk, int_field)
+
+    def test_retuarning_empty(self):
+        res = bulk_update(TestModel, [{'id': 100, 'name': 'not_exist'}], returning='id')
+        from django_pg_returning import ReturningQuerySet
+        self.assertIsInstance(res, ReturningQuerySet)
+        self.assertEqual(0, res.count())
+
 
 class TestReadmeExample(TestCase):
     def test_example(self):
