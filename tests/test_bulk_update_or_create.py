@@ -318,6 +318,106 @@ class TestSimple(TestCase):
         self.assertEqual(1, res)
         self.assertSetEqual({1, 2}, set(UniqueNotPrimary.objects.values_list('int_field', flat=True)))
 
+    def test_returning(self):
+        res = bulk_update_or_create(TestModel, [{
+            'id': 1,
+            'name': 'bulk_update_1'
+        }, {
+            'id': 5,
+            'name': 'bulk_update_5'
+        }, {
+            'id': 11,
+            'name': 'bulk_update_11'
+        }], returning=('id', 'name', 'int_field'))
+
+        from django_pg_returning import ReturningQuerySet
+        self.assertIsInstance(res, ReturningQuerySet)
+        self.assertSetEqual({
+            (1, 'bulk_update_1', 1),
+            (5, 'bulk_update_5', 5),
+            (11, 'bulk_update_11', None),
+        }, set(res.values_list('id', 'name', 'int_field')))
+
+        # 9 from fixture + 1 created
+        self.assertEqual(10, TestModel.objects.all().count())
+
+        for pk, name, int_field in TestModel.objects.all().order_by('id').values_list('id', 'name', 'int_field'):
+            if pk in {1, 5, 11}:
+                self.assertEqual('bulk_update_%d' % pk, name)
+            else:
+                self.assertEqual('test%d' % pk, name)
+
+            if pk == 11:
+                self.assertIsNone(int_field)
+            else:
+                self.assertEqual(pk, int_field)
+
+    def test_returning_all(self):
+        res = bulk_update_or_create(TestModel, [{
+            'id': 1,
+            'name': 'bulk_update_1'
+        }, {
+            'id': 5,
+            'name': 'bulk_update_5'
+        }, {
+            'id': 11,
+            'name': 'bulk_update_11'
+        }], returning='*')
+
+        from django_pg_returning import ReturningQuerySet
+        self.assertIsInstance(res, ReturningQuerySet)
+        self.assertSetEqual({
+            (1, 'bulk_update_1', 1),
+            (5, 'bulk_update_5', 5),
+            (11, 'bulk_update_11', None),
+        }, set(res.values_list('id', 'name', 'int_field')))
+
+
+    def test_returning_empty(self):
+        res = bulk_update_or_create(TestModel, [], returning='id')
+        from django_pg_returning import ReturningQuerySet
+        self.assertIsInstance(res, ReturningQuerySet)
+        self.assertEqual(0, res.count())
+
+    def test_returning_not_unique(self):
+        res = bulk_update_or_create(TestModel, [{
+            'id': 1,
+            'name': 'bulk_update_1'
+        }, {
+            'id': 5,
+            'name': 'bulk_update_5'
+        }, {
+            'id': 11,
+            'name': 'bulk_update_11'
+        }], returning=('id', 'name', 'int_field'), key_is_unique=False)
+
+        from django_pg_returning import ReturningQuerySet
+        self.assertIsInstance(res, ReturningQuerySet)
+        self.assertSetEqual({
+            (1, 'bulk_update_1', 1),
+            (5, 'bulk_update_5', 5),
+            (11, 'bulk_update_11', None),
+        }, set(res.values_list('id', 'name', 'int_field')))
+
+        # 9 from fixture + 1 created
+        self.assertEqual(10, TestModel.objects.all().count())
+
+        for pk, name, int_field in TestModel.objects.all().order_by('id').values_list('id', 'name', 'int_field'):
+            if pk in {1, 5, 11}:
+                self.assertEqual('bulk_update_%d' % pk, name)
+            else:
+                self.assertEqual('test%d' % pk, name)
+
+            if pk == 11:
+                self.assertIsNone(int_field)
+            else:
+                self.assertEqual(pk, int_field)
+
+    def test_returning_not_unique_empty(self):
+        res = bulk_update_or_create(TestModel, [], returning='id', key_is_unique=False)
+        from django_pg_returning import ReturningQuerySet
+        self.assertIsInstance(res, ReturningQuerySet)
+        self.assertEqual(0, res.count())
 
 
 class TestReadmeExample(TestCase):

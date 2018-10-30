@@ -51,6 +51,23 @@ def array_available():  # type: () -> bool
     return django.VERSION >= (1, 8)
 
 
+def returning_available(raise_exception=False):
+    # type: (bool) -> bool
+    """
+    Tests if returning query is available
+    :return: boolean
+    """
+    try:
+        from django_pg_returning import ReturningQuerySet
+        return True
+    except ImportError:
+        if raise_exception:
+            raise ImportError('Returning feature requires django-pg-returning library installed. '
+                              'Use pip install django-pg-returning')
+        else:
+            return False
+
+
 def hstore_serialize(value):  # type: (Dict[Any, Any]) -> Dict[str, str]
     """
     Django before 1.10 doesn't convert HStoreField values to string automatically
