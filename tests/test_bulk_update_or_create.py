@@ -523,6 +523,7 @@ class TestSetFunctions(TestCase):
                                                     {'id': 4, 'array_field': []}], set_functions={'array_field': '||'})
             self._test_concat_array(i, res)
 
+    @skipIf(not array_available(), "ArrayField is available in Django 1.8+")
     def test_concat_empty(self):
         res = bulk_update_or_create(TestModel, [{'id': 11, 'big_array_field': [2147483649]}],
                                     set_functions={'big_array_field': '||'})
