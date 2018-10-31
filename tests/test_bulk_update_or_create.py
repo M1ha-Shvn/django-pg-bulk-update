@@ -523,6 +523,13 @@ class TestSetFunctions(TestCase):
                                                     {'id': 4, 'array_field': []}], set_functions={'array_field': '||'})
             self._test_concat_array(i, res)
 
+    @skipIf(not array_available(), "ArrayField is available in Django 1.8+")
+    def test_concat_empty(self):
+        res = bulk_update_or_create(TestModel, [{'id': 11, 'big_array_field': [2147483649]}],
+                                    set_functions={'big_array_field': '||'})
+        self.assertEqual(1, res)
+        self.assertListEqual([2147483649], TestModel.objects.get(pk=11).big_array_field)
+
     def _test_union_array(self, iteration, res):
         self.assertEqual(4, res)
         for pk, name, array_field in TestModel.objects.all().order_by('id').values_list('id', 'name', 'array_field'):

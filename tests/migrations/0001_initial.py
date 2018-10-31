@@ -20,6 +20,7 @@ if jsonb_available():
 if array_available():
     from django.contrib.postgres.fields import ArrayField
     test_model_fields.append(('array_field', ArrayField(models.IntegerField(), null=True, blank=True)))
+    test_model_fields.append(('big_array_field', ArrayField(models.BigIntegerField(), default=list)))
 
 if hstore_available():
     from django.contrib.postgres.fields import HStoreField

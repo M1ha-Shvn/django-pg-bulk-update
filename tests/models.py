@@ -21,6 +21,7 @@ model_attrs = {
 if array_available():
     from django.contrib.postgres.fields import ArrayField
     model_attrs['array_field'] = ArrayField(models.IntegerField(null=True, blank=True))
+    model_attrs['big_array_field'] = ArrayField(models.BigIntegerField(), default=list)
 
 if hstore_available():
     from django.contrib.postgres.fields import HStoreField

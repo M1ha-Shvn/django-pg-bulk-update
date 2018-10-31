@@ -188,7 +188,7 @@ class AbstractSetFunction(object):
             raise Exception("Operation '%s' doesn't support field '%s'"
                             % (self.__class__.__name__, field.__class__.__name__))
 
-        return self.format_field_value(field, null_default, connection)
+        return self.format_field_value(field, null_default, connection, cast_type=True)
 
     def _get_field_column(self, field, with_table=False):
         # type: (Field, bool) -> str
