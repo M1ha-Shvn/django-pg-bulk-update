@@ -130,7 +130,9 @@ There are 3 query helpers in this library. There parameters are unified and desc
     - 'gte', '>='
     - 'between'
       Searches for records, which have field between a and b. Value should be iterable with 2 items.
-    - You can define your own clause operation. See section below.
+    - 'is_null', 'isnull'
+      Checks field value for been NULL. Value should be boolean (true for IS NULL, false for IS NOT NULL)
+    - You can define your own clause operator. See section below.
     
 * `returning: Optional[Union[str, Iterable[str]]]`  
     If this parameter is set, it can be:  
@@ -320,7 +322,7 @@ class TestModel(models.Model):
     int_field = models.IntegerField()
 ```
 
-### Custom clause operation
+### Custom clause operator
 You can define your own clause operator, creating `AbstractClauseOperator` subclass and implementing:
 * `names` attribute
 * `def get_django_filter(self, name)` method

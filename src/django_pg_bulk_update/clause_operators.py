@@ -13,6 +13,7 @@ from .utils import get_subclasses, format_field_value
 class AbstractClauseOperator(object):
     inverse = False
     names = set()
+    requires_value = True
 
     def get_django_filters(self, name, value):
         # type: (str, Any) -> Dict[str, Any]
@@ -112,6 +113,25 @@ class NotEqualClauseOperator(EqualClauseOperator):
 
     def get_sql_operator(self):
         return '!='
+
+
+class IsNullClauseOperator(AbstractClauseOperator):
+    names = {'is_null', 'isnull'}
+    requires_value = False
+
+    def format_field_value(self, field, val, connection, cast_type=False, **kwargs):
+        tpl = 'CAST(%s AS bool)' if cast_type else '%s'
+        return tpl, [bool(val)]
+
+    def get_django_filters(self, name, value):
+        return {'%s__isnull' % name: value}
+
+    def get_sql(self, table_field, value):
+        return '%s IS NULL AND %s OR %s IS NOT NULL AND NOT %s' % (table_field, value, table_field, value)
+
+    def get_sql_operator(self):
+        raise NotImplementedError("%s implements get_sql method, this method shouldn't be called"
+                                  % self.__class__.__name__)
 
 
 class InClauseOperator(AbstractArrayValueOperator):
