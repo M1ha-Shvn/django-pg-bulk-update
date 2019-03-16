@@ -20,43 +20,36 @@ python:
   - 3.7
 
 env:
-  - DJANGO=1.7 PG=9.2
   - DJANGO=1.7 PG=9.3
   - DJANGO=1.7 PG=9.4
   - DJANGO=1.7 PG=9.5
   - DJANGO=1.7 PG=9.6
   - DJANGO=1.7 PG=10
-  - DJANGO=1.8 PG=9.2
   - DJANGO=1.8 PG=9.3
   - DJANGO=1.8 PG=9.4
   - DJANGO=1.8 PG=9.5
   - DJANGO=1.8 PG=9.6
   - DJANGO=1.8 PG=10
-  - DJANGO=1.9 PG=9.2
   - DJANGO=1.9 PG=9.3
   - DJANGO=1.9 PG=9.4
   - DJANGO=1.9 PG=9.5
   - DJANGO=1.9 PG=9.6
   - DJANGO=1.9 PG=10
-  - DJANGO=1.10 PG=9.2
   - DJANGO=1.10 PG=9.3
   - DJANGO=1.10 PG=9.4
   - DJANGO=1.10 PG=9.5
   - DJANGO=1.10 PG=9.6
   - DJANGO=1.10 PG=10
-  - DJANGO=1.11 PG=9.2
   - DJANGO=1.11 PG=9.3
   - DJANGO=1.11 PG=9.4
   - DJANGO=1.11 PG=9.5
   - DJANGO=1.11 PG=9.6
   - DJANGO=1.11 PG=10
-  - DJANGO=2.0 PG=9.2
   - DJANGO=2.0 PG=9.3
   - DJANGO=2.0 PG=9.4
   - DJANGO=2.0 PG=9.5
   - DJANGO=2.0 PG=9.6
   - DJANGO=2.0 PG=10
-  - DJANGO=2.1 PG=9.2
   - DJANGO=2.1 PG=9.3
   - DJANGO=2.1 PG=9.4
   - DJANGO=2.1 PG=9.5
@@ -68,13 +61,11 @@ matrix:
   # Django 2.0+ doesn't support python 2.7
   - python: 2.7
     env:
-      - DJANGO=2.0 PG=9.2
       - DJANGO=2.0 PG=9.3
       - DJANGO=2.0 PG=9.4
       - DJANGO=2.0 PG=9.5
       - DJANGO=2.0 PG=9.6
       - DJANGO=2.0 PG=10
-      - DJANGO=2.1 PG=9.2
       - DJANGO=2.1 PG=9.3
       - DJANGO=2.1 PG=9.4
       - DJANGO=2.1 PG=9.5
@@ -84,7 +75,6 @@ matrix:
   # Django 2.1 doesn't support python 3.4
   - python: 3.4
     env:
-      - DJANGO=2.1 PG=9.2
       - DJANGO=2.1 PG=9.3
       - DJANGO=2.1 PG=9.4
       - DJANGO=2.1 PG=9.5
@@ -97,7 +87,6 @@ matrix:
       - 3.6
       - 3.7
     env:
-      - DJANGO=1.7 PG=9.2
       - DJANGO=1.7 PG=9.3
       - DJANGO=1.7 PG=9.4
       - DJANGO=1.7 PG=9.5
@@ -110,19 +99,16 @@ matrix:
       - 3.6
       - 3.7
     env:
-      - DJANGO=1.8 PG=9.2
       - DJANGO=1.8 PG=9.3
       - DJANGO=1.8 PG=9.4
       - DJANGO=1.8 PG=9.5
       - DJANGO=1.8 PG=9.6
       - DJANGO=1.8 PG=10
-      - DJANGO=1.9 PG=9.2
       - DJANGO=1.9 PG=9.3
       - DJANGO=1.9 PG=9.4
       - DJANGO=1.9 PG=9.5
       - DJANGO=1.9 PG=9.6
       - DJANGO=1.9 PG=10
-      - DJANGO=1.10 PG=9.2
       - DJANGO=1.10 PG=9.3
       - DJANGO=1.10 PG=9.4
       - DJANGO=1.10 PG=9.5
