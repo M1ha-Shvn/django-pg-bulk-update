@@ -59,7 +59,7 @@ def _validate_returning(model, returning):
     if returning is None:
         return None
     elif returning == '*':
-        ret_fds = tuple(FieldDescriptor(f.attname) for f in get_model_fields(model, concrete_only=True))
+        ret_fds = tuple(FieldDescriptor(f.name) for f in get_model_fields(model, concrete_only=True))
     else:
         returning_available(raise_exception=True)
 
@@ -281,7 +281,7 @@ def _get_default_fds(model, existing_fds):
 
     for f in get_model_fields(model, concrete_only=True):
         if f not in existing_fields and not isinstance(f, AutoField):
-            desc = FieldDescriptor(f.attname)
+            desc = FieldDescriptor(f.name)
             desc.set_prefix('def')
             result.append(desc)
     return tuple(result)
