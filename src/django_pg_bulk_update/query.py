@@ -203,7 +203,6 @@ def _validate_set_functions(model, upd_fds, functions):
         if not isinstance(v, (six.string_types, AbstractSetFunction)):
             raise ValueError("'set_functions' values must be string or AbstractSetFunction instance")
 
-
     for f in upd_fds:
         f.set_function = functions.get(f.name)
         if not f.set_function.field_is_supported(f.get_field(model)):
@@ -252,7 +251,8 @@ def pdnf_clause(key_fields, field_values, key_fields_ops=()):
         for i, fd in enumerate(key_fds):
             if isinstance(values_item, dict):
                 if fd.name not in values_item:
-                    raise ValueError("field_values dict '%s' doesn't have key '%s'" % (json.dumps(values_item), fd.name))
+                    raise ValueError("field_values dict '%s' doesn't have key '%s'"
+                                     % (json.dumps(values_item), fd.name))
                 value = values_item[fd.name]
             elif isinstance(values_item, Iterable):
                 values_item = list(values_item)
@@ -552,6 +552,7 @@ def bulk_update(model, values, key_fds='id', using=None, set_functions=None, key
 
     return _concat_batched_result(batched_result, ret_fds)
 
+
 def _bulk_update_or_create_no_validation(model, values, key_fds, upd_fds, ret_fds, using, update):
     # type: (Type[Model], TUpdateValues, Tuple[FieldDescriptor], Tuple[FieldDescriptor], Optional[Tuple[FieldDescriptor]], Optional[str], bool) -> int
     """
@@ -656,15 +657,13 @@ def _insert_on_conflict_query_part(model, conn, key_fds, upd_fds, default_fds, u
               % (', '.join(set_columns), ', '.join(set_items), ', '.join(where_columns), ', '.join(where_items))
 
     if update and upd_fds:
-        conflict_action ='DO UPDATE SET %s' % set_sql
+        conflict_action = 'DO UPDATE SET %s' % set_sql
         conflict_action_params = set_params
     else:
         conflict_action = 'DO NOTHING'
         conflict_action_params = []
 
     # Columns to insert to table
-    #upd_fields = {fd.get_field(model) for fd in upd_fds}
-    #insert_fds = list(chain([fd for fd in key_fds if fd.get_field(model) not in upd_fields], upd_fds, default_fds))
     key_fields = {fd.get_field(model) for fd in key_fds}
     insert_fds = list(chain(key_fds, [fd for fd in upd_fds if fd.get_field(model) not in key_fields], default_fds))
 
