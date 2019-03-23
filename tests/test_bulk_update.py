@@ -29,18 +29,18 @@ class TestInputFormats(TestCase):
             bulk_update(TestModel, {(1, 2): {'id': 10}})
 
         with self.assertRaises(ValueError):
-            bulk_update(TestModel, {1: {'id': 10}}, key_fds=('id', 'name'))
+            bulk_update(TestModel, {1: {'id': 10}}, key_fields=('id', 'name'))
 
         with self.assertRaises(ValueError):
             bulk_update(TestModel, [{'name': 'test'}])
 
         self.assertEqual(1, bulk_update(TestModel, [{'id': 1, 'name': 'abc'}]))
         self.assertEqual(1, bulk_update(TestModel, [{'id': 1, 'name': 'abc', 'int_field': 2}],
-                                        key_fds=('id', 'name')))
+                                        key_fields=('id', 'name')))
         self.assertEqual(1, bulk_update(TestModel, {1: {'name': 'abc'}}))
         self.assertEqual(1, bulk_update(TestModel, {(1,): {'name': 'abc'}}))
-        self.assertEqual(1, bulk_update(TestModel, {(2, 'test2'): {'int_field': 2}}, key_fds=('id', 'name')))
-        self.assertEqual(1, bulk_update(TestModel, {('test3',): {'int_field': 2}}, key_fds='name'))
+        self.assertEqual(1, bulk_update(TestModel, {(2, 'test2'): {'int_field': 2}}, key_fields=('id', 'name')))
+        self.assertEqual(1, bulk_update(TestModel, {('test3',): {'int_field': 2}}, key_fields='name'))
 
     def test_key_fields(self):
         values = [{
@@ -49,11 +49,11 @@ class TestInputFormats(TestCase):
         }]
 
         self.assertEqual(1, bulk_update(TestModel, values))
-        self.assertEqual(1, bulk_update(TestModel, values, key_fds='id'))
-        self.assertEqual(1, bulk_update(TestModel, values, key_fds=['id']))
-        self.assertEqual(1, bulk_update(TestModel, values, key_fds=['id', 'name']))
-        self.assertEqual(1, bulk_update(TestModel, values, key_fds='name'))
-        self.assertEqual(1, bulk_update(TestModel, values, key_fds=['name']))
+        self.assertEqual(1, bulk_update(TestModel, values, key_fields='id'))
+        self.assertEqual(1, bulk_update(TestModel, values, key_fields=['id']))
+        self.assertEqual(1, bulk_update(TestModel, values, key_fields=['id', 'name']))
+        self.assertEqual(1, bulk_update(TestModel, values, key_fields='name'))
+        self.assertEqual(1, bulk_update(TestModel, values, key_fields=['name']))
 
     def test_using(self):
         values = [{
@@ -115,9 +115,9 @@ class TestInputFormats(TestCase):
             bulk_update(TestModel, [{'id': 1, 'name': ['test1']}], key_fields_ops={'name': 123})
 
         self.assertEqual(1, bulk_update(TestModel, [{'id': [1], 'name': 'test1'}], key_fields_ops={'id': 'in'}))
-        self.assertEqual(1, bulk_update(TestModel, [{'id': 1, 'name': ['test1']}], key_fds='name',
+        self.assertEqual(1, bulk_update(TestModel, [{'id': 1, 'name': ['test1']}], key_fields='name',
                                         key_fields_ops={'name': 'in'}))
-        self.assertEqual(1, bulk_update(TestModel, [{'id': 1, 'name': ['test1']}], key_fds='name',
+        self.assertEqual(1, bulk_update(TestModel, [{'id': 1, 'name': ['test1']}], key_fields='name',
                                         key_fields_ops=['in']))
         self.assertEqual(1, bulk_update(TestModel, [{'id': [1], 'name': 'test1'}], key_fields_ops=['in']))
         self.assertEqual(1, bulk_update(TestModel, [{'id': [1], 'name': 'test1'}], key_fields_ops=[InClauseOperator()]))
@@ -203,7 +203,7 @@ class TestSimple(TestCase):
                 'id': 8,
                 'name': 'bulk_update_8'
             }
-        }, key_fds='name')
+        }, key_fields='name')
         self.assertEqual(3, res)
         for pk, name, int_field in TestModel.objects.all().order_by('id').values_list('id', 'name', 'int_field'):
             if pk in {1, 5, 8}:
@@ -268,7 +268,7 @@ class TestSimple(TestCase):
             (6, 8): {
                 "name": "second"
             }
-        }, key_fds=('id', 'id'), key_fields_ops=('>=', '<'))
+        }, key_fields=('id', 'id'), key_fields_ops=('>=', '<'))
         self.assertEqual(4, res)
         for pk, name, int_field in TestModel.objects.all().order_by('id').values_list('id', 'name', 'int_field'):
             if pk in {1, 2}:
@@ -379,7 +379,7 @@ class TestReadmeExample(TestCase):
             "updated2": {
                 "int_field": 3
             }
-        }, key_fds="name")
+        }, key_fields="name")
         self.assertEqual(2, updated)
         self.assertListEqual([
             {"id": 1, "name": "updated1", "int_field": 2},
@@ -392,7 +392,7 @@ class TestReadmeExample(TestCase):
                 "int_field": 3,
                 "name": "incr"
             }
-        }, key_fds=['id', 'int_field'], key_fields_ops={'int_field': '<', 'id': 'gte'},
+        }, key_fields=['id', 'int_field'], key_fields_ops={'int_field': '<', 'id': 'gte'},
                               set_functions={'int_field': '+'})
         self.assertEqual(1, updated)
         self.assertListEqual([
@@ -567,7 +567,7 @@ class TestClauseOperators(TestCase):
         }, {
             'int_field': 2,
             'name': ['2']
-        }], key_fds='name', key_fields_ops=['in'])
+        }], key_fields='name', key_fields_ops=['in'])
         self.assertEqual(6, res)
         for pk, name, int_field in TestModel.objects.all().order_by('id').values_list('id', 'name', 'int_field'):
             if pk in {1, 2, 3}:
@@ -594,6 +594,38 @@ class TestClauseOperators(TestCase):
             else:
                 self.assertEqual('test%d' % pk, name)
             self.assertEqual(pk, int_field)
+
+    def test_is_null(self):
+        # Create model who has null value
+        TestModel.objects.create(id=10)
+
+        # IS NULL testing
+        res = bulk_update(TestModel, [{
+            'name': 'is_null',
+            'int_field': True
+        }], key_fields_ops=['is_null'], key_fields='int_field')
+        self.assertEqual(1, res)
+        for pk, name, int_field in TestModel.objects.all().order_by('id').values_list('id', 'name', 'int_field'):
+            if pk > 9:
+                self.assertEqual('is_null', name)
+                self.assertIsNone(int_field)
+            else:
+                self.assertEqual('test%d' % pk, name)
+                self.assertEqual(pk, int_field)
+
+        # IS NOT NULL testing
+        res = bulk_update(TestModel, [{
+            'name': 'is_not_null',
+            'int_field': False
+        }], key_fields_ops=['is_null'], key_fields='int_field')
+        self.assertEqual(9, res)
+        for pk, name, int_field in TestModel.objects.all().order_by('id').values_list('id', 'name', 'int_field'):
+            if pk > 9:
+                self.assertEqual('is_null', name)
+                self.assertIsNone(int_field)
+            else:
+                self.assertEqual('is_not_null', name)
+                self.assertEqual(pk, int_field)
 
     def test_not_equal(self):
         res = bulk_update(TestModel, [{

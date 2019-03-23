@@ -13,7 +13,7 @@ with open('requirements.txt') as f:
 
 setup(
     name='django-pg-bulk-update',
-    version='2.1.0',
+    version='2.2.0',
     packages=['django_pg_bulk_update'],
     package_dir={'': 'src'},
     url='https://github.com/M1hacka/django-pg-bulk-update',

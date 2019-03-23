@@ -53,6 +53,13 @@ class PDNFClauseTest(TestCase):
         self._test_filter({1, 3, 5, 7, 9}, ['id'], [[{1, 3}], [{5, 7, 9}]], operations=['in'])
         self._test_filter({2, 4, 6, 8}, ['id'], [[{2, 4}], [{6, 8}]], operations={'id': 'in'})
 
+    def test_is_null(self):
+        # Create model who has null value
+        TestModel.objects.create(id=10)
+
+        self._test_filter({10}, ['id', 'int_field'], [(1, True), (10, True)], operations=['=', 'is_null'])
+        self._test_filter({1}, ['id', 'int_field'], [(1, False), (10, False)], operations=['=', 'is_null'])
+
     def test_in(self):
         self._test_filter({2, 4, 6, 8}, ['id'], [[{2, 4}], [{6, 8}]], operations=['in'])
 

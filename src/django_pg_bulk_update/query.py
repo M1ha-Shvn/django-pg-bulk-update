@@ -486,7 +486,7 @@ def _concat_batched_result(batched_result, ret_fds):
         return sum(batched_result[1:], batched_result[0])
 
 
-def bulk_update(model, values, key_fds='id', using=None, set_functions=None, key_fields_ops=(), returning=None,
+def bulk_update(model, values, key_fields='id', using=None, set_functions=None, key_fields_ops=(), returning=None,
                 batch_size=None, batch_delay=0):
     # type: (Type[Model], TUpdateValues, TFieldNames, Optional[str], TSetFunctions, TOperators, Optional[TFieldNames], Optional[int], float) -> Union[int, 'ReturningQuerySet']
     """
@@ -501,7 +501,7 @@ def bulk_update(model, values, key_fds='id', using=None, set_functions=None, key
             - key_values can be iterable or single object.
             - If iterable, key_values length must be equal to key_fields length.
             - If single object, key_fields is expected to have 1 element
-    :param key_fds: Field names, by which items would be selected.
+    :param key_fields: Field names, by which items would be selected.
         It can be a string, if there's only one key field or iterable of strings for multiple keys
     :param using: Database alias to make query to.
     :param set_functions: Functions to set values.
@@ -531,8 +531,8 @@ def bulk_update(model, values, key_fds='id', using=None, set_functions=None, key
     if using and using not in connections:
         raise ValueError("using parameter must be existing database alias")
 
-    key_fds = _validate_field_names(key_fds)
-    upd_fds, values = _validate_update_values(key_fds, values)
+    key_fields = _validate_field_names(key_fields)
+    upd_fds, values = _validate_update_values(key_fields, values)
     ret_fds = _validate_returning(model, returning)
 
     if len(values) == 0:
@@ -542,12 +542,12 @@ def bulk_update(model, values, key_fds='id', using=None, set_functions=None, key
             from django_pg_returning import ReturningQuerySet
             return ReturningQuerySet(None)
 
-    key_fds = _validate_operators(key_fds, key_fields_ops)
+    key_fields = _validate_operators(key_fields, key_fields_ops)
     upd_fds = _validate_set_functions(model, upd_fds, set_functions)
     conn = connection if using is None else connections[using]
 
     batched_result = batched_operation(_bulk_update_no_validation, values,
-                                       args=(model, None, conn, key_fds, upd_fds, ret_fds),
+                                       args=(model, None, conn, key_fields, upd_fds, ret_fds),
                                        data_arg_index=1, batch_size=batch_size, batch_delay=batch_delay)
 
     return _concat_batched_result(batched_result, ret_fds)
