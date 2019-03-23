@@ -248,12 +248,12 @@ class PlusSetFunction(AbstractSetFunction):
         if val_as_param:
             sql, params = self.format_field_value(field, val, connection)
         else:
-            sql, params = str(val), []
+            sql, params = str(val), tuple()
 
         if for_update:
             tpl = 'COALESCE(%s, %s) + %s'
             return tpl % (self._get_field_column(field, with_table=with_table), null_default, sql),\
-                   null_default_params + params
+                null_default_params + params
         else:
             return sql, params
 
@@ -281,12 +281,13 @@ class ConcatSetFunction(AbstractSetFunction):
         if val_as_param:
             val_sql, params = self.format_field_value(field, val, connection)
         else:
-            val_sql, params = str(val), []
+            val_sql, params = str(val), tuple()
 
         if not for_update:
             return tpl % val_sql, params
         else:
-            return tpl % (self._get_field_column(field, with_table=with_table), null_default, val_sql), null_default_params + params
+            return tpl % (self._get_field_column(field, with_table=with_table), null_default, val_sql),\
+                   null_default_params + params
 
 
 class UnionSetFunction(AbstractSetFunction):

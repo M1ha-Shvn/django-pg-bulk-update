@@ -116,14 +116,14 @@ def format_field_value(field, val, conn, cast_type=False):
         sql, update_params = compiler.compile(val)
         value = placeholder % sql
     elif val is not None:
-        value, update_params = placeholder, [val]
+        value, update_params = placeholder, (val,)
     else:
         value, update_params = 'NULL', tuple()
 
     if cast_type:
         value = 'CAST(%s AS %s)' % (value, get_field_db_type(field, conn))
 
-    return value, update_params
+    return value, tuple(update_params)
 
 
 def batched_operation(handler, data, batch_size=None, batch_delay=0, args=(), kwargs=None, data_arg_index=0):

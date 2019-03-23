@@ -22,10 +22,6 @@ from typing import Tuple, Optional, Iterable
 from .types import TUpdateValues, TFieldNames, TSetFunctions, TOperators
 from .query import bulk_update, bulk_update_or_create
 
-class BulkUpdateQuerySet(models.QuerySet):
-    def bulk_create(self, objs, batch_size=None, conflict_target=None, conflict_action=None):
-        pass
-
 
 class BulkUpdateManagerMixin:
     """
@@ -100,7 +96,7 @@ class BulkUpdateManagerMixin:
         self._for_write = True
         using = self.db
 
-        return bulk_update(self.model, values, key_fds=key_fields, using=using, set_functions=set_functions,
+        return bulk_update(self.model, values, key_fields=key_fields, using=using, set_functions=set_functions,
                            key_fields_ops=key_fields_ops, returning=returning,
                            batch_size=batch_size, batch_delay=batch_delay)
 

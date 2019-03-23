@@ -2,7 +2,7 @@
 Django extension to update multiple table records with similar (but not equal) conditions in efficient way on PostgreSQL
 
 ## Requirements
-* Python 2.7 or Python 3.3+
+* Python 2.7 or Python 3.4+
 * django >= 1.7  
   Previous versions may also work, but haven't been tested.  
   django.postgres.contrib fields are also supported (available since django 1.8)
@@ -11,7 +11,7 @@ Django extension to update multiple table records with similar (but not equal) c
 * six
 * typing
 * psycopg2
-* PostgreSQL 9.2+   
+* PostgreSQL 9.3+   
   Previous versions may also work, but haven't been tested.  
   JSONB operations are available for PostgreSQL 9.4+.
   INSERT .. ON CONFLICT is used for PostgreSQL 9.5+.
@@ -130,7 +130,9 @@ There are 3 query helpers in this library. There parameters are unified and desc
     - 'gte', '>='
     - 'between'
       Searches for records, which have field between a and b. Value should be iterable with 2 items.
-    - You can define your own clause operation. See section below.
+    - 'is_null', 'isnull'
+      Checks field value for been NULL. Value should be boolean (true for IS NULL, false for IS NOT NULL)
+    - You can define your own clause operator. See section below.
     
 * `returning: Optional[Union[str, Iterable[str]]]`  
     If this parameter is set, it can be:  
@@ -320,7 +322,7 @@ class TestModel(models.Model):
     int_field = models.IntegerField()
 ```
 
-### Custom clause operation
+### Custom clause operator
 You can define your own clause operator, creating `AbstractClauseOperator` subclass and implementing:
 * `names` attribute
 * `def get_django_filter(self, name)` method
