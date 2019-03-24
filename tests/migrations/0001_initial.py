@@ -49,7 +49,19 @@ class Migration(migrations.Migration):
                 'abstract': False,
             }
         ),
-        migrations.AlterUniqueTogether(name='TestModel', unique_together=[('id', 'name')])
+        migrations.AlterUniqueTogether(name='TestModel', unique_together=[('id', 'name')]),
+        migrations.CreateModel(
+            name='RelationModel',
+            fields=(
+                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('int_field', models.IntegerField(unique=True)),
+                ('m2m', models.ManyToManyField('TestModel')),
+                ('fk', models.ForeignKey('TestModel', on_delete=models.CASCADE, related_name='fk'))
+            ),
+            options={
+                'abstract': False,
+            }
+        )
     ]
 
 

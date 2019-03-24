@@ -128,7 +128,7 @@ def get_field_db_type(field, conn):
     return db_type
 
 
-def get_model_fields(model, concrete_only=False):
+def get_model_fields(model, concrete_only=False,):
     # type: (Type[Model], bool) -> List[Field]
     """
     Returns all model fields.
@@ -139,7 +139,7 @@ def get_model_fields(model, concrete_only=False):
     if hasattr(model._meta, 'get_fields'):
         # Django 1.8+
         fields = model._meta.get_fields()
-        return [f for f in fields if f.concrete] if concrete_only else fields
+        return [f for f in fields if f.concrete and not f.is_relation] if concrete_only else fields
     else:
         # Django 1.7
         if concrete_only:

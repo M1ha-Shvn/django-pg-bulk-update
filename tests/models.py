@@ -6,8 +6,10 @@ from django.db import models
 from django_pg_bulk_update.manager import BulkUpdateManager
 from django_pg_bulk_update.compatibility import jsonb_available, hstore_available, array_available
 
+
 class Meta:
     unique_together = ['id', 'name']
+
 
 # Not all fields are available in different django and postgres versions
 model_attrs = {
@@ -39,3 +41,12 @@ class UniqueNotPrimary(models.Model):
     Test model for https://github.com/M1hacka/django-pg-bulk-update/issues/19
     """
     int_field = models.IntegerField(unique=True)
+
+
+class RelationModel(models.Model):
+    """
+    Test model for https://github.com/M1hacka/django-pg-bulk-update/issues/36
+    """
+    int_field = models.IntegerField()
+    m2m = models.ManyToManyField(TestModel)
+    fk = models.ForeignKey(TestModel, on_delete=models.CASCADE, related_name='fk')
