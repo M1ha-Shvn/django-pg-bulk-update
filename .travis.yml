@@ -21,36 +21,43 @@ python:
   - 3.7
 
 env:
+  - DJANGO=1.7 PG=9.3
   - DJANGO=1.7 PG=9.4
   - DJANGO=1.7 PG=9.5
   - DJANGO=1.7 PG=9.6
   - DJANGO=1.7 PG=10
   - DJANGO=1.7 PG=11
+  - DJANGO=1.8 PG=9.3
   - DJANGO=1.8 PG=9.4
   - DJANGO=1.8 PG=9.5
   - DJANGO=1.8 PG=9.6
   - DJANGO=1.8 PG=10
   - DJANGO=1.8 PG=11
+  - DJANGO=1.9 PG=9.3
   - DJANGO=1.9 PG=9.4
   - DJANGO=1.9 PG=9.5
   - DJANGO=1.9 PG=9.6
   - DJANGO=1.9 PG=10
   - DJANGO=1.9 PG=11
+  - DJANGO=1.10 PG=9.3
   - DJANGO=1.10 PG=9.4
   - DJANGO=1.10 PG=9.5
   - DJANGO=1.10 PG=9.6
   - DJANGO=1.10 PG=10
   - DJANGO=1.10 PG=11
+  - DJANGO=1.11 PG=9.3
   - DJANGO=1.11 PG=9.4
   - DJANGO=1.11 PG=9.5
   - DJANGO=1.11 PG=9.6
   - DJANGO=1.11 PG=10
   - DJANGO=1.11 PG=11
+  - DJANGO=2.0 PG=9.3
   - DJANGO=2.0 PG=9.4
   - DJANGO=2.0 PG=9.5
   - DJANGO=2.0 PG=9.6
   - DJANGO=2.0 PG=10
   - DJANGO=2.0 PG=11
+  - DJANGO=2.1 PG=9.3
   - DJANGO=2.1 PG=9.4
   - DJANGO=2.1 PG=9.5
   - DJANGO=2.1 PG=9.6
@@ -61,6 +68,8 @@ matrix:
   exclude:
   # Django 2.0+ doesn't support python 2.7
   - python: 2.7
+    env: DJANGO=2.0 PG=9.3
+  - python: 2.7
     env: DJANGO=2.0 PG=9.4
   - python: 2.7
     env: DJANGO=2.0 PG=9.5
@@ -70,6 +79,8 @@ matrix:
     env: DJANGO=2.0 PG=10
   - python: 2.7
     env: DJANGO=2.0 PG=11
+  - python: 2.7
+    env: DJANGO=2.1 PG=9.3
   - python: 2.7
     env: DJANGO=2.1 PG=9.4
   - python: 2.7
@@ -83,6 +94,8 @@ matrix:
 
   # Django 2.1 doesn't support python 3.4
   - python: 3.4
+    env: DJANGO=2.1 PG=9.3
+  - python: 3.4
     env: DJANGO=2.1 PG=9.4
   - python: 3.4
     env: DJANGO=2.1 PG=9.5
@@ -95,6 +108,8 @@ matrix:
 
   # Django 1.7 doesn't support python 3.5+
   - python: 3.5
+    env: DJANGO=1.7 PG=9.3
+  - python: 3.5
     env: DJANGO=1.7 PG=9.4
   - python: 3.5
     env: DJANGO=1.7 PG=9.5
@@ -105,6 +120,8 @@ matrix:
   - python: 3.5
     env: DJANGO=1.7 PG=11
   - python: 3.6
+    env: DJANGO=1.7 PG=9.3
+  - python: 3.6
     env: DJANGO=1.7 PG=9.4
   - python: 3.6
     env: DJANGO=1.7 PG=9.5
@@ -114,6 +131,8 @@ matrix:
     env: DJANGO=1.7 PG=10
   - python: 3.6
     env: DJANGO=1.7 PG=11
+  - python: 3.7
+    env: DJANGO=1.7 PG=9.3
   - python: 3.7
     env: DJANGO=1.7 PG=9.4
   - python: 3.7
@@ -128,6 +147,8 @@ matrix:
   # python 3.6 has deprecated issue with django before 1.11
   # https://stackoverflow.com/questions/41343263/provide-classcell-example-for-python-3-6-metaclass\
   - python: 3.6
+    env: DJANGO=1.8 PG=9.3
+  - python: 3.6
     env: DJANGO=1.8 PG=9.4
   - python: 3.6
     env: DJANGO=1.8 PG=9.5
@@ -138,6 +159,8 @@ matrix:
   - python: 3.6
     env: DJANGO=1.8 PG=11
   - python: 3.7
+    env: DJANGO=1.8 PG=9.3
+  - python: 3.7
     env: DJANGO=1.8 PG=9.4
   - python: 3.7
     env: DJANGO=1.8 PG=9.5
@@ -147,6 +170,8 @@ matrix:
     env: DJANGO=1.8 PG=10
   - python: 3.7
     env: DJANGO=1.8 PG=11
+  - python: 3.6
+    env: DJANGO=1.9 PG=9.3
   - python: 3.6
     env: DJANGO=1.9 PG=9.4
   - python: 3.6
@@ -158,6 +183,8 @@ matrix:
   - python: 3.6
     env: DJANGO=1.9 PG=11
   - python: 3.7
+    env: DJANGO=1.9 PG=9.3
+  - python: 3.7
     env: DJANGO=1.9 PG=9.4
   - python: 3.7
     env: DJANGO=1.9 PG=9.5
@@ -167,6 +194,8 @@ matrix:
     env: DJANGO=1.9 PG=10
   - python: 3.7
     env: DJANGO=1.9 PG=11
+  - python: 3.6
+    env: DJANGO=1.10 PG=9.3
   - python: 3.6
     env: DJANGO=1.10 PG=9.4
   - python: 3.6
@@ -177,6 +206,8 @@ matrix:
     env: DJANGO=1.10 PG=10
   - python: 3.6
     env: DJANGO=1.10 PG=11
+  - python: 3.7
+    env: DJANGO=1.10 PG=9.3
   - python: 3.7
     env: DJANGO=1.10 PG=9.4
   - python: 3.7
