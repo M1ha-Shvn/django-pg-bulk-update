@@ -226,7 +226,8 @@ before_install:
   - sudo cp /etc/postgresql/{10,11}/main/pg_hba.conf
 
   # Start PostgreSQL version we need
-  - sudo systemctl stop postgresql && sudo systemctl start postgresql@$PG-main
+  - sudo systemctl stop postgresql
+  - sudo service postgresql start $PG
 
 install:
   - pip install -r requirements.txt
