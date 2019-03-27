@@ -5,12 +5,13 @@ cache: pip
 services:
   - postgresql
 addons:
-  postgresql: "10"
+  postgresql: "11"
   apt:
     packages:
     - postgresql-10
     - postgresql-client-10
-
+    - postgresql-11
+    - postgresql-client-11
 
 python:
   - 2.7
@@ -25,36 +26,43 @@ env:
   - DJANGO=1.7 PG=9.5
   - DJANGO=1.7 PG=9.6
   - DJANGO=1.7 PG=10
+  - DJANGO=1.7 PG=11
   - DJANGO=1.8 PG=9.3
   - DJANGO=1.8 PG=9.4
   - DJANGO=1.8 PG=9.5
   - DJANGO=1.8 PG=9.6
   - DJANGO=1.8 PG=10
+  - DJANGO=1.8 PG=11
   - DJANGO=1.9 PG=9.3
   - DJANGO=1.9 PG=9.4
   - DJANGO=1.9 PG=9.5
   - DJANGO=1.9 PG=9.6
   - DJANGO=1.9 PG=10
+  - DJANGO=1.9 PG=11
   - DJANGO=1.10 PG=9.3
   - DJANGO=1.10 PG=9.4
   - DJANGO=1.10 PG=9.5
   - DJANGO=1.10 PG=9.6
   - DJANGO=1.10 PG=10
+  - DJANGO=1.10 PG=11
   - DJANGO=1.11 PG=9.3
   - DJANGO=1.11 PG=9.4
   - DJANGO=1.11 PG=9.5
   - DJANGO=1.11 PG=9.6
   - DJANGO=1.11 PG=10
+  - DJANGO=1.11 PG=11
   - DJANGO=2.0 PG=9.3
   - DJANGO=2.0 PG=9.4
   - DJANGO=2.0 PG=9.5
   - DJANGO=2.0 PG=9.6
   - DJANGO=2.0 PG=10
+  - DJANGO=2.0 PG=11
   - DJANGO=2.1 PG=9.3
   - DJANGO=2.1 PG=9.4
   - DJANGO=2.1 PG=9.5
   - DJANGO=2.1 PG=9.6
   - DJANGO=2.1 PG=10
+  - DJANGO=2.1 PG=11
 
 matrix:
   exclude:
@@ -70,6 +78,8 @@ matrix:
   - python: 2.7
     env: DJANGO=2.0 PG=10
   - python: 2.7
+    env: DJANGO=2.0 PG=11
+  - python: 2.7
     env: DJANGO=2.1 PG=9.3
   - python: 2.7
     env: DJANGO=2.1 PG=9.4
@@ -79,6 +89,8 @@ matrix:
     env: DJANGO=2.1 PG=9.6
   - python: 2.7
     env: DJANGO=2.1 PG=10
+  - python: 2.7
+    env: DJANGO=2.1 PG=11
 
   # Django 2.1 doesn't support python 3.4
   - python: 3.4
@@ -91,6 +103,8 @@ matrix:
     env: DJANGO=2.1 PG=9.6
   - python: 3.4
     env: DJANGO=2.1 PG=10
+  - python: 3.4
+    env: DJANGO=2.1 PG=11
 
   # Django 1.7 doesn't support python 3.5+
   - python: 3.5
@@ -103,6 +117,8 @@ matrix:
     env: DJANGO=1.7 PG=9.6
   - python: 3.5
     env: DJANGO=1.7 PG=10
+  - python: 3.5
+    env: DJANGO=1.7 PG=11
   - python: 3.6
     env: DJANGO=1.7 PG=9.3
   - python: 3.6
@@ -113,6 +129,8 @@ matrix:
     env: DJANGO=1.7 PG=9.6
   - python: 3.6
     env: DJANGO=1.7 PG=10
+  - python: 3.6
+    env: DJANGO=1.7 PG=11
   - python: 3.7
     env: DJANGO=1.7 PG=9.3
   - python: 3.7
@@ -123,7 +141,9 @@ matrix:
     env: DJANGO=1.7 PG=9.6
   - python: 3.7
     env: DJANGO=1.7 PG=10
-  
+  - python: 3.7
+    env: DJANGO=1.7 PG=11
+
   # python 3.6 has deprecated issue with django before 1.11
   # https://stackoverflow.com/questions/41343263/provide-classcell-example-for-python-3-6-metaclass\
   - python: 3.6
@@ -136,6 +156,8 @@ matrix:
     env: DJANGO=1.8 PG=9.6
   - python: 3.6
     env: DJANGO=1.8 PG=10
+  - python: 3.6
+    env: DJANGO=1.8 PG=11
   - python: 3.7
     env: DJANGO=1.8 PG=9.3
   - python: 3.7
@@ -146,6 +168,8 @@ matrix:
     env: DJANGO=1.8 PG=9.6
   - python: 3.7
     env: DJANGO=1.8 PG=10
+  - python: 3.7
+    env: DJANGO=1.8 PG=11
   - python: 3.6
     env: DJANGO=1.9 PG=9.3
   - python: 3.6
@@ -156,6 +180,8 @@ matrix:
     env: DJANGO=1.9 PG=9.6
   - python: 3.6
     env: DJANGO=1.9 PG=10
+  - python: 3.6
+    env: DJANGO=1.9 PG=11
   - python: 3.7
     env: DJANGO=1.9 PG=9.3
   - python: 3.7
@@ -166,6 +192,8 @@ matrix:
     env: DJANGO=1.9 PG=9.6
   - python: 3.7
     env: DJANGO=1.9 PG=10
+  - python: 3.7
+    env: DJANGO=1.9 PG=11
   - python: 3.6
     env: DJANGO=1.10 PG=9.3
   - python: 3.6
@@ -176,6 +204,8 @@ matrix:
     env: DJANGO=1.10 PG=9.6
   - python: 3.6
     env: DJANGO=1.10 PG=10
+  - python: 3.6
+    env: DJANGO=1.10 PG=11
   - python: 3.7
     env: DJANGO=1.10 PG=9.3
   - python: 3.7
@@ -186,14 +216,18 @@ matrix:
     env: DJANGO=1.10 PG=9.6
   - python: 3.7
     env: DJANGO=1.10 PG=10
+  - python: 3.7
+    env: DJANGO=1.10 PG=11
+
 
 before_install:
-  # Use default PostgreSQL 10 port
-  - sudo sed -i 's/port = 5433/port = 5432/' /etc/postgresql/10/main/postgresql.conf
-  - sudo cp /etc/postgresql/{9.6,10}/main/pg_hba.conf
+  # Use default PostgreSQL 11 port
+  - sudo sed -i 's/port = 5433/port = 5432/' /etc/postgresql/11/main/postgresql.conf
+  - sudo cp /etc/postgresql/{10,11}/main/pg_hba.conf
 
   # Start PostgreSQL version we need
-  - sudo service postgresql stop && sudo service postgresql start $PG
+  - sudo systemctl stop postgresql
+  - sudo service postgresql start $PG
 
 install:
   - pip install -r requirements.txt
@@ -203,7 +237,6 @@ install:
   - python setup.py -q install
 
 before_script:
-
   - psql -tc 'SHOW server_version' -U postgres
   - psql -c 'CREATE ROLE test;' -U postgres
   - psql -c 'ALTER ROLE test WITH SUPERUSER;' -U postgres
