@@ -128,24 +128,27 @@ def get_field_db_type(field, conn):
     return db_type
 
 
-def get_model_fields(model, concrete_only=False,):
-    # type: (Type[Model], bool) -> List[Field]
+def get_model_fields(model, concrete=False):  # type: (Type[Model], Optional[bool]) -> List[Field]
     """
-    Returns all model fields.
+    Gets model field
     :param model: Model to get fields for
-    :param concrete_only: If True, returns only fields which have database columns
+    :param concrete: If set, returns only fields with column in model's table
     :return: A list of fields
     """
-    if hasattr(model._meta, 'get_fields'):
+    if not hasattr(model._meta, 'get_fields'):
         # Django 1.8+
-        fields = model._meta.get_fields()
-        return [f for f in fields if f.concrete and not f.is_relation] if concrete_only else fields
-    else:
-        # Django 1.7
-        if concrete_only:
-            return [f[0] for f in model._meta.get_concrete_fields_with_model()]
+        if concrete:
+            res = model._meta.concrete_fields
         else:
-            return [f[0] for f in model._meta.get_fields_with_model()]
+            res = model._meta.fields + model._meta.m2m_fields
+    else:
+        res = model._meta.get_fields()
+
+        if concrete:
+            # Many to many fields have concrete flag set to True. Strange.
+            res = [f for f in res if getattr(f, 'concrete', True) and not getattr(f, 'many_to_many', False)]
+
+    return res
 
 
 # Postgres 9.4 has JSONB support, but doesn't support concat operator (||)

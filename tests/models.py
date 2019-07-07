@@ -50,3 +50,4 @@ class RelationModel(models.Model):
     int_field = models.IntegerField()
     m2m = models.ManyToManyField(TestModel)
     fk = models.ForeignKey(TestModel, on_delete=models.CASCADE, related_name='fk')
+    o2o = models.OneToOneField(TestModel, on_delete=models.CASCADE, related_name='o2o')

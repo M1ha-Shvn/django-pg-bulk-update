@@ -1,5 +1,5 @@
 from django.test import TestCase
-from psycopg2.tests.testutils import skipIf
+from unittest import skipIf
 
 from django_pg_bulk_update.clause_operators import InClauseOperator
 from django_pg_bulk_update.compatibility import jsonb_available, hstore_available, array_available
@@ -340,7 +340,7 @@ class TestSimple(TestCase):
 
         from django_pg_returning import ReturningQuerySet
         self.assertIsInstance(res, ReturningQuerySet)
-        self.assertSetEqual({(1, 2, 1)}, set(res.values_list('id', 'int_field', 'fk_id')))
+        self.assertSetEqual({(1, 2, 1, 1)}, set(res.values_list('id', 'int_field', 'fk_id', 'o2o_id')))
 
 
 class TestReadmeExample(TestCase):
