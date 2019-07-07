@@ -752,6 +752,25 @@ class TestManager(TestCase):
                 self.assertEqual('test%d' % pk, name)
             self.assertEqual(pk, int_field)
 
+    def test_where(self):
+        res = TestModel.objects.filter(int_field__gte=5).bulk_update([{
+            'id': 1,
+            'name': 'bulk_update_1'
+        }, {
+            'id': 5,
+            'name': 'bulk_update_5'
+        }, {
+            'id': 8,
+            'name': 'bulk_update_8'
+        }])
+        self.assertEqual(2, res)
+        for pk, name, int_field in TestModel.objects.all().order_by('id').values_list('id', 'name', 'int_field'):
+            if pk in {5, 8}:
+                self.assertEqual('bulk_update_%d' % pk, name)
+            else:
+                self.assertEqual('test%d' % pk, name)
+            self.assertEqual(pk, int_field)
+
     def test_using(self):
         res = TestModel.objects.db_manager('secondary').bulk_update([{
             'id': 1,

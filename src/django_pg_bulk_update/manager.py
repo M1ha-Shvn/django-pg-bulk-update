@@ -98,10 +98,13 @@ class BulkUpdateMixin:
         self._for_write = True
         using = self.db
 
-        if getattr(self, '_lookup_joins', False):
-            raise Exception('joins in lookups are restricted in bulk update methods')
+        if getattr(self, 'query', False):
+            if len(self.query.used_aliases) > 1:
+                raise Exception('joins in lookups are restricted in bulk update methods')
 
-        where = getattr(self, 'where', None)
+            where = getattr(self.query, 'where', None)
+        else:
+            where = None
 
         return bulk_update(self.model, values, key_fields=key_fields, using=using, set_functions=set_functions,
                            key_fields_ops=key_fields_ops, where=where, returning=returning,
@@ -154,7 +157,8 @@ class BulkUpdateManager(models.Manager, BulkUpdateMixin):
     """
     A manager, adding bulk update methods to any model
     """
-    pass
+    def get_queryset(self):
+        return BulkUpdateQuerySet(model=self.model, using=self.db)
 
 
 # DEPRECATED, for back compatibility
