@@ -372,7 +372,6 @@ class TestSimple(TestCase):
             (11, 'bulk_update_11', None),
         }, set(res.values_list('id', 'name', 'int_field')))
 
-
     def test_returning_empty(self):
         res = bulk_update_or_create(TestModel, [], returning='id')
         from django_pg_returning import ReturningQuerySet

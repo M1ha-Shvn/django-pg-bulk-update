@@ -56,7 +56,8 @@ class Migration(migrations.Migration):
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('int_field', models.IntegerField(unique=True)),
                 ('m2m', models.ManyToManyField('TestModel')),
-                ('fk', models.ForeignKey('TestModel', on_delete=models.CASCADE, related_name='fk'))
+                ('fk', models.ForeignKey('TestModel', on_delete=models.CASCADE, related_name='fk')),
+                ('o2o', models.OneToOneField('TestModel', on_delete=models.CASCADE, related_name='o2o')),
             ),
             options={
                 'abstract': False,
