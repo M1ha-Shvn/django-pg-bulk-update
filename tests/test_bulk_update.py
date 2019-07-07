@@ -1,3 +1,4 @@
+from django.db.models.sql.where import WhereNode
 from django.test import TestCase
 from unittest import skipIf
 
@@ -341,6 +342,28 @@ class TestSimple(TestCase):
         from django_pg_returning import ReturningQuerySet
         self.assertIsInstance(res, ReturningQuerySet)
         self.assertSetEqual({(1, 2, 1, 1)}, set(res.values_list('id', 'int_field', 'fk_id', 'o2o_id')))
+
+    def test_where(self):
+        qs = TestModel.objects.filter(int_field__gte=5)
+        res = bulk_update(TestModel, [{
+            'id': 1,
+            'name': 'bulk_update_1'
+        }, {
+            'id': 5,
+            'name': 'bulk_update_5'
+        }, {
+            'id': 8,
+            'name': 'bulk_update_8'
+        }], where=qs.query.where)
+
+        # Only 5 and 8 elements should be updated
+        self.assertEqual(2, res)
+        for pk, name, int_field in TestModel.objects.all().order_by('id').values_list('id', 'name', 'int_field'):
+            if pk in {5, 8}:
+                self.assertEqual('bulk_update_%d' % pk, name)
+            else:
+                self.assertEqual('test%d' % pk, name)
+            self.assertEqual(pk, int_field)
 
 
 class TestReadmeExample(TestCase):

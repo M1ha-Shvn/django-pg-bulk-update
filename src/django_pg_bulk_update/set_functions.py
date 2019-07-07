@@ -5,11 +5,11 @@ import datetime
 from typing import Type, Optional, Any, Tuple, Dict
 
 import pytz
-from django.db import DefaultConnectionProxy
 from django.db.models import Field, Model
 
 from .compatibility import get_postgres_version, jsonb_available, Postgres94MergeJSONBMigration, hstore_serialize,\
     hstore_available
+from .types import TDatabase
 from .utils import get_subclasses, format_field_value
 
 # When doing increment operations, we need to replace NULL values with something
@@ -82,7 +82,7 @@ class AbstractSetFunction(object):
     supported_field_classes = None
 
     def format_field_value(self, field, val, connection, cast_type=False, **kwargs):
-        # type: (Field, Any, DefaultConnectionProxy, bool, **Any) -> Tuple[str, Tuple[Any]]
+        # type: (Field, Any, TDatabase, bool, **Any) -> Tuple[str, Tuple[Any]]
         """
         Formats value, according to field rules
         :param field: Django field to take format from
@@ -113,7 +113,7 @@ class AbstractSetFunction(object):
         return kwargs
 
     def get_sql_value(self, field, val, connection, val_as_param=True, with_table=False, for_update=True, **kwargs):
-        # type: (Field, Any, DefaultConnectionProxy, bool, bool, bool, **Any) -> Tuple[str, Tuple[Any]]
+        # type: (Field, Any, TDatabase, bool, bool, bool, **Any) -> Tuple[str, Tuple[Any]]
         """
         Returns value sql to set into field and parameters for query execution
         This method is called from get_sql() by default.
@@ -130,7 +130,7 @@ class AbstractSetFunction(object):
         raise NotImplementedError("'%s' must define get_sql method" % self.__class__.__name__)
 
     def get_sql(self, field, val, connection, val_as_param=True, with_table=False, for_update=True, **kwargs):
-        # type: (Field, Any, DefaultConnectionProxy, bool, bool, bool, **Any) -> Tuple[str, Tuple[Any]]
+        # type: (Field, Any, TDatabase, bool, bool, bool, **Any) -> Tuple[str, Tuple[Any]]
         """
         Returns function sql and parameters for query execution
         :param field: Django field to take format from

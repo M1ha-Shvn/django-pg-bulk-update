@@ -19,11 +19,13 @@ Examples:
 from django.db import models
 from typing import Tuple, Optional, Iterable
 
+from django.db.models.manager import BaseManager
+
 from .types import TUpdateValues, TFieldNames, TSetFunctions, TOperators
 from .query import bulk_update, bulk_update_or_create
 
 
-class BulkUpdateManagerMixin:
+class BulkUpdateMixin:
     """
     A mixin, adding bulk updates methods to any django manager
     It automatically fetches using and model parameters from manager.
@@ -96,8 +98,13 @@ class BulkUpdateManagerMixin:
         self._for_write = True
         using = self.db
 
+        if getattr(self, '_lookup_joins', False):
+            raise Exception('joins in lookups are restricted in bulk update methods')
+
+        where = getattr(self, 'where', None)
+
         return bulk_update(self.model, values, key_fields=key_fields, using=using, set_functions=set_functions,
-                           key_fields_ops=key_fields_ops, returning=returning,
+                           key_fields_ops=key_fields_ops, where=where, returning=returning,
                            batch_size=batch_size, batch_delay=batch_delay)
 
     def bulk_update_or_create(self, values, key_fields='id', set_functions=None, update=True, key_is_unique=True,
@@ -139,8 +146,16 @@ class BulkUpdateManagerMixin:
                                      returning=returning, batch_size=batch_size, batch_delay=batch_delay)
 
 
-class BulkUpdateManager(models.Manager, BulkUpdateManagerMixin):
+class BulkUpdateQuerySet(models.QuerySet, BulkUpdateMixin):
+    pass
+
+
+class BulkUpdateManager(models.Manager, BulkUpdateMixin):
     """
     A manager, adding bulk update methods to any model
     """
     pass
+
+
+# DEPRECATED, for back compatibility
+BulkUpdateManagerMixin = BulkUpdateMixin

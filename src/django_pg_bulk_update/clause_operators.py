@@ -3,10 +3,10 @@ This function contains operators used in WHERE query part
 """
 from typing import Type, Optional, Any, Tuple, Iterable, Dict
 
-from django.db import DefaultConnectionProxy
 from django.db.models import Field
 
 from .compatibility import array_available, get_field_db_type
+from .types import TDatabase
 from .utils import get_subclasses, format_field_value
 
 
@@ -54,7 +54,7 @@ class AbstractClauseOperator(object):
         return "%s %s %s" % (table_field, self.get_sql_operator(), value)
 
     def format_field_value(self, field, val, connection, cast_type=False, **kwargs):
-        # type: (Field, Any, DefaultConnectionProxy, bool, **Any) -> Tuple[str, Tuple[Any]]
+        # type: (Field, Any, TDatabase, bool, **Any) -> Tuple[str, Tuple[Any]]
         """
         Formats value, according to field rules
         :param field: Django field to take format from

@@ -1,23 +1,23 @@
-from collections import defaultdict
 from typing import Iterable, Union, Dict, Tuple, Any, Optional, Type
 
 import six
+from django.db import DefaultConnectionProxy
+from django.db.backends.base.base import BaseDatabaseWrapper
 from django.db.models import Model, Field
 
-from .clause_operators import AbstractClauseOperator, EqualClauseOperator
-from .set_functions import AbstractSetFunction, EqualSetFunction
 
 TFieldNames = Union[str, Iterable[str]]
 
-TOperator = Union[str, AbstractClauseOperator]
+TOperator = Union[str, 'AbstractClauseOperator']
 TOperatorsValid = Tuple['FieldDescriptor']
 
 TOperators = Union[Dict[str, TOperator], Iterable[TOperator]]
 TUpdateValuesValid = Dict[Tuple[Any], Dict[str, Any]]
 TUpdateValues = Union[Union[TUpdateValuesValid, Dict[Any, Dict[str, Any]]], Iterable[Dict[str, Any]]]
-TSetFunction = Union[str, AbstractSetFunction]
+TSetFunction = Union[str, 'AbstractSetFunction']
 TSetFunctions = Optional[Dict[str, TSetFunction]]
 TSetFunctionsValid = Tuple['FieldDescriptor']
+TDatabase = Union[BaseDatabaseWrapper, DefaultConnectionProxy]
 
 
 class FieldDescriptor(object):
@@ -44,7 +44,7 @@ class FieldDescriptor(object):
 
     @property
     def set_function(self):
-        # type: () -> AbstractSetFunction
+        # type: () -> 'AbstractSetFunction'
         """
         Returns set_function for this field descriptor.
         :return: AbstractSetFunction instance
@@ -53,12 +53,14 @@ class FieldDescriptor(object):
 
     @set_function.setter
     def set_function(self, val):
-        # type: (Union[None, str, AbstractSetFunction]) -> None
+        # type: (Union[None, str, 'AbstractSetFunction']) -> None
         """
         Changes set_function for this field_descriptor.
         :param val: Set function name or instance. Defaults to EqualSetFunction() if None is passed
         :return:
         """
+        from .set_functions import EqualSetFunction, AbstractSetFunction
+
         if val is None:
             self._set_function = EqualSetFunction()
         elif isinstance(val, six.string_types):
@@ -70,7 +72,7 @@ class FieldDescriptor(object):
 
     @property
     def key_operator(self):
-        # type: () -> AbstractClauseOperator
+        # type: () -> 'AbstractClauseOperator'
         """
         Returns operator to use in comparison
         :return: AbstractKeyOperator instance
@@ -79,13 +81,14 @@ class FieldDescriptor(object):
 
     @key_operator.setter
     def key_operator(self, val):
-        # type: (Union[None, str, AbstractClauseOperator]) -> None
+        # type: (Union[None, str, 'AbstractClauseOperator']) -> None
         """
         Sets comparison operator for this field descriptor
         :param val: String name of operator or AbstractClauseOperator instance.
             Defaults to EqualClauseOperator if None is passed
         :return: None
         """
+        from .clause_operators import EqualClauseOperator, AbstractClauseOperator
         if val is None:
             self._key_operator = EqualClauseOperator()
         elif isinstance(val, six.string_types):
@@ -95,7 +98,7 @@ class FieldDescriptor(object):
         else:
             raise TypeError("Invalid key operator type: %s" % str(type(val)))
 
-    def set_prefix(self, prefix, index=None): # type: (str, Optional[int]) -> None
+    def set_prefix(self, prefix, index=None):  # type: (str, Optional[int]) -> None
         """
         Sets prefix to use in values query part. It is used to divide key fields from update and default fields
         :param prefix: Prefix to use

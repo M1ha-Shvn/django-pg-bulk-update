@@ -7,7 +7,9 @@ from django.db.models import Model, Field, BigIntegerField, IntegerField
 from typing import Dict, Any, Optional, Union, Tuple, List, Type
 
 import django
-from django.db import connection, connections, models, DefaultConnectionProxy, migrations
+from django.db import connection, connections, models, migrations
+
+from .types import TDatabase
 
 
 def zip_longest(*args, **kwargs):
@@ -97,7 +99,7 @@ def get_postgres_version(using=None, as_tuple=True):
 
 
 def get_field_db_type(field, conn):
-    # type: (models.Field, DefaultConnectionProxy) -> str
+    # type: (models.Field, TDatabase) -> str
     """
     Get database field type used for this field.
     :param field: django.db.models.Field instance
