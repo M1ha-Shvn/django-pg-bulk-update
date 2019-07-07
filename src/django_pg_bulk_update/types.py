@@ -2,8 +2,13 @@ from typing import Iterable, Union, Dict, Tuple, Any, Optional, Type
 
 import six
 from django.db import DefaultConnectionProxy
-from django.db.backends.base.base import BaseDatabaseWrapper
 from django.db.models import Model, Field
+
+try:
+    from django.db.backends.base.base import BaseDatabaseWrapper
+except ImportError:
+    # Django 1.7
+    from django.db.backends import BaseDatabaseWrapper
 
 
 TFieldNames = Union[str, Iterable[str]]
@@ -17,7 +22,7 @@ TUpdateValues = Union[Union[TUpdateValuesValid, Dict[Any, Dict[str, Any]]], Iter
 TSetFunction = Union[str, 'AbstractSetFunction']
 TSetFunctions = Optional[Dict[str, TSetFunction]]
 TSetFunctionsValid = Tuple['FieldDescriptor']
-TDatabase = Union[BaseDatabaseWrapper, DefaultConnectionProxy]
+TDatabase = Union[DefaultConnectionProxy]
 
 
 class FieldDescriptor(object):

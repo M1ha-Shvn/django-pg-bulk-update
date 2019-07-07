@@ -230,7 +230,8 @@ def _validate_where(model, where, using):
     if not isinstance(where, WhereNode):
         raise TypeError("'where' must be a WhereNode instance")
 
-    if where.contains_aggregate:
+    # In Django 1.7 there is no method
+    if hasattr(where, 'contains_aggregate') and where.contains_aggregate:
         raise ValueError("'where' should not contain aggregates")
 
     query = UpdateQuery(model)
