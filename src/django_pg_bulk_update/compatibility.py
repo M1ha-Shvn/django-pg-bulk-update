@@ -140,7 +140,7 @@ def get_model_fields(model, concrete=False):  # type: (Type[Model], Optional[boo
         if concrete:
             res = model._meta.concrete_fields
         else:
-            res = model._meta.fields + model._meta.m2m_fields
+            res = model._meta.fields + model._meta.many_to_many
     else:
         res = model._meta.get_fields()
 
