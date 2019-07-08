@@ -5,11 +5,12 @@ import logging
 from time import sleep
 
 from django.core.exceptions import FieldError
-from django.db import DefaultConnectionProxy
 from django.db.models import Field
 from django.db.models.sql.subqueries import UpdateQuery
 from typing import TypeVar, Set, Any, Tuple, Iterable, Callable, Optional, List
+
 from .compatibility import hstore_serialize, hstore_available, jsonb_available, get_field_db_type
+from .types import TDatabase
 
 logger = logging.getLogger('django-pg-bulk-update')
 
@@ -50,7 +51,7 @@ def get_subclasses(cls, recursive=False):  # type: (T, bool) -> Set[T]
 
 
 def format_field_value(field, val, conn, cast_type=False):
-    # type: (Field, Any, DefaultConnectionProxy, bool) -> Tuple[str, Tuple[Any]]
+    # type: (Field, Any, TDatabase, bool) -> Tuple[str, Tuple[Any]]
     """
     Formats value, according to field rules
     :param field: Django field to take format from

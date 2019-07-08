@@ -30,7 +30,7 @@ You can make queries in 2 ways:
 ### Query functions
 There are 3 query helpers in this library. There parameters are unified and described in the section below.  
 
-* `bulk_update(model, values, key_fields='id', using=None, set_functions=None, key_fields_ops=(), returning=None, batch_size=None, batch_delay=0)`  
+* `bulk_update(model, values, key_fields='id', using=None, set_functions=None, key_fields_ops=(), where=None, returning=None, batch_size=None, batch_delay=0)`  
     This function updates multiple records of given model in single database query.  
     Functions forms raw sql query for PostgreSQL. It's work is not guaranteed on other databases.  
     Function returns number of updated records.
@@ -133,6 +133,11 @@ There are 3 query helpers in this library. There parameters are unified and desc
     - 'is_null', 'isnull'
       Checks field value for been NULL. Value should be boolean (true for IS NULL, false for IS NOT NULL)
     - You can define your own clause operator. See section below.
+    
+* `where`: Optional[WhereNode]    
+    This parameter is used to filter data before doing bulk update, using QuerySet filter and exclude methods.
+    Generated condition should not contain annotations and other table references.    
+    *NOTE*: parameter is not supported in `bulk_update_or_create`
     
 * `returning: Optional[Union[str, Iterable[str]]]`  
     If this parameter is set, it can be:  
@@ -276,15 +281,19 @@ print(list(data))
 # Outputs: [3, 5]
 ```
 
-### Using custom manager
+### Using custom manager and query set
 In order to simplify using `bulk_update` and `bulk_update_or_create` functions, you can use a custom manager.  
-It automatically fills `model` and `using` parameters. `using` extracts managers' write database. 
-You can change database to use with [Manager.db_manager()](https://docs.djangoproject.com/en/2.0/topics/db/multi-db/#using-managers-with-multiple-databases) method.  
+It automatically fills:
+ * `model` parameter
+ * `using` parameter (extracts queryset write database)
+ * `where` parameter (applies queryset filters, if called as QuerySet method). Not supported in bulk_update_or_create.    
+You can change database to use with [Manager.db_manager()](https://docs.djangoproject.com/en/2.0/topics/db/multi-db/#using-managers-with-multiple-databases) 
+or [QuerySet.using()](https://docs.djangoproject.com/en/2.0/topics/db/multi-db/#manually-selecting-a-database-for-a-queryset) methods.  
 The rest parameters are the same as above.  
 Example:
 ```python
 from django.db import models
-from djngo_pg_bulk_udpate.manager import BulkUpdateManager, BulkUpdateManagerMixin
+from django_pg_bulk_update.manager import BulkUpdateManager
 
 # Test model
 class TestModel(models.Model):
@@ -294,8 +303,12 @@ class TestModel(models.Model):
     int_field = models.IntegerField()
     
 # Now you can use functions like:
-
 TestModel.objects.bulk_update([
+    # Any data here
+], key_fields='id', set_functions=None, key_fields_ops=())
+
+# Update only records with id gtreater than 5 
+TestModel.objects.filter(id__gte=5).bulk_update([
     # Any data here
 ], key_fields='id', set_functions=None, key_fields_ops=())
 
@@ -304,14 +317,38 @@ TestModel.objects.bulk_update_or_create([
 ], key_fields='id', set_functions=None, update=True)           
 ```
 
-If you already have a manager, you can inherit it from BulkUpdateManagerMixin:
+If you already have a custom manager, you can inherit it from BulkUpdateMixin and replace QuerySet to BulkUpdateQuerySet:
 ```python
 from django.db import models
-from djngo_pg_bulk_udpate.manager import BulkUpdateManagerMixin
+from django_pg_bulk_update.manager import BulkUpdateMixin, BulkUpdateQuerySet
 
 
-class CustomManager(models.Manager, BulkUpdateManagerMixin):
+class CustomManager(models.Manager, BulkUpdateMixin):
+    def get_queryset(self):
+        return BulkUpdateQuerySet(model=self.model, using=self.db)
+    
+    
+# Test model
+class TestModel(models.Model):
+    objects = CustomManager()
+    
+    name = models.CharField(max_length=50)
+    int_field = models.IntegerField()
+```
+
+If you already have a custom QuerySet, you can inherit it from BulkUpdateMixin:
+```python
+from django.db import models
+from django_pg_bulk_update.manager import BulkUpdateMixin
+
+
+class CustomQuerySet(models.QuerySet, BulkUpdateMixin):
     pass
+    
+    
+class CustomManager(models.Manager, BulkUpdateMixin):
+    def get_queryset(self):
+        return CustomQuerySet(model=self.model, using=self.db)
     
     
 # Test model

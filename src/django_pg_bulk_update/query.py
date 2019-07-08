@@ -9,14 +9,17 @@ from itertools import chain
 from logging import getLogger
 
 import six
-from django.db import transaction, connection, connections, DefaultConnectionProxy
+from django.db import transaction, connection, connections
 from django.db.models import Model, Q, AutoField
 from typing import Any, Type, Iterable as TIterable, Union, Optional, List, Tuple
+
+from django.db.models.sql import UpdateQuery
+from django.db.models.sql.where import WhereNode
 
 from .compatibility import get_postgres_version, get_model_fields, returning_available
 from .set_functions import AbstractSetFunction
 from .types import TOperators, TFieldNames, TUpdateValues, TSetFunctions, TOperatorsValid, TUpdateValuesValid, \
-    TSetFunctionsValid, FieldDescriptor
+    TSetFunctionsValid, TDatabase, FieldDescriptor
 from .utils import batched_operation
 
 
@@ -211,6 +214,37 @@ def _validate_set_functions(model, upd_fds, functions):
     return upd_fds
 
 
+def _validate_where(model, where, using):
+    # type: (Type[Model], Optional[WhereNode], Optional[str]) -> Tuple[str, tuple]
+    """
+    Validates where clause (if given).
+    Translates it into sql + params tuple
+    :param model: Model, where clause is applied to
+    :param where: WhereNode instance as django generates it from QuerySet
+    :param using: Database alias to use
+    :return: Sql, params tuple
+    """
+    if where is None:
+        return '', tuple()
+
+    if not isinstance(where, WhereNode):
+        raise TypeError("'where' must be a WhereNode instance")
+
+    # In Django 1.7 there is no method
+    if hasattr(where, 'contains_aggregate') and where.contains_aggregate:
+        raise ValueError("'where' should not contain aggregates")
+
+    query = UpdateQuery(model)
+    conn = connections[using] if using else connection
+    compiler = query.get_compiler(connection=conn)
+    sql, params = where.as_sql(compiler, conn)
+
+    # I change table name to "t" inside queries
+    sql = sql.replace('"%s"' % model._meta.db_table, '"t"')
+
+    return sql, params
+
+
 def pdnf_clause(key_fields, field_values, key_fields_ops=()):
     # type: (TFieldNames, TIterable[Union[TIterable[Any], dict]], TOperators) -> Q
     """
@@ -288,7 +322,7 @@ def _get_default_fds(model, existing_fds):
 
 
 def _generate_fds_sql(model, conn, fds, values, for_set, cast_type):
-    # type: (Type[Model], DefaultConnectionProxy, Tuple[FieldDescriptor], Iterable[Any], bool, bool) -> Tuple[List[str], List[Any]]
+    # type: (Type[Model], TDatabase, Tuple[FieldDescriptor], Iterable[Any], bool, bool) -> Tuple[List[str], List[Any]]
     """
     Generates
     :param fds:
@@ -308,7 +342,7 @@ def _generate_fds_sql(model, conn, fds, values, for_set, cast_type):
 
 
 def _with_values_query_part(model, values, conn, key_fds, upd_fds, default_fds=()):
-    # type: (Type[Model], TUpdateValuesValid, DefaultConnectionProxy, Tuple[FieldDescriptor], Tuple[FieldDescriptor], Tuple[FieldDescriptor]) -> Tuple[str, List[Any]]
+    # type: (Type[Model], TUpdateValuesValid, TDatabase, Tuple[FieldDescriptor], Tuple[FieldDescriptor], Tuple[FieldDescriptor]) -> Tuple[str, List[Any]]
     """
     Forms query part, selecting input values
     :param model: Model to update, a subclass of django.db.models.Model
@@ -358,12 +392,15 @@ def _with_values_query_part(model, values, conn, key_fds, upd_fds, default_fds=(
     return tpl % (sel_sql, values_sql), values_update_params
 
 
-def _bulk_update_query_part(model, conn, key_fds, upd_fds):
-    # type: (Type[Model], DefaultConnectionProxy, Tuple[FieldDescriptor], Tuple[FieldDescriptor]) -> Tuple[str, List[Any]]
+def _bulk_update_query_part(model, conn, key_fds, upd_fds, where):
+    # type: (Type[Model], TDatabase, Tuple[FieldDescriptor], Tuple[FieldDescriptor], Tuple[str, tuple]) -> Tuple[str, List[Any]]
     """
     Forms bulk update query part without values, counting that all keys and values are already in vals table
     :param model: Model to update, a subclass of django.db.models.Model
     :param conn: Database connection used
+    :param key_fds: Field names, by which items would be selected (tuple)
+    :param upd_fds: FieldDescriptor objects to update
+    :param where: A sql, params tuple to filter query data before update
     :return: A tuple of sql and it's parameters
     """
 
@@ -385,6 +422,11 @@ def _bulk_update_query_part(model, conn, key_fds, upd_fds):
         prefixed_sel_field = '"vals"."%s"' % fd.prefixed_name
         where_items.append(fd.key_operator.get_sql(table_field, prefixed_sel_field))
     where_sql = ' AND '.join(where_items)
+    where_params = []
+
+    if where[0]:
+        where_sql = '(%s) AND (%s)' % (where_sql, where[0])
+        where_params.extend(where[1])
 
     # Form data for SET section
     set_items, set_params = [], []
@@ -397,11 +439,11 @@ def _bulk_update_query_part(model, conn, key_fds, upd_fds):
 
     # Substitute query placeholders and concatenate with VALUES section
     query = query % ('"%s"' % db_table, set_sql, where_sql)
-    return query, set_params
+    return query, set_params + where_params
 
 
 def _returning_query_part(model, conn, ret_fds):
-    # type: (Type[Model], DefaultConnectionProxy, Optional[Tuple[FieldDescriptor]]) -> Tuple[str, List[Any]]
+    # type: (Type[Model], TDatabase, Optional[Tuple[FieldDescriptor]]) -> Tuple[str, List[Any]]
     """
     Forms returning query part
     :param model: Model to update, a subclass of django.db.models.Model
@@ -417,7 +459,7 @@ def _returning_query_part(model, conn, ret_fds):
 
 
 def _execute_update_query(model, conn, sql, params, ret_fds):
-    # type: (Type[Model], DefaultConnectionProxy, str, List[Any], Optional[Tuple[FieldDescriptor]]) -> Union[int, 'ReturningQuerySet']
+    # type: (Type[Model], TDatabase, str, List[Any], Optional[Tuple[FieldDescriptor]]) -> Union[int, 'ReturningQuerySet']
     """
     Does bulk update, skipping parameters validation.
     It is used for speed up in bulk_update_or_create, where parameters are already formatted.
@@ -439,8 +481,8 @@ def _execute_update_query(model, conn, sql, params, ret_fds):
                                  fields=[fd.get_field(model).attname for fd in ret_fds])
 
 
-def _bulk_update_no_validation(model, values, conn, key_fds, upd_fds, ret_fds):
-    # type: (Type[Model], TUpdateValuesValid, DefaultConnectionProxy, Tuple[FieldDescriptor], Tuple[FieldDescriptor], Optional[Tuple[FieldDescriptor]]) -> Union[int, 'ReturningQuerySet']
+def _bulk_update_no_validation(model, values, conn, key_fds, upd_fds, ret_fds, where):
+    # type: (Type[Model], TUpdateValuesValid, TDatabase, Tuple[FieldDescriptor], Tuple[FieldDescriptor], Optional[Tuple[FieldDescriptor]], Tuple[str, tuple]) -> Union[int, 'ReturningQuerySet']
     """
     Does bulk update, skipping parameters validation.
     It is used for speed up in bulk_update_or_create, where parameters are already formatted.
@@ -451,6 +493,7 @@ def _bulk_update_no_validation(model, values, conn, key_fds, upd_fds, ret_fds):
     :param key_fds: Field names, by which items would be selected (tuple)
     :param upd_fds: FieldDescriptor objects to update
     :param ret_fds: Optional fds to return as ReturningQuerySet
+    :param where: A sql, params tuple to filter query data before update
     :return: Number of records updated if ret_fds not given. ReturningQuerySet otherwise
     """
     # No any values to update. Return that everything is done.
@@ -458,7 +501,7 @@ def _bulk_update_no_validation(model, values, conn, key_fds, upd_fds, ret_fds):
         return len(values)
 
     values_sql, values_params = _with_values_query_part(model, values, conn, key_fds, upd_fds)
-    upd_sql, upd_params = _bulk_update_query_part(model, conn, key_fds, upd_fds)
+    upd_sql, upd_params = _bulk_update_query_part(model, conn, key_fds, upd_fds, where)
     ret_sql, ret_params = _returning_query_part(model, conn, ret_fds)
 
     sql = values_sql + upd_sql + ret_sql
@@ -486,9 +529,9 @@ def _concat_batched_result(batched_result, ret_fds):
         return sum(batched_result[1:], batched_result[0])
 
 
-def bulk_update(model, values, key_fields='id', using=None, set_functions=None, key_fields_ops=(), returning=None,
-                batch_size=None, batch_delay=0):
-    # type: (Type[Model], TUpdateValues, TFieldNames, Optional[str], TSetFunctions, TOperators, Optional[TFieldNames], Optional[int], float) -> Union[int, 'ReturningQuerySet']
+def bulk_update(model, values, key_fields='id', using=None, set_functions=None, key_fields_ops=(),
+                where=None, returning=None, batch_size=None, batch_delay=0):
+    # type: (Type[Model], TUpdateValues, TFieldNames, Optional[str], TSetFunctions, TOperators, Optional[WhereNode], Optional[TFieldNames], Optional[int], float) -> Union[int, 'ReturningQuerySet']
     """
     Updates multiple records of a given model, finding them by key_fields.
 
@@ -515,6 +558,7 @@ def bulk_update(model, values, key_fields='id', using=None, set_functions=None, 
         The default operator is eq (it will be used for all fields, not set directly).
         Operators: [in; !in; gt, >; lt, <; gte, >=; lte, <=; !eq, <>, !=; eq, =, ==]
         Example: ('eq', 'in') or {'a': 'eq', 'b': 'in'}.
+    :param where: A WhereNode instance - filter condition for all query
     :param returning: Optional. If given, returns updated values of fields, listed in parameter.
     :param batch_size: Optional. If given, data is split it into batches of given size.
         Each batch is queried independently.
@@ -534,6 +578,7 @@ def bulk_update(model, values, key_fields='id', using=None, set_functions=None, 
     key_fields = _validate_field_names(key_fields)
     upd_fds, values = _validate_update_values(key_fields, values)
     ret_fds = _validate_returning(model, returning)
+    where = _validate_where(model, where, using)
 
     if len(values) == 0:
         if ret_fds is None:
@@ -547,7 +592,7 @@ def bulk_update(model, values, key_fields='id', using=None, set_functions=None, 
     conn = connection if using is None else connections[using]
 
     batched_result = batched_operation(_bulk_update_no_validation, values,
-                                       args=(model, None, conn, key_fields, upd_fds, ret_fds),
+                                       args=(model, None, conn, key_fields, upd_fds, ret_fds, where),
                                        data_arg_index=1, batch_size=batch_size, batch_delay=batch_delay)
 
     return _concat_batched_result(batched_result, ret_fds)
@@ -603,7 +648,7 @@ def _bulk_update_or_create_no_validation(model, values, key_fds, upd_fds, ret_fd
                 create_items.append(model(**kwargs))
 
         # Update existing records
-        update_result = _bulk_update_no_validation(model, update_items, conn, key_fds, upd_fds, ret_fds)
+        update_result = _bulk_update_no_validation(model, update_items, conn, key_fds, upd_fds, ret_fds, ('', tuple()))
 
         # Create absent records
         created_items = model.objects.db_manager(using).bulk_create(create_items)
@@ -618,7 +663,7 @@ def _bulk_update_or_create_no_validation(model, values, key_fds, upd_fds, ret_fd
 
 
 def _insert_on_conflict_query_part(model, conn, key_fds, upd_fds, default_fds, update):
-    # type: (Type[Model], DefaultConnectionProxy, Tuple[FieldDescriptor], Tuple[FieldDescriptor], Tuple[FieldDescriptor], bool) -> Tuple[str, List[Any]]
+    # type: (Type[Model], TDatabase, Tuple[FieldDescriptor], Tuple[FieldDescriptor], Tuple[FieldDescriptor], bool) -> Tuple[str, List[Any]]
     """
     Forms bulk update query part without values, counting that all keys and values are already in vals table
     :param model: Model to update, a subclass of django.db.models.Model
