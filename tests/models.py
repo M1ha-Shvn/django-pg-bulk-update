@@ -36,6 +36,13 @@ if jsonb_available():
 TestModel = type('TestModel', (models.Model,), model_attrs)
 
 
+class UpperCaseModel(models.Model):
+    """
+    Test model for https://github.com/M1hacka/django-pg-bulk-update/issues/46
+    """
+    UpperCaseName = models.CharField(max_length=30)
+
+
 class UniqueNotPrimary(models.Model):
     """
     Test model for https://github.com/M1hacka/django-pg-bulk-update/issues/19
