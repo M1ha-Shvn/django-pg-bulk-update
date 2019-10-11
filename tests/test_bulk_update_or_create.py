@@ -150,7 +150,7 @@ class TestInputFormats(TestCase):
 
 
 class TestSimple(TestCase):
-    fixtures = ['test_model']
+    fixtures = ['test_model', 'test_upper_case_model']
     multi_db = True
 
     def test_update(self):
@@ -185,18 +185,18 @@ class TestSimple(TestCase):
             'id': 1,
             'UpperCaseName': 'BulkUpdate1'
         }, {
-            'id': 5,
-            'UpperCaseName': 'BulkUpdate5'
+            'id': 3,
+            'UpperCaseName': 'BulkUpdate3'
         }, {
             'id': 4,
             'UpperCaseName': 'BulkUpdate4'
         }])
-        self.assertEqual(2, res)
+        self.assertEqual(3, res)
 
         # 3 from fixture + 1 created
         self.assertEqual(4, UpperCaseModel.objects.all().count())
 
-        for pk, name in UpperCaseModel.objects.all().order_by('id').values_list('id', 'name'):
+        for pk, name in UpperCaseModel.objects.all().order_by('id').values_list('id', 'UpperCaseName'):
             if pk in {1, 3, 4}:
                 self.assertEqual('BulkUpdate%d' % pk, name)
             else:

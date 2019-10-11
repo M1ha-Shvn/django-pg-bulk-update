@@ -143,7 +143,7 @@ class TestInputFormats(TestCase):
 
 
 class TestSimple(TestCase):
-    fixtures = ['test_model', 'm2m_relation']
+    fixtures = ['test_model', 'm2m_relation', 'test_upper_case_model']
     multi_db = True
 
     def test_update(self):
@@ -171,7 +171,7 @@ class TestSimple(TestCase):
             'UpperCaseName': 'BulkUpdate1'
         }, {
             'id': 3,
-            'UpperCaseName': 'BulkUpdate5'
+            'UpperCaseName': 'BulkUpdate3'
         }])
         self.assertEqual(2, res)
         for pk, name in UpperCaseModel.objects.all().order_by('id').values_list('id', 'UpperCaseName'):
