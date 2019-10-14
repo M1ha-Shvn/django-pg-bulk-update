@@ -1,0 +1,23 @@
+[
+  {
+    "model": "tests.UpperCaseModel",
+    "pk": 1,
+    "fields": {
+      "UpperCaseName": "test1"
+    }
+  },
+  {
+    "model": "tests.UpperCaseModel",
+    "pk": 2,
+    "fields": {
+      "UpperCaseName": "test2"
+    }
+  },
+  {
+    "model": "tests.UpperCaseModel",
+    "pk": 3,
+    "fields": {
+      "UpperCaseName": "test3"
+    }
+  }
+]

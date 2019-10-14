@@ -6,7 +6,7 @@ from django_pg_bulk_update.clause_operators import InClauseOperator
 from django_pg_bulk_update.compatibility import jsonb_available, hstore_available, array_available
 from django_pg_bulk_update.query import bulk_update
 from django_pg_bulk_update.set_functions import ConcatSetFunction
-from tests.models import TestModel, RelationModel
+from tests.models import TestModel, RelationModel, UpperCaseModel
 
 
 class TestInputFormats(TestCase):
@@ -143,7 +143,7 @@ class TestInputFormats(TestCase):
 
 
 class TestSimple(TestCase):
-    fixtures = ['test_model', 'm2m_relation']
+    fixtures = ['test_model', 'm2m_relation', 'test_upper_case_model']
     multi_db = True
 
     def test_update(self):
@@ -164,6 +164,21 @@ class TestSimple(TestCase):
             else:
                 self.assertEqual('test%d' % pk, name)
             self.assertEqual(pk, int_field)
+
+    def test_upper_case(self):
+        res = bulk_update(UpperCaseModel, [{
+            'id': 1,
+            'UpperCaseName': 'BulkUpdate1'
+        }, {
+            'id': 3,
+            'UpperCaseName': 'BulkUpdate3'
+        }])
+        self.assertEqual(2, res)
+        for pk, name in UpperCaseModel.objects.all().order_by('id').values_list('id', 'UpperCaseName'):
+            if pk in {1, 3}:
+                self.assertEqual('BulkUpdate%d' % pk, name)
+            else:
+                self.assertEqual('test%d' % pk, name)
 
     def test_empty(self):
         res = bulk_update(TestModel, [])
