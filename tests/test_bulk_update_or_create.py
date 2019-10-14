@@ -651,7 +651,7 @@ class TestManager(TestCase):
     multi_db = True
 
     def test_bulk_update_or_create(self):
-        res = TestModel.objects.bulk_update_or_create([{
+        res = TestModel.objects.pg_bulk_update_or_create([{
             'id': 1,
             'name': 'bulk_update_1'
         }, {
@@ -678,7 +678,7 @@ class TestManager(TestCase):
                 self.assertEqual(pk, int_field)
 
     def test_using(self):
-        res = TestModel.objects.db_manager('secondary').bulk_update_or_create([{
+        res = TestModel.objects.db_manager('secondary').pg_bulk_update_or_create([{
             'id': 1,
             'name': 'bulk_update_1'
         }, {
