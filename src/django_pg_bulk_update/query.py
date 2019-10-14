@@ -240,7 +240,8 @@ def _validate_where(model, where, using):
     sql, params = where.as_sql(compiler, conn)
 
     # I change table name to "t" inside queries
-    sql = sql.replace('"%s"' % model._meta.db_table, '"t"')
+    if sql:
+        sql = sql.replace('"%s"' % model._meta.db_table, '"t"')
 
     return sql, params
 
