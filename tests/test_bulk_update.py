@@ -1,4 +1,3 @@
-from django.db.models.sql.where import WhereNode
 from django.test import TestCase
 from unittest import skipIf
 

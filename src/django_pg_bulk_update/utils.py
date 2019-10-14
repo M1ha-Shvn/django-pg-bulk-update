@@ -110,6 +110,9 @@ def format_field_value(field, val, conn, cast_type=False):
     # Getting the placeholder for the field.
     if hasattr(field, 'get_placeholder'):
         placeholder = field.get_placeholder(val, compiler, conn)
+
+        # django 2.2 adds ::serial[] to placeholders for arrays...
+        placeholder = placeholder.split('::')[0]
     else:
         placeholder = '%s'
 
