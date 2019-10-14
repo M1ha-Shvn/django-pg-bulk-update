@@ -749,7 +749,7 @@ class TestManager(TestCase):
     multi_db = True
 
     def test_bulk_update(self):
-        res = TestModel.objects.bulk_update([{
+        res = TestModel.objects.pg_bulk_update([{
             'id': 1,
             'name': 'bulk_update_1'
         }, {
@@ -768,7 +768,7 @@ class TestManager(TestCase):
             self.assertEqual(pk, int_field)
 
     def test_where(self):
-        res = TestModel.objects.filter(int_field__gte=5).bulk_update([{
+        res = TestModel.objects.filter(int_field__gte=5).pg_bulk_update([{
             'id': 1,
             'name': 'bulk_update_1'
         }, {
@@ -787,7 +787,7 @@ class TestManager(TestCase):
             self.assertEqual(pk, int_field)
 
     def test_using(self):
-        res = TestModel.objects.db_manager('secondary').bulk_update([{
+        res = TestModel.objects.db_manager('secondary').pg_bulk_update([{
             'id': 1,
             'name': 'bulk_update_1'
         }, {
