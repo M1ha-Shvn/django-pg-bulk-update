@@ -322,15 +322,15 @@ TestModel.objects.pg_bulk_update_or_create([
 ], key_fields='id', set_functions=None, update=True)           
 ```
 
-If you already have a custom manager, you can inherit it from BulkUpdateMixin and replace QuerySet to BulkUpdateQuerySet:
+If you already have a custom manager, you can replace QuerySet to BulkUpdateQuerySet:
 ```python
 from django.db import models
-from django_pg_bulk_update.manager import BulkUpdateMixin, BulkUpdateQuerySet
+from django.db.models.manager import BaseManager
+from django_pg_bulk_update.manager import BulkUpdateQuerySet
 
 
-class CustomManager(models.Manager, BulkUpdateMixin):
-    def get_queryset(self):
-        return BulkUpdateQuerySet(model=self.model, using=self.db)
+class CustomManager(BaseManager.from_queryset(BulkUpdateQuerySet)):
+    pass
     
     
 # Test model
@@ -344,16 +344,16 @@ class TestModel(models.Model):
 If you already have a custom QuerySet, you can inherit it from BulkUpdateMixin:
 ```python
 from django.db import models
+from django.db.models.manager import BaseManager
 from django_pg_bulk_update.manager import BulkUpdateMixin
 
 
-class CustomQuerySet(models.QuerySet, BulkUpdateMixin):
+class CustomQuerySet(BulkUpdateMixin, models.QuerySet):
     pass
     
     
-class CustomManager(models.Manager, BulkUpdateMixin):
-    def get_queryset(self):
-        return CustomQuerySet(model=self.model, using=self.db)
+class CustomManager(BaseManager.from_queryset(CustomQuerySet)):
+    pass
     
     
 # Test model
