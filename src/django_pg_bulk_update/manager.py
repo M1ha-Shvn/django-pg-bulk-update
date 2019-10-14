@@ -264,7 +264,7 @@ class BulkUpdateQuerySet(BulkUpdateMixin, models.QuerySet):
     pass
 
 
-class BulkUpdateManager(BaseManager.from_queryset(BulkUpdateQuerySet)):
+class BulkUpdateManager(BaseManager.from_queryset(BulkUpdateQuerySet), models.Manager):
     pass
 
 
