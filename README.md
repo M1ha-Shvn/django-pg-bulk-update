@@ -101,7 +101,7 @@ There are 3 query helpers in this library. There parameters are unified and desc
     - 'union'  
       This function combines ArrayField value with previous one, removing duplicates.
     - 'array_remove'  
-      This function delete value from ArrayField field using array_remove PSQL Function.
+      This function deletes value from ArrayField field using array_remove PSQL Function.
     - You can define your own set function. See section below.
   
     Increment, union and concatenate functions concern NULL as default value.

@@ -322,8 +322,8 @@ class ArrayRemoveSetFunction(AbstractSetFunction):
             val_sql, params = str(val), tuple()
 
         if for_update:
-            sql = 'ARRAY_REMOVE({0}, {1})'.format(self._get_field_column(field, with_table=with_table), val_sql)
+            sql = 'array_remove({0}, {1})'.format(self._get_field_column(field, with_table=with_table), val_sql)
         else:
-            sql = val_sql
+            sql, params = self.format_field_value(field, field.get_default(), connection)
 
         return sql, params

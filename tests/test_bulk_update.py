@@ -575,6 +575,25 @@ class TestSetFunctions(TestCase):
                 self.assertEqual('test%d' % pk, name)
             self.assertEqual('test%d' % pk, name)
 
+    @skipIf(not array_available(), "ArrayField is available in Django 1.8+")
+    def test_array_remove(self):
+        TestModel.objects.all().update(array_field=[1, 2, 2])
+
+        res = bulk_update(TestModel, [{'id': 1, 'array_field': 1},
+                                      {'id': 2, 'array_field': 2},
+                                      {'id': 3, 'array_field': 3}],
+                          set_functions={'array_field': 'array_remove'})
+
+        self.assertEqual(3, res)
+
+        for pk, array_field in TestModel.objects.all().order_by('id').values_list('id', 'array_field'):
+            if pk == 1:
+                self.assertListEqual([2, 2], array_field)
+            elif pk == 2:
+                self.assertListEqual([1], array_field)
+            elif pk == 3:
+                self.assertListEqual([1, 2, 2], array_field)
+
 
 class TestClauseOperators(TestCase):
     fixtures = ['test_model']
