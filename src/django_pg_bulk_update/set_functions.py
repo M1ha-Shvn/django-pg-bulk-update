@@ -313,6 +313,10 @@ class ArrayRemoveSetFunction(AbstractSetFunction):
     supported_field_classes = {'ArrayField'}
 
     def format_field_value(self, field, val, connection, cast_type=False, **kwargs):
+        # Support for django 1.8
+        if not hasattr(field.base_field, 'model'):
+            field.base_field.model = field.model
+
         return format_field_value(field.base_field, val, connection, cast_type=cast_type)
 
     def get_sql_value(self, field, val, connection, val_as_param=True, with_table=False, for_update=True, **kwargs):
