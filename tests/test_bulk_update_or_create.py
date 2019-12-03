@@ -647,20 +647,27 @@ class TestSetFunctions(TestCase):
 
     @skipIf(not array_available(), "ArrayField is available in Django 1.8+")
     def test_array_remove(self):
-        TestModel.objects.all().update(array_field=[1, 2])
-        res = bulk_update_or_create(TestModel, [{'id': 1, 'array_field': 1},
-                                                {'id': 2, 'array_field': 2},
-                                                {'id': 13, 'array_field': 13}],
-                                    set_functions={'array_field': 'array_remove'})
-        self.assertEqual(3, res)
+        def _test_array_remove(kwargs):
+            res = bulk_update_or_create(TestModel, [{'id': 1, 'array_field': 1},
+                                                    {'id': 2, 'array_field': 2},
+                                                    {'id': 13, 'array_field': 13}],
+                                        set_functions={'array_field': 'array_remove'}, **kwargs)
+            self.assertEqual(3, res)
 
-        for pk, array_field in TestModel.objects.filter(id__in=[1, 2, 13]).values_list('pk', 'array_field'):
-            if pk == 1:
-                self.assertEqual([2], array_field)
-            elif pk == 2:
-                self.assertEqual([1], array_field)
-            elif pk == 13:
-                self.assertEqual(None, array_field)
+            for pk, array_field in TestModel.objects.filter(id__in=[1, 2, 13]).values_list('pk', 'array_field'):
+                if pk == 1:
+                    self.assertEqual([2], array_field)
+                elif pk == 2:
+                    self.assertEqual([1], array_field)
+                elif pk == 13:
+                    self.assertEqual(None, array_field)
+
+        TestModel.objects.all().update(array_field=[1, 2])
+        _test_array_remove({'key_is_unique': False})  # Force 3-step query
+
+        TestModel.objects.filter(id=13).delete()
+        TestModel.objects.all().update(array_field=[1, 2])
+        _test_array_remove({'key_is_unique': True})
 
 
 class TestManager(TestCase):

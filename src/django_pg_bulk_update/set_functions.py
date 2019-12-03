@@ -318,6 +318,12 @@ class ArrayRemoveSetFunction(AbstractSetFunction):
             field.base_field.model = field.model
 
         return format_field_value(field.base_field, val, connection, cast_type=cast_type)
+    
+    def modify_create_params(self, model, key, kwargs):
+        if kwargs.get(key):
+            kwargs[key] = model._meta.get_field(key).get_default()
+
+        return kwargs
 
     def get_sql_value(self, field, val, connection, val_as_param=True, with_table=False, for_update=True, **kwargs):
         if val_as_param:
