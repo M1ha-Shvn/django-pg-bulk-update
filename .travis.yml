@@ -257,7 +257,7 @@ before_install:
 
   # Start PostgreSQL version we need
   - sudo systemctl stop postgresql
-  - sudo systemctl start postgresql@$PG-main
+  - sudo service postgresql start $PG
 
 install:
   - pip install -r requirements.txt
