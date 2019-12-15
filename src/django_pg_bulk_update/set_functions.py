@@ -305,3 +305,35 @@ class UnionSetFunction(AbstractSetFunction):
             sql, params = val, []
 
         return sql, params
+
+
+class ArrayRemoveSetFunction(AbstractSetFunction):
+    names = {'array_remove'}
+
+    supported_field_classes = {'ArrayField'}
+
+    def format_field_value(self, field, val, connection, cast_type=False, **kwargs):
+        # Support for django 1.8
+        if not hasattr(field.base_field, 'model'):
+            field.base_field.model = field.model
+
+        return format_field_value(field.base_field, val, connection, cast_type=cast_type)
+    
+    def modify_create_params(self, model, key, kwargs):
+        if kwargs.get(key):
+            kwargs[key] = model._meta.get_field(key).get_default()
+
+        return kwargs
+
+    def get_sql_value(self, field, val, connection, val_as_param=True, with_table=False, for_update=True, **kwargs):
+        if val_as_param:
+            val_sql, params = self.format_field_value(field, val, connection)
+        else:
+            val_sql, params = str(val), tuple()
+
+        if for_update:
+            sql = 'array_remove({0}, {1})'.format(self._get_field_column(field, with_table=with_table), val_sql)
+        else:
+            sql, params = self.format_field_value(field, field.get_default(), connection)
+
+        return sql, params

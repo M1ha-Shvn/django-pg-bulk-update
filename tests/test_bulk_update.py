@@ -1,4 +1,3 @@
-from django.db.models.sql.where import WhereNode
 from django.test import TestCase
 from unittest import skipIf
 
@@ -6,7 +5,7 @@ from django_pg_bulk_update.clause_operators import InClauseOperator
 from django_pg_bulk_update.compatibility import jsonb_available, hstore_available, array_available
 from django_pg_bulk_update.query import bulk_update
 from django_pg_bulk_update.set_functions import ConcatSetFunction
-from tests.models import TestModel, RelationModel
+from tests.models import TestModel, RelationModel, UpperCaseModel
 
 
 class TestInputFormats(TestCase):
@@ -143,7 +142,7 @@ class TestInputFormats(TestCase):
 
 
 class TestSimple(TestCase):
-    fixtures = ['test_model', 'm2m_relation']
+    fixtures = ['test_model', 'm2m_relation', 'test_upper_case_model']
     multi_db = True
 
     def test_update(self):
@@ -164,6 +163,21 @@ class TestSimple(TestCase):
             else:
                 self.assertEqual('test%d' % pk, name)
             self.assertEqual(pk, int_field)
+
+    def test_upper_case(self):
+        res = bulk_update(UpperCaseModel, [{
+            'id': 1,
+            'UpperCaseName': 'BulkUpdate1'
+        }, {
+            'id': 3,
+            'UpperCaseName': 'BulkUpdate3'
+        }])
+        self.assertEqual(2, res)
+        for pk, name in UpperCaseModel.objects.all().order_by('id').values_list('id', 'UpperCaseName'):
+            if pk in {1, 3}:
+                self.assertEqual('BulkUpdate%d' % pk, name)
+            else:
+                self.assertEqual('test%d' % pk, name)
 
     def test_empty(self):
         res = bulk_update(TestModel, [])
@@ -561,6 +575,25 @@ class TestSetFunctions(TestCase):
                 self.assertEqual('test%d' % pk, name)
             self.assertEqual('test%d' % pk, name)
 
+    @skipIf(not array_available(), "ArrayField is available in Django 1.8+")
+    def test_array_remove(self):
+        TestModel.objects.all().update(array_field=[1, 2, 2])
+
+        res = bulk_update(TestModel, [{'id': 1, 'array_field': 1},
+                                      {'id': 2, 'array_field': 2},
+                                      {'id': 3, 'array_field': 3}],
+                          set_functions={'array_field': 'array_remove'})
+
+        self.assertEqual(3, res)
+
+        for pk, array_field in TestModel.objects.all().order_by('id').values_list('id', 'array_field'):
+            if pk == 1:
+                self.assertListEqual([2, 2], array_field)
+            elif pk == 2:
+                self.assertListEqual([1], array_field)
+            elif pk == 3:
+                self.assertListEqual([1, 2, 2], array_field)
+
 
 class TestClauseOperators(TestCase):
     fixtures = ['test_model']
@@ -734,7 +767,7 @@ class TestManager(TestCase):
     multi_db = True
 
     def test_bulk_update(self):
-        res = TestModel.objects.bulk_update([{
+        res = TestModel.objects.pg_bulk_update([{
             'id': 1,
             'name': 'bulk_update_1'
         }, {
@@ -753,7 +786,7 @@ class TestManager(TestCase):
             self.assertEqual(pk, int_field)
 
     def test_where(self):
-        res = TestModel.objects.filter(int_field__gte=5).bulk_update([{
+        res = TestModel.objects.filter(int_field__gte=5).pg_bulk_update([{
             'id': 1,
             'name': 'bulk_update_1'
         }, {
@@ -772,7 +805,7 @@ class TestManager(TestCase):
             self.assertEqual(pk, int_field)
 
     def test_using(self):
-        res = TestModel.objects.db_manager('secondary').bulk_update([{
+        res = TestModel.objects.db_manager('secondary').pg_bulk_update([{
             'id': 1,
             'name': 'bulk_update_1'
         }, {

@@ -240,7 +240,8 @@ def _validate_where(model, where, using):
     sql, params = where.as_sql(compiler, conn)
 
     # I change table name to "t" inside queries
-    sql = sql.replace('"%s"' % model._meta.db_table, '"t"')
+    if sql:
+        sql = sql.replace('"%s"' % model._meta.db_table, '"t"')
 
     return sql, params
 
@@ -387,7 +388,7 @@ def _with_values_query_part(model, values, conn, key_fds, upd_fds, default_fds=(
     # NOTE. No extra brackets here or VALUES will return nothing
     values_sql = '%s' % ', '.join(values_items_sql)
 
-    sel_sql = ', '.join([fd.prefixed_name for fd in chain(key_fds, upd_fds, default_fds)])
+    sel_sql = ', '.join(['"%s"' % fd.prefixed_name for fd in chain(key_fds, upd_fds, default_fds)])
 
     return tpl % (sel_sql, values_sql), values_update_params
 
@@ -407,7 +408,7 @@ def _bulk_update_query_part(model, conn, key_fds, upd_fds, where):
     # Query template. We will form its substitutes in next sections
     query = """
         UPDATE %s AS t SET %s
-        FROM vals
+        FROM "vals"
         WHERE %s
     """
 
@@ -674,8 +675,8 @@ def _insert_on_conflict_query_part(model, conn, key_fds, upd_fds, default_fds, u
     :return: A tuple of sql and it's parameters
     """
     query = """
-    INSERT INTO %s (%s)
-    SELECT %s FROM vals
+    INSERT INTO "%s" (%s)
+    SELECT %s FROM "vals"
     ON CONFLICT (%s) %s
     """
 

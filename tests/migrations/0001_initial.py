@@ -49,6 +49,16 @@ class Migration(migrations.Migration):
                 'abstract': False,
             }
         ),
+        migrations.CreateModel(
+            name='UpperCaseModel',
+            fields=(
+                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('UpperCaseName', models.CharField(max_length=30)),
+            ),
+            options={
+                'abstract': False,
+            }
+        ),
         migrations.AlterUniqueTogether(name='TestModel', unique_together=[('id', 'name')]),
         migrations.CreateModel(
             name='RelationModel',

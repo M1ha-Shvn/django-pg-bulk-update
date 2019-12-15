@@ -5,7 +5,7 @@ from django.test import TestCase
 from django_pg_bulk_update.compatibility import jsonb_available, array_available, hstore_available
 from django_pg_bulk_update.query import bulk_update_or_create
 from django_pg_bulk_update.set_functions import ConcatSetFunction
-from tests.models import TestModel, UniqueNotPrimary
+from tests.models import TestModel, UniqueNotPrimary, UpperCaseModel
 
 
 class TestInputFormats(TestCase):
@@ -150,7 +150,7 @@ class TestInputFormats(TestCase):
 
 
 class TestSimple(TestCase):
-    fixtures = ['test_model']
+    fixtures = ['test_model', 'test_upper_case_model']
     multi_db = True
 
     def test_update(self):
@@ -179,6 +179,28 @@ class TestSimple(TestCase):
                 self.assertIsNone(int_field)
             else:
                 self.assertEqual(pk, int_field)
+
+    def test_upper_case(self):
+        res = bulk_update_or_create(UpperCaseModel, [{
+            'id': 1,
+            'UpperCaseName': 'BulkUpdate1'
+        }, {
+            'id': 3,
+            'UpperCaseName': 'BulkUpdate3'
+        }, {
+            'id': 4,
+            'UpperCaseName': 'BulkUpdate4'
+        }])
+        self.assertEqual(3, res)
+
+        # 3 from fixture + 1 created
+        self.assertEqual(4, UpperCaseModel.objects.all().count())
+
+        for pk, name in UpperCaseModel.objects.all().order_by('id').values_list('id', 'UpperCaseName'):
+            if pk in {1, 3, 4}:
+                self.assertEqual('BulkUpdate%d' % pk, name)
+            else:
+                self.assertEqual('test%d' % pk, name)
 
     def test_empty(self):
         res = bulk_update_or_create(TestModel, [])
@@ -623,13 +645,37 @@ class TestSetFunctions(TestCase):
             else:
                 self.assertEqual(pk, int_field)
 
+    @skipIf(not array_available(), "ArrayField is available in Django 1.8+")
+    def test_array_remove(self):
+        def _test_array_remove(kwargs):
+            res = bulk_update_or_create(TestModel, [{'id': 1, 'array_field': 1},
+                                                    {'id': 2, 'array_field': 2},
+                                                    {'id': 13, 'array_field': 13}],
+                                        set_functions={'array_field': 'array_remove'}, **kwargs)
+            self.assertEqual(3, res)
+
+            for pk, array_field in TestModel.objects.filter(id__in=[1, 2, 13]).values_list('pk', 'array_field'):
+                if pk == 1:
+                    self.assertEqual([2], array_field)
+                elif pk == 2:
+                    self.assertEqual([1], array_field)
+                elif pk == 13:
+                    self.assertEqual(None, array_field)
+
+        TestModel.objects.all().update(array_field=[1, 2])
+        _test_array_remove({'key_is_unique': False})  # Force 3-step query
+
+        TestModel.objects.filter(id=13).delete()
+        TestModel.objects.all().update(array_field=[1, 2])
+        _test_array_remove({'key_is_unique': True})
+
 
 class TestManager(TestCase):
     fixtures = ['test_model']
     multi_db = True
 
     def test_bulk_update_or_create(self):
-        res = TestModel.objects.bulk_update_or_create([{
+        res = TestModel.objects.pg_bulk_update_or_create([{
             'id': 1,
             'name': 'bulk_update_1'
         }, {
@@ -656,7 +702,7 @@ class TestManager(TestCase):
                 self.assertEqual(pk, int_field)
 
     def test_using(self):
-        res = TestModel.objects.db_manager('secondary').bulk_update_or_create([{
+        res = TestModel.objects.db_manager('secondary').pg_bulk_update_or_create([{
             'id': 1,
             'name': 'bulk_update_1'
         }, {

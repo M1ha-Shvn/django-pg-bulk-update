@@ -100,6 +100,8 @@ There are 3 query helpers in this library. There parameters are unified and desc
       This function can be used, if you want to update value only if it is not None.
     - 'union'  
       This function combines ArrayField value with previous one, removing duplicates.
+    - 'array_remove'  
+      This function deletes value from ArrayField field using array_remove PSQL Function.
     - You can define your own set function. See section below.
   
     Increment, union and concatenate functions concern NULL as default value.
@@ -290,6 +292,11 @@ It automatically fills:
 You can change database to use with [Manager.db_manager()](https://docs.djangoproject.com/en/2.0/topics/db/multi-db/#using-managers-with-multiple-databases) 
 or [QuerySet.using()](https://docs.djangoproject.com/en/2.0/topics/db/multi-db/#manually-selecting-a-database-for-a-queryset) methods.  
 The rest parameters are the same as above.  
+
+**Note**: As [django 2.2](https://docs.djangoproject.com/en/2.2/releases/2.2/) 
+ introduced [bulk_update](https://docs.djangoproject.com/en/2.2/ref/models/querysets/#bulk-update) method,
+ library methods were renamed to `pg_bulk_update` and `pg_bulk_update_or_create` respectively.
+ 
 Example:
 ```python
 from django.db import models
@@ -303,29 +310,29 @@ class TestModel(models.Model):
     int_field = models.IntegerField()
     
 # Now you can use functions like:
-TestModel.objects.bulk_update([
+TestModel.objects.pg_bulk_update([
     # Any data here
 ], key_fields='id', set_functions=None, key_fields_ops=())
 
 # Update only records with id gtreater than 5 
-TestModel.objects.filter(id__gte=5).bulk_update([
+TestModel.objects.filter(id__gte=5).pg_bulk_update([
     # Any data here
 ], key_fields='id', set_functions=None, key_fields_ops=())
 
-TestModel.objects.bulk_update_or_create([
+TestModel.objects.pg_bulk_update_or_create([
     # Any data here
 ], key_fields='id', set_functions=None, update=True)           
 ```
 
-If you already have a custom manager, you can inherit it from BulkUpdateMixin and replace QuerySet to BulkUpdateQuerySet:
+If you already have a custom manager, you can replace QuerySet to BulkUpdateQuerySet:
 ```python
 from django.db import models
-from django_pg_bulk_update.manager import BulkUpdateMixin, BulkUpdateQuerySet
+from django.db.models.manager import BaseManager
+from django_pg_bulk_update.manager import BulkUpdateQuerySet
 
 
-class CustomManager(models.Manager, BulkUpdateMixin):
-    def get_queryset(self):
-        return BulkUpdateQuerySet(model=self.model, using=self.db)
+class CustomManager(BaseManager.from_queryset(BulkUpdateQuerySet)):
+    pass
     
     
 # Test model
@@ -339,16 +346,16 @@ class TestModel(models.Model):
 If you already have a custom QuerySet, you can inherit it from BulkUpdateMixin:
 ```python
 from django.db import models
+from django.db.models.manager import BaseManager
 from django_pg_bulk_update.manager import BulkUpdateMixin
 
 
-class CustomQuerySet(models.QuerySet, BulkUpdateMixin):
+class CustomQuerySet(BulkUpdateMixin, models.QuerySet):
     pass
     
     
-class CustomManager(models.Manager, BulkUpdateMixin):
-    def get_queryset(self):
-        return CustomQuerySet(model=self.model, using=self.db)
+class CustomManager(BaseManager.from_queryset(CustomQuerySet)):
+    pass
     
     
 # Test model
@@ -508,6 +515,22 @@ Updating records one by one took 51,68 seconds.
 Updating records with bulk_update took 0.13 seconds.  
 You can write your own tests, based on test.test_performance and running it.
 
+## [django 2.2 bulk_update](https://docs.djangoproject.com/en/2.2/ref/models/querysets/#bulk-update) difference  
+Pros:  
+* bulk_update_or_create() method
+* Ability to use complex set functions
+* Ability to use complex conditions
+* Ability to update primary key
+* pdnf_clause helper
+* Django 1.7+ support
+* Ability to make delay between batches
+* Ability to return affected rows instead of rowcount (using Postgres RETURNING feature)
+
+Cons:  
+* PostgreSQL only
+* Django method supports Func objects ([in library's backlog](https://github.com/M1hacka/django-pg-bulk-update/issues/38))
+* Ability to update parents/children (using extra queries)
+
 ## [django-bulk-update](https://github.com/aykut/django-bulk-update) difference
 Pros:
 * bulk_update_or_create() method
@@ -518,6 +541,6 @@ Pros:
 * Ability to make delay between batches
 * Ability to return affected rows instead of rowcount (using Postgres RETURNING feature)
 
-Corns:
+Cons:
 * PostgreSQL only
 
