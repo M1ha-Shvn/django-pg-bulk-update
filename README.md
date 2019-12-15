@@ -2,7 +2,7 @@
 Django extension to update multiple table records with similar (but not equal) conditions in efficient way on PostgreSQL
 
 ## Requirements
-* Python 2.7 or Python 3.4+
+* Python 2.7 or Python 3.5+
 * django >= 1.7  
   Previous versions may also work, but haven't been tested.  
   django.postgres.contrib fields are also supported (available since django 1.8)
@@ -11,7 +11,7 @@ Django extension to update multiple table records with similar (but not equal) c
 * six
 * typing
 * psycopg2
-* PostgreSQL 9.3+   
+* PostgreSQL 9.4+   
   Previous versions may also work, but haven't been tested.  
   JSONB operations are available for PostgreSQL 9.4+.
   INSERT .. ON CONFLICT is used for PostgreSQL 9.5+.
