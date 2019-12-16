@@ -12,69 +12,76 @@ addons:
     - postgresql-client-10
     - postgresql-11
     - postgresql-client-11
+    - postgresql-12
+    - postgresql-client-12
 
 python:
   - 2.7
-  - 3.4
   - 3.5
   - 3.6
   - 3.7
+  - 3.8
+
 
 env:
-  - DJANGO=1.7 PG=9.3
   - DJANGO=1.7 PG=9.4
   - DJANGO=1.7 PG=9.5
   - DJANGO=1.7 PG=9.6
   - DJANGO=1.7 PG=10
   - DJANGO=1.7 PG=11
-  - DJANGO=1.8 PG=9.3
+  - DJANGO=1.7 PG=12
   - DJANGO=1.8 PG=9.4
   - DJANGO=1.8 PG=9.5
   - DJANGO=1.8 PG=9.6
   - DJANGO=1.8 PG=10
   - DJANGO=1.8 PG=11
-  - DJANGO=1.9 PG=9.3
+  - DJANGO=1.8 PG=12
   - DJANGO=1.9 PG=9.4
   - DJANGO=1.9 PG=9.5
   - DJANGO=1.9 PG=9.6
   - DJANGO=1.9 PG=10
   - DJANGO=1.9 PG=11
-  - DJANGO=1.10 PG=9.3
+  - DJANGO=1.9 PG=12
   - DJANGO=1.10 PG=9.4
   - DJANGO=1.10 PG=9.5
   - DJANGO=1.10 PG=9.6
   - DJANGO=1.10 PG=10
   - DJANGO=1.10 PG=11
-  - DJANGO=1.11 PG=9.3
+  - DJANGO=1.10 PG=12
   - DJANGO=1.11 PG=9.4
   - DJANGO=1.11 PG=9.5
   - DJANGO=1.11 PG=9.6
   - DJANGO=1.11 PG=10
   - DJANGO=1.11 PG=11
-  - DJANGO=2.0 PG=9.3
+  - DJANGO=1.11 PG=12
   - DJANGO=2.0 PG=9.4
   - DJANGO=2.0 PG=9.5
   - DJANGO=2.0 PG=9.6
   - DJANGO=2.0 PG=10
   - DJANGO=2.0 PG=11
-  - DJANGO=2.1 PG=9.3
+  - DJANGO=2.0 PG=12
   - DJANGO=2.1 PG=9.4
   - DJANGO=2.1 PG=9.5
   - DJANGO=2.1 PG=9.6
   - DJANGO=2.1 PG=10
   - DJANGO=2.1 PG=11
-  - DJANGO=2.2 PG=9.3
+  - DJANGO=2.1 PG=12
   - DJANGO=2.2 PG=9.4
   - DJANGO=2.2 PG=9.5
   - DJANGO=2.2 PG=9.6
   - DJANGO=2.2 PG=10
   - DJANGO=2.2 PG=11
+  - DJANGO=2.2 PG=12
+  - DJANGO=3.0 PG=9.4
+  - DJANGO=3.0 PG=9.5
+  - DJANGO=3.0 PG=9.6
+  - DJANGO=3.0 PG=10
+  - DJANGO=3.0 PG=11
+  - DJANGO=3.0 PG=12
 
 matrix:
   exclude:
   # Django 2.0+ doesn't support python 2.7
-  - python: 2.7
-    env: DJANGO=2.0 PG=9.3
   - python: 2.7
     env: DJANGO=2.0 PG=9.4
   - python: 2.7
@@ -86,7 +93,7 @@ matrix:
   - python: 2.7
     env: DJANGO=2.0 PG=11
   - python: 2.7
-    env: DJANGO=2.1 PG=9.3
+    env: DJANGO=2.0 PG=12
   - python: 2.7
     env: DJANGO=2.1 PG=9.4
   - python: 2.7
@@ -98,7 +105,7 @@ matrix:
   - python: 2.7
     env: DJANGO=2.1 PG=11
   - python: 2.7
-    env: DJANGO=2.2 PG=9.3
+    env: DJANGO=2.1 PG=12
   - python: 2.7
     env: DJANGO=2.2 PG=9.4
   - python: 2.7
@@ -109,37 +116,45 @@ matrix:
     env: DJANGO=2.2 PG=10
   - python: 2.7
     env: DJANGO=2.2 PG=11
+  - python: 2.7
+    env: DJANGO=2.2 PG=12
+  - python: 2.7
+    env: DJANGO=3.0 PG=9.4
+  - python: 2.7
+    env: DJANGO=3.0 PG=9.5
+  - python: 2.7
+    env: DJANGO=3.0 PG=9.6
+  - python: 2.7
+    env: DJANGO=3.0 PG=10
+  - python: 2.7
+    env: DJANGO=3.0 PG=11
+  - python: 2.7
+    env: DJANGO=3.0 PG=12
 
-  # Django 2.1+ doesn't support python 3.4
-  - python: 3.4
-    env: DJANGO=2.1 PG=9.3
-  - python: 3.4
-    env: DJANGO=2.1 PG=9.4
-  - python: 3.4
-    env: DJANGO=2.1 PG=9.5
-  - python: 3.4
-    env: DJANGO=2.1 PG=9.6
-  - python: 3.4
-    env: DJANGO=2.1 PG=10
-  - python: 3.4
-    env: DJANGO=2.1 PG=11
-  - python: 3.4
-    env: DJANGO=2.2 PG=9.3
-  - python: 3.4
-    env: DJANGO=2.2 PG=9.4
-  - python: 3.4
-    env: DJANGO=2.2 PG=9.5
-  - python: 3.4
-    env: DJANGO=2.2 PG=9.6
-  - python: 3.4
-    env: DJANGO=2.2 PG=10
-  - python: 3.4
-    env: DJANGO=2.2 PG=11
+  # Django 3.0+ doesn't support python 3.5
+  - python: 3.5
+    env: DJANGO=3.0 PG=9.4
+  - python: 3.5
+    env: DJANGO=3.0 PG=9.5
+  - python: 3.5
+    env: DJANGO=3.0 PG=9.6
+  - python: 3.5
+    env: DJANGO=3.0 PG=10
+  - python: 3.5
+    env: DJANGO=3.0 PG=11
+  - python: 3.5
+    env: DJANGO=3.0 PG=12
+
+  # Django 3.0+ doesn't support Postgresql 9.4
+  - python: 3.6
+    env: DJANGO=3.0 PG=9.4
+  - python: 3.7
+    env: DJANGO=3.0 PG=9.4
+  - python: 3.8
+    env: DJANGO=3.0 PG=9.4
 
   # Django 1.7 doesn't support python 3.5+
   - python: 3.5
-    env: DJANGO=1.7 PG=9.3
-  - python: 3.5
     env: DJANGO=1.7 PG=9.4
   - python: 3.5
     env: DJANGO=1.7 PG=9.5
@@ -149,8 +164,8 @@ matrix:
     env: DJANGO=1.7 PG=10
   - python: 3.5
     env: DJANGO=1.7 PG=11
-  - python: 3.6
-    env: DJANGO=1.7 PG=9.3
+  - python: 3.5
+    env: DJANGO=1.7 PG=12
   - python: 3.6
     env: DJANGO=1.7 PG=9.4
   - python: 3.6
@@ -161,8 +176,8 @@ matrix:
     env: DJANGO=1.7 PG=10
   - python: 3.6
     env: DJANGO=1.7 PG=11
-  - python: 3.7
-    env: DJANGO=1.7 PG=9.3
+  - python: 3.6
+    env: DJANGO=1.7 PG=12
   - python: 3.7
     env: DJANGO=1.7 PG=9.4
   - python: 3.7
@@ -173,12 +188,24 @@ matrix:
     env: DJANGO=1.7 PG=10
   - python: 3.7
     env: DJANGO=1.7 PG=11
+  - python: 3.7
+    env: DJANGO=1.7 PG=12
+  - python: 3.8
+    env: DJANGO=1.7 PG=9.4
+  - python: 3.8
+    env: DJANGO=1.7 PG=9.5
+  - python: 3.8
+    env: DJANGO=1.7 PG=9.6
+  - python: 3.8
+    env: DJANGO=1.7 PG=10
+  - python: 3.8
+    env: DJANGO=1.7 PG=11
+  - python: 3.8
+    env: DJANGO=1.7 PG=12
 
-  # python 3.6 has deprecated issue with django before 1.11
+  # python 3.6+ has deprecated issue with django before 1.11
   # https://stackoverflow.com/questions/41343263/provide-classcell-example-for-python-3-6-metaclass\
   - python: 3.6
-    env: DJANGO=1.8 PG=9.3
-  - python: 3.6
     env: DJANGO=1.8 PG=9.4
   - python: 3.6
     env: DJANGO=1.8 PG=9.5
@@ -188,8 +215,8 @@ matrix:
     env: DJANGO=1.8 PG=10
   - python: 3.6
     env: DJANGO=1.8 PG=11
-  - python: 3.7
-    env: DJANGO=1.8 PG=9.3
+  - python: 3.6
+    env: DJANGO=1.8 PG=12
   - python: 3.7
     env: DJANGO=1.8 PG=9.4
   - python: 3.7
@@ -200,8 +227,20 @@ matrix:
     env: DJANGO=1.8 PG=10
   - python: 3.7
     env: DJANGO=1.8 PG=11
-  - python: 3.6
-    env: DJANGO=1.9 PG=9.3
+  - python: 3.7
+    env: DJANGO=1.8 PG=12
+  - python: 3.8
+    env: DJANGO=1.8 PG=9.4
+  - python: 3.8
+    env: DJANGO=1.8 PG=9.5
+  - python: 3.8
+    env: DJANGO=1.8 PG=9.6
+  - python: 3.8
+    env: DJANGO=1.8 PG=10
+  - python: 3.8
+    env: DJANGO=1.8 PG=11
+  - python: 3.8
+    env: DJANGO=1.8 PG=12
   - python: 3.6
     env: DJANGO=1.9 PG=9.4
   - python: 3.6
@@ -211,9 +250,7 @@ matrix:
   - python: 3.6
     env: DJANGO=1.9 PG=10
   - python: 3.6
-    env: DJANGO=1.9 PG=11
-  - python: 3.7
-    env: DJANGO=1.9 PG=9.3
+    env: DJANGO=1.9 PG=12
   - python: 3.7
     env: DJANGO=1.9 PG=9.4
   - python: 3.7
@@ -224,8 +261,20 @@ matrix:
     env: DJANGO=1.9 PG=10
   - python: 3.7
     env: DJANGO=1.9 PG=11
-  - python: 3.6
-    env: DJANGO=1.10 PG=9.3
+  - python: 3.7
+    env: DJANGO=1.9 PG=12
+  - python: 3.8
+    env: DJANGO=1.9 PG=9.4
+  - python: 3.8
+    env: DJANGO=1.9 PG=9.5
+  - python: 3.8
+    env: DJANGO=1.9 PG=9.6
+  - python: 3.8
+    env: DJANGO=1.9 PG=10
+  - python: 3.8
+    env: DJANGO=1.9 PG=11
+  - python: 3.8
+    env: DJANGO=1.9 PG=12
   - python: 3.6
     env: DJANGO=1.10 PG=9.4
   - python: 3.6
@@ -236,8 +285,8 @@ matrix:
     env: DJANGO=1.10 PG=10
   - python: 3.6
     env: DJANGO=1.10 PG=11
-  - python: 3.7
-    env: DJANGO=1.10 PG=9.3
+  - python: 3.6
+    env: DJANGO=1.10 PG=12
   - python: 3.7
     env: DJANGO=1.10 PG=9.4
   - python: 3.7
@@ -248,6 +297,20 @@ matrix:
     env: DJANGO=1.10 PG=10
   - python: 3.7
     env: DJANGO=1.10 PG=11
+  - python: 3.7
+    env: DJANGO=1.10 PG=12
+  - python: 3.8
+    env: DJANGO=1.10 PG=9.4
+  - python: 3.8
+    env: DJANGO=1.10 PG=9.5
+  - python: 3.8
+    env: DJANGO=1.10 PG=9.6
+  - python: 3.8
+    env: DJANGO=1.10 PG=10
+  - python: 3.8
+    env: DJANGO=1.10 PG=11
+  - python: 3.8
+    env: DJANGO=1.10 PG=12
 
 
 before_install:
@@ -255,9 +318,12 @@ before_install:
   - sudo sed -i 's/port = 5433/port = 5432/' /etc/postgresql/11/main/postgresql.conf
   - sudo cp /etc/postgresql/{10,11}/main/pg_hba.conf
 
+  - sudo sed -i 's/port = 5434/port = 5432/' /etc/postgresql/12/main/postgresql.conf
+  - sudo cp /etc/postgresql/{10,12}/main/pg_hba.conf
+
   # Start PostgreSQL version we need
   - sudo systemctl stop postgresql
-  - sudo service postgresql start $PG
+  - sudo systemctl start postgresql@$PG-main
 
 install:
   - pip install -r requirements.txt
