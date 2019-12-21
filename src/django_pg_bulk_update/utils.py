@@ -62,28 +62,21 @@ def format_field_value(field, val, conn, cast_type=False):
     """
     # This content is a part, taken from django.db.models.sql.compiler.SQLUpdateCompiler.as_sql()
     # And modified for our needs
-    if hasattr(val, 'prepare_database_save'):
-        if field.remote_field:
-            val = field.get_db_prep_save(val.prepare_database_save(field), connection=conn)
-        else:
-            raise TypeError(
-                "Tried to update field %s with a model instance, %r. "
-                "Use a value compatible with %s."
-                % (field, val, field.__class__.__name__)
-            )
-    else:
-        val = field.get_db_prep_save(val, connection=conn)
-
-    # Getting the placeholder for the field.
     query = UpdateQuery(field.model)
     compiler = query.get_compiler(connection=conn)
 
     if hasattr(val, 'resolve_expression'):
         val = val.resolve_expression(query, allow_joins=False, for_save=True)
         if val.contains_aggregate:
-            raise FieldError("Aggregate functions are not allowed in this query")
+            raise FieldError(
+                'Aggregate functions are not allowed in this query '
+                '(%s=%r).' % (field.name, val)
+            )
         if val.contains_over_clause:
-            raise FieldError('Window expressions are not allowed in this query.')
+            raise FieldError(
+                'Window expressions are not allowed in this query '
+                '(%s=%r).' % (field.name, val)
+            )
     elif hasattr(val, 'prepare_database_save'):
         if field.remote_field:
             val = field.get_db_prep_save(val.prepare_database_save(field), connection=conn)
@@ -93,17 +86,12 @@ def format_field_value(field, val, conn, cast_type=False):
                 "Use a value compatible with %s."
                 % (field, val, field.__class__.__name__)
             )
-    elif isinstance(field, JSONField):
-        # JSON field should be passed to execute() method as dict.
-        # If get_db_prep_save is called, it wraps it in JSONAdapter object
-        # When execute is done it tries wrapping it into JSONAdapter again and fails
-        pass
     elif isinstance(field, HStoreField):
         # Django before 1.10 doesn't convert HStoreField values to string automatically
         # Which causes a bug in cursor.execute(). Let's do it here
         if isinstance(val, dict):
             val = hstore_serialize(val)
-            val = field.get_db_prep_save(val, connection=conn)
+        val = field.get_db_prep_save(val, connection=conn)
     else:
         val = field.get_db_prep_save(val, connection=conn)
 
