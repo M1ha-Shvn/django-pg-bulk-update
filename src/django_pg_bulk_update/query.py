@@ -22,8 +22,7 @@ from .types import TOperators, TFieldNames, TUpdateValues, TSetFunctions, TOpera
     TSetFunctionsValid, TDatabase, FieldDescriptor
 from .utils import batched_operation
 
-
-__all__ = ['pdnf_clause', 'bulk_update', 'bulk_update_or_create']
+__all__ = ['pdnf_clause', 'bulk_update', 'bulk_update_or_create', 'bulk_create']
 logger = getLogger('django-pg-bulk-update')
 
 
@@ -123,6 +122,9 @@ def _validate_update_values(key_fds, values):
     upd_keys_tuple = tuple()
     result = {}
     if isinstance(values, dict):
+        if not key_fds:
+            raise TypeError("'values' parameter can not be dict for create only operation")
+
         for keys, updates in values.items():
 
             # Single one key can be given as is, not tuple
@@ -144,7 +146,7 @@ def _validate_update_values(key_fds, values):
             result[keys] = updates
 
     elif isinstance(values, Iterable):
-        for item in values:
+        for i, item in enumerate(values):
             if not isinstance(item, dict):
                 raise TypeError("All items of iterable must be dicts")
 
@@ -170,6 +172,10 @@ def _validate_update_values(key_fds, values):
                 else:
                     upd_key_values.append(item[fd.name])
             upd_values = {f: item[f] for f in upd_keys_tuple}
+
+            if not upd_key_values:
+                upd_key_values = (i,)
+
             result[tuple(upd_key_values)] = upd_values
 
     else:
@@ -599,6 +605,127 @@ def bulk_update(model, values, key_fields='id', using=None, set_functions=None, 
     return _concat_batched_result(batched_result, ret_fds)
 
 
+def _insert_query_part(model, conn, insert_fds, default_fds):
+    # type: (Type[Model], TDatabase, Tuple[FieldDescriptor], Tuple[FieldDescriptor]) -> Tuple[str, List[Any]]
+    """
+    Forms bulk update query part without values, counting that all keys and values are already in vals table
+    :param model: Model to update, a subclass of django.db.models.Model
+    :param conn: Database connection used
+    :param insert_fds: FieldDescriptor objects to insert
+    :param default_fds: FieldDescriptor objects to take as default values
+    :return: A tuple of sql and it's parameters
+    """
+    query = """
+        INSERT INTO "%s" (%s)
+        SELECT %s FROM "vals"
+    """
+
+    # Table we save data to
+    db_table = model._meta.db_table
+
+    # Columns to insert to table
+    insert_fds = list(chain(insert_fds, default_fds))
+
+    columns = ['"%s"' % fd.get_field(model).column for fd in insert_fds]
+    columns = ', '.join(columns)
+
+    # Columns to select from values
+    val_columns, val_columns_params = [], []
+    for fd in insert_fds:
+        val = '"vals"."%s"' % fd.prefixed_name
+        func_sql, params = fd.set_function.get_sql_value(fd.get_field(model), val, conn, val_as_param=False,
+                                                         for_update=False)
+        val_columns.append(func_sql)
+        val_columns_params.extend(params)
+    val_columns = ', '.join(val_columns)
+
+    sql = query % (db_table, columns, val_columns)
+    return sql, val_columns_params
+
+
+def _insert_no_validation(model, values, default_fds, insert_fds, ret_fds, using):
+    # type: (Type[Model], TUpdateValues, Tuple[FieldDescriptor], Tuple[FieldDescriptor], Optional[Tuple[FieldDescriptor]], Optional[str]) -> Union[int, 'ReturningQuerySet']
+    """
+    Creates a batch of records in database.
+    Acts like native QuerySet.bulk_create() method, but uses library infrastructure and input formats
+    Can be much more effective than native implementation on wide models.
+
+    :param model: Model to update, a subclass of django.db.models.Model
+    :param values: Data to update. All items must update same fields!!!
+        Dict of key_values: update_fields_dict
+            - key_values can be iterable or single object.
+            - If iterable, key_values length must be equal to key_fields length.
+            - If single object, key_fields is expected to have 1 element
+    :param default_fds: FieldDescriptor objects to use as defaults
+    :param insert_fds: FieldDescriptor objects to insert
+    :param ret_fds: Optional fds to return as ReturningQuerySet
+    :param using: Database alias to make query to.
+    :return: A tuple (number of records created, number of records updated)
+    """
+    conn = connection if using is None else connections[using]
+    val_sql, val_params = _with_values_query_part(model, values, conn, tuple(), insert_fds, default_fds)
+    insert_sql, insert_params = _insert_query_part(model, conn, insert_fds, default_fds)
+    ret_sql, ret_params = _returning_query_part(model, conn, ret_fds)
+
+    sql = val_sql + insert_sql + ret_sql
+    params = val_params + insert_params + ret_params
+
+    return _execute_update_query(model, conn, sql, params, ret_fds)
+
+
+def bulk_create(model, values, using=None, set_functions=None, returning=None, batch_size=None, batch_delay=0):
+    # type: (Type[Model], TUpdateValues, Optional[str], TSetFunctions, Optional[TFieldNames], Optional[int], float) -> Union[int, 'ReturningQuerySet']
+    """
+    Creates a batch of records in database.
+    Acts like native QuerySet.bulk_create() method, but uses library infrastructure and input formats
+    Can be much more effective than native implementation on wide models.
+
+    :param model: Model to update, a subclass of django.db.models.Model
+    :param values: Data to update.
+        All items must update same fields!!!
+        Iterable of dicts. Each dict is create data.
+    :param using: Database alias to make query to.
+    :param set_functions: Functions to set values.
+        Should be a dict of field name as key, function as value.
+        Default function is eq.
+        Functions: [eq, =; incr, +; concat, ||]
+        Example: {'name': 'eq', 'int_fields': 'incr'}
+    :param returning: Optional. If given, returns updated values of fields, listed in parameter.
+    :param batch_size: Optional. If given, data is split it into batches of given size.
+        Each batch is queried independently.
+    :param batch_delay: Delay in seconds between batches execution, if batch_size is not None.
+    :return: Number of records created or updated
+    """
+    # Validate data
+    if not inspect.isclass(model):
+        raise TypeError("model must be django.db.models.Model subclass")
+    if not issubclass(model, Model):
+        raise TypeError("model must be django.db.models.Model subclass")
+    if using is not None and not isinstance(using, six.string_types):
+        raise TypeError("using parameter must be None or existing database alias")
+    if using is not None and using not in connections:
+        raise ValueError("using parameter must be None or existing database alias")
+
+    insert_fds, values = _validate_update_values(tuple(), values)
+    ret_fds = _validate_returning(model, returning)
+
+    if len(values) == 0:
+        if ret_fds is None:
+            return 0
+        else:
+            from django_pg_returning import ReturningQuerySet
+            return ReturningQuerySet(None)
+
+    default_fds = _get_default_fds(model, tuple(insert_fds))
+    insert_fds = _validate_set_functions(model, insert_fds, set_functions)
+
+    batched_result = batched_operation(_insert_no_validation, values,
+                                       args=(model, None, default_fds, insert_fds, ret_fds, using),
+                                       data_arg_index=1, batch_size=batch_size, batch_delay=batch_delay)
+
+    return _concat_batched_result(batched_result, ret_fds)
+
+
 def _bulk_update_or_create_no_validation(model, values, key_fds, upd_fds, ret_fds, using, update):
     # type: (Type[Model], TUpdateValues, Tuple[FieldDescriptor], Tuple[FieldDescriptor], Optional[Tuple[FieldDescriptor]], Optional[str], bool) -> int
     """
@@ -674,14 +801,7 @@ def _insert_on_conflict_query_part(model, conn, key_fds, upd_fds, default_fds, u
     :param update: If this flag is not set, existing records will not be updated
     :return: A tuple of sql and it's parameters
     """
-    query = """
-    INSERT INTO "%s" (%s)
-    SELECT %s FROM "vals"
-    ON CONFLICT (%s) %s
-    """
-
-    # Table we save data to
-    db_table = model._meta.db_table
+    query = "%s ON CONFLICT (%s) %s"
 
     # Form update data. It would be used in SET section, if values updated and INSERT section if created
     set_items, set_params = [], []
@@ -711,26 +831,14 @@ def _insert_on_conflict_query_part(model, conn, key_fds, upd_fds, default_fds, u
 
     # Columns to insert to table
     key_fields = {fd.get_field(model) for fd in key_fds}
-    insert_fds = list(chain(key_fds, [fd for fd in upd_fds if fd.get_field(model) not in key_fields], default_fds))
-
-    columns = ['"%s"' % fd.get_field(model).column for fd in insert_fds]
-    columns = ', '.join(columns)
-
-    # Columns to select from values
-    val_columns, val_columns_params = [], []
-    for fd in insert_fds:
-        val = '"vals"."%s"' % fd.prefixed_name
-        func_sql, params = fd.set_function.get_sql_value(fd.get_field(model), val, conn, val_as_param=False,
-                                                         for_update=False)
-        val_columns.append(func_sql)
-        val_columns_params.extend(params)
-    val_columns = ', '.join(val_columns)
+    insert_fds = list(chain(key_fds, (fd for fd in upd_fds if fd.get_field(model) not in key_fields)))
+    insert_sql, insert_params = _insert_query_part(model, conn, insert_fds, default_fds)
 
     # Conflict columns
     key_columns = ', '.join(['"%s"' % fd.get_field(model).column for fd in key_fds])
 
-    sql = query % (db_table, columns, val_columns, key_columns, conflict_action)
-    return sql, val_columns_params + conflict_action_params
+    sql = query % (insert_sql, key_columns, conflict_action)
+    return sql, insert_params + conflict_action_params
 
 
 def _insert_on_conflict_no_validation(model, values, key_fds, upd_fds, ret_fds, using, update):

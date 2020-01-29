@@ -17,14 +17,13 @@ Examples:
         objects = CustomManager()
 """
 from django.db import models
-from typing import Optional, Iterable
+from typing import Optional, Iterable, Union
 
 from django.db.models.manager import BaseManager
 from logging import getLogger
 
 from .types import TUpdateValues, TFieldNames, TSetFunctions, TOperators
-from .query import bulk_update, bulk_update_or_create
-
+from .query import bulk_update, bulk_update_or_create, bulk_create
 
 logger = getLogger('django-pg-bulk-update')
 
@@ -38,7 +37,7 @@ class BulkUpdateMixin:
 
     def pg_bulk_update(self, values, key_fields='id', set_functions=None, key_fields_ops=(), returning=None,
                        batch_size=None, batch_delay=0):
-        # type: (TUpdateValues, TFieldNames, TSetFunctions, TOperators, Optional[Iterable[str]], Optional[int], float) -> int
+        # type: (TUpdateValues, TFieldNames, TSetFunctions, TOperators, Optional[Iterable[str]], Optional[int], float) -> Union[int, 'ReturningQuerySet']
         """
         Updates multiple records of a given model, finding them by key_fields.
 
@@ -117,7 +116,7 @@ class BulkUpdateMixin:
 
     def pg_bulk_update_or_create(self, values, key_fields='id', set_functions=None, update=True, key_is_unique=True,
                                  returning=None, batch_size=None, batch_delay=0):
-        # type: (TUpdateValues, TFieldNames, TSetFunctions, bool, bool, Optional[Iterable[str]], Optional[int], float) -> int
+        # type: (TUpdateValues, TFieldNames, TSetFunctions, bool, bool, Optional[Iterable[str]], Optional[int], float) -> Union[int, 'ReturningQuerySet']
         """
         Searches for records, given in values by key_fields. If records are found, updates them from values.
         If not found - creates them from values. Note, that all fields without default value must be present in values.
@@ -153,9 +152,37 @@ class BulkUpdateMixin:
                                      set_functions=set_functions, update=update, key_is_unique=key_is_unique,
                                      returning=returning, batch_size=batch_size, batch_delay=batch_delay)
 
+    def pg_bulk_create(self, values, set_functions=None, returning=None, batch_size=None, batch_delay=0):
+        # type: (TUpdateValues, TSetFunctions, Optional[TFieldNames], Optional[int], float) -> Union[int, 'ReturningQuerySet']
+        """
+        Creates a batch of records in database.
+        Acts like native QuerySet.bulk_create() method, but uses library infrastructure and input formats
+        Can be much more effective than native implementation on wide models.
+
+        :param model: Model to update, a subclass of django.db.models.Model
+        :param values: Data to update.
+            All items must update same fields!!!
+            Iterable of dicts. Each dict is create data.
+        :param set_functions: Functions to set values.
+            Should be a dict of field name as key, function as value.
+            Default function is eq.
+            Functions: [eq, =; incr, +; concat, ||]
+            Example: {'name': 'eq', 'int_fields': 'incr'}
+        :param returning: Optional. If given, returns updated values of fields, listed in parameter.
+        :param batch_size: Optional. If given, data is split it into batches of given size.
+            Each batch is queried independently.
+        :param batch_delay: Delay in seconds between batches execution, if batch_size is not None.
+        :return: Number of records created or updated
+        """
+        self._for_write = True
+        using = self.db
+
+        return bulk_create(self.model, values, using=using, set_functions=set_functions, returning=returning,
+                           batch_size=batch_size, batch_delay=batch_delay)
+
     def bulk_update(self, values, key_fields='id', set_functions=None, key_fields_ops=(), returning=None,
                     batch_size=None, batch_delay=0):
-        # type: (TUpdateValues, TFieldNames, TSetFunctions, TOperators, Optional[Iterable[str]], Optional[int], float) -> int
+        # type: (TUpdateValues, TFieldNames, TSetFunctions, TOperators, Optional[Iterable[str]], Optional[int], float) -> Union[int, 'ReturningQuerySet']
         """
         Updates multiple records of a given model, finding them by key_fields.
 
@@ -226,7 +253,7 @@ class BulkUpdateMixin:
 
     def bulk_update_or_create(self, values, key_fields='id', set_functions=None, update=True, key_is_unique=True,
                               returning=None, batch_size=None, batch_delay=0):
-        # type: (TUpdateValues, TFieldNames, TSetFunctions, bool, bool, Optional[Iterable[str]], Optional[int], float) -> int
+        # type: (TUpdateValues, TFieldNames, TSetFunctions, bool, bool, Optional[Iterable[str]], Optional[int], float) -> Union[int, 'ReturningQuerySet']
         """
         Searches for records, given in values by key_fields. If records are found, updates them from values.
         If not found - creates them from values. Note, that all fields without default value must be present in values.
