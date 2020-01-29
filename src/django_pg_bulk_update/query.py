@@ -315,7 +315,7 @@ def _get_default_fds(model, existing_fds):
     result = []
 
     for f in get_model_fields(model, concrete=True):
-        if f not in existing_fields and not isinstance(f, AutoField):
+        if f not in existing_fields and not isinstance(f, AutoField) and f.has_default():
             desc = FieldDescriptor(f.name)
             desc.set_prefix('def')
             result.append(desc)
