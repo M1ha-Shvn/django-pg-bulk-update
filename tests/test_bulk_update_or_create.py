@@ -443,7 +443,7 @@ class TestSimple(TestCase):
 
 class TestReadmeExample(TestCase):
     def test_example(self):
-        # Skip bulk_update section (tested in other test), and init data as bulk_update_or_create start
+        # Skip bulk_create and bulk_update section (tested in other test), and init data as bulk_update_or_create start
         TestModel.objects.bulk_create([
             TestModel(pk=1, name="updated1", int_field=2),
             TestModel(pk=2, name="updated2", int_field=3),

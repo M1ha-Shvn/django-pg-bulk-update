@@ -382,6 +382,7 @@ class TestSimple(TestCase):
 
 class TestReadmeExample(TestCase):
     def test_example(self):
+        # Skip bulk_create and bulk_update_or_create sections (tested in other test)
         TestModel.objects.bulk_create([TestModel(pk=i, name="item%d" % i, int_field=1) for i in range(1, 4)])
 
         # Update by id field

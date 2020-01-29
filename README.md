@@ -28,7 +28,7 @@ You can make queries in 2 ways:
 * Calling query functions directly
 
 ### Query functions
-There are 3 query helpers in this library. There parameters are unified and described in the section below.  
+There are 4 query helpers in this library. There parameters are unified and described in the section below.  
 
 * `bulk_update(model, values, key_fields='id', using=None, set_functions=None, key_fields_ops=(), where=None, returning=None, batch_size=None, batch_delay=0)`  
     This function updates multiple records of given model in single database query.  
@@ -51,6 +51,11 @@ There are 3 query helpers in this library. There parameters are unified and desc
       
     Function returns number of records inserted or updated by query.
     
+* `bulk_create(model, values, using=None, set_functions=None, returning=None, batch_size=None, batch_delay=0)`  
+  This function creates multiple records of given model in single database query.  
+  It's functionality is the same as django's [QuerySet.bulk_create](https://docs.djangoproject.com/en/3.0/ref/models/querysets/#bulk-create),
+  but it is implemented on this library bases and can be more effective in some cases (for instance, for wide models).
+  
 * `pdnf_clause(key_fields, field_values, key_fields_ops=())`  
   Pure django implementation of principal disjunctive normal form. It is base on combining Q() objects.  
   Condition will look like:
@@ -70,6 +75,7 @@ There are 3 query helpers in this library. There parameters are unified and desc
     + Iterable of dicts. Each dict contains both key and update data. Each dict must contain all key_fields as keys.
         You can't update key_fields with this format.
     + Dict of key_values: update_fields_dict    
+        Can not be used for `bulk_create` function.
         You can use this format to update key_fields
         - key_values can be tuple or single object. If tuple, key_values length must be equal to key_fields length.
          If single object, key_fields is expected to have 1 element
@@ -182,7 +188,24 @@ class TestModel(models.Model):
     int_field = models.IntegerField()
 
 # Create test data
-TestModel.objects.bulk_create([TestModel(pk=i, name="item%d" % i, int_field=1) for i in range(1, 4)])
+created = TestModel.objects.pg_bulk_create([
+    {'id': i, 'name': "item%d" % i, 'int_field': 1} for i in range(1, 4)
+])
+print(created)
+# Outputs 1
+
+# Create test data returning
+created = TestModel.objects.pg_bulk_create([
+    {'id': i, 'name': "item%d" % i, 'int_field': 1} for i in range(4, 6)
+], returning='*')
+print(created)
+print(type(res), list(res.values_list('id', 'name', 'int_field')))
+# Outputs: 
+# <class 'django_pg_returning.queryset.ReturningQuerySet'>
+# [
+#    (4, "item4", 1),
+#    (5, "item5", 1)
+# ]
 
 # Update by id field
 updated = bulk_update(TestModel, [{
@@ -284,7 +307,8 @@ print(list(data))
 ```
 
 ### Using custom manager and query set
-In order to simplify using `bulk_update` and `bulk_update_or_create` functions, you can use a custom manager.  
+In order to simplify using `bulk_create`, `bulk_update` and `bulk_update_or_create` functions,
+ you can use a custom manager.  
 It automatically fills:
  * `model` parameter
  * `using` parameter (extracts queryset write database)
@@ -295,7 +319,7 @@ The rest parameters are the same as above.
 
 **Note**: As [django 2.2](https://docs.djangoproject.com/en/2.2/releases/2.2/) 
  introduced [bulk_update](https://docs.djangoproject.com/en/2.2/ref/models/querysets/#bulk-update) method,
- library methods were renamed to `pg_bulk_update` and `pg_bulk_update_or_create` respectively.
+ library methods were renamed to `pg_bulk_create`, `pg_bulk_update` and `pg_bulk_update_or_create` respectively.
  
 Example:
 ```python
@@ -310,6 +334,10 @@ class TestModel(models.Model):
     int_field = models.IntegerField()
     
 # Now you can use functions like:
+TestModel.objects.pg_bulk_create([
+    # Any data here
+], set_functions=None)
+
 TestModel.objects.pg_bulk_update([
     # Any data here
 ], key_fields='id', set_functions=None, key_fields_ops=())
