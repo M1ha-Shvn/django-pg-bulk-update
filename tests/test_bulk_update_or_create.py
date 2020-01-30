@@ -374,6 +374,33 @@ class TestSimple(TestCase):
             else:
                 self.assertEqual(pk, int_field)
 
+    def test_returning_no_update(self):
+        res = bulk_update_or_create(TestModel, [{
+            'id': 1,
+            'name': 'bulk_update_1'
+        }, {
+            'id': 11,
+            'name': 'bulk_update_11'
+        }], returning=('id', 'name', 'int_field'), update=False)
+
+        from django_pg_returning import ReturningQuerySet
+        self.assertIsInstance(res, ReturningQuerySet)
+        self.assertSetEqual({(11, 'bulk_update_11', None)}, set(res.values_list('id', 'name', 'int_field')))
+
+        # 9 from fixture + 1 created
+        self.assertEqual(10, TestModel.objects.all().count())
+
+        for pk, name, int_field in TestModel.objects.all().order_by('id').values_list('id', 'name', 'int_field'):
+            if pk == 11:
+                self.assertEqual('bulk_update_%d' % pk, name)
+            else:
+                self.assertEqual('test%d' % pk, name)
+
+            if pk == 11:
+                self.assertIsNone(int_field)
+            else:
+                self.assertEqual(pk, int_field)
+
     def test_returning_all(self):
         res = bulk_update_or_create(TestModel, [{
             'id': 1,

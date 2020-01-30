@@ -511,7 +511,7 @@ def _bulk_update_no_validation(model, values, conn, key_fds, upd_fds, ret_fds, w
     upd_sql, upd_params = _bulk_update_query_part(model, conn, key_fds, upd_fds, where)
     ret_sql, ret_params = _returning_query_part(model, conn, ret_fds)
 
-    sql = values_sql + upd_sql + ret_sql
+    sql = "%s %s %s" % (values_sql, upd_sql, ret_sql)
     params = values_params + upd_params + ret_params
 
     return _execute_update_query(model, conn, sql, params, ret_fds)
@@ -667,7 +667,7 @@ def _insert_no_validation(model, values, default_fds, insert_fds, ret_fds, using
     insert_sql, insert_params = _insert_query_part(model, conn, insert_fds, default_fds)
     ret_sql, ret_params = _returning_query_part(model, conn, ret_fds)
 
-    sql = val_sql + insert_sql + ret_sql
+    sql = "%s %s %s" % (val_sql, insert_sql, ret_sql)
     params = val_params + insert_params + ret_params
 
     return _execute_update_query(model, conn, sql, params, ret_fds)
@@ -867,7 +867,7 @@ def _insert_on_conflict_no_validation(model, values, key_fds, upd_fds, ret_fds, 
     upd_sql, upd_params = _insert_on_conflict_query_part(model, conn, key_fds, upd_fds, default_fds, update)
     ret_sql, ret_params = _returning_query_part(model, conn, ret_fds)
 
-    sql = val_sql + upd_sql + ret_sql
+    sql = "%s %s %s" % (val_sql, upd_sql, ret_sql)
     params = val_params + upd_params + ret_params
 
     return _execute_update_query(model, conn, sql, params, ret_fds)
