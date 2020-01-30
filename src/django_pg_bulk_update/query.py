@@ -505,7 +505,8 @@ def _bulk_update_no_validation(model, values, conn, key_fds, upd_fds, ret_fds, w
     """
     # No any values to update. Return that everything is done.
     if not upd_fds or not values:
-        return len(values)
+        from django_pg_returning import ReturningQuerySet
+        return len(values) if ret_fds is None else ReturningQuerySet(None)
 
     values_sql, values_params = _with_values_query_part(model, values, conn, key_fds, upd_fds)
     upd_sql, upd_params = _bulk_update_query_part(model, conn, key_fds, upd_fds, where)
@@ -588,11 +589,7 @@ def bulk_update(model, values, key_fields='id', using=None, set_functions=None, 
     where = _validate_where(model, where, using)
 
     if len(values) == 0:
-        if ret_fds is None:
-            return 0
-        else:
-            from django_pg_returning import ReturningQuerySet
-            return ReturningQuerySet(None)
+        return _concat_batched_result([], ret_fds)
 
     key_fields = _validate_operators(key_fields, key_fields_ops)
     upd_fds = _validate_set_functions(model, upd_fds, set_functions)
@@ -710,11 +707,7 @@ def bulk_create(model, values, using=None, set_functions=None, returning=None, b
     ret_fds = _validate_returning(model, returning)
 
     if len(values) == 0:
-        if ret_fds is None:
-            return 0
-        else:
-            from django_pg_returning import ReturningQuerySet
-            return ReturningQuerySet(None)
+        return _concat_batched_result([], ret_fds)
 
     default_fds = _get_default_fds(model, tuple(insert_fds))
     insert_fds = _validate_set_functions(model, insert_fds, set_functions)
@@ -930,11 +923,7 @@ def bulk_update_or_create(model, values, key_fields='id', using=None, set_functi
     ret_fds = _validate_returning(model, returning)
 
     if len(values) == 0:
-        if ret_fds is None:
-            return 0
-        else:
-            from django_pg_returning import ReturningQuerySet
-            return ReturningQuerySet(None)
+        return _concat_batched_result([], ret_fds)
 
     upd_fds = _validate_set_functions(model, upd_fds, set_functions)
 
