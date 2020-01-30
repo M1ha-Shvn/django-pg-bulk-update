@@ -505,13 +505,14 @@ def _bulk_update_no_validation(model, values, conn, key_fds, upd_fds, ret_fds, w
     """
     # No any values to update. Return that everything is done.
     if not upd_fds or not values:
-        return len(values)
+        from django_pg_returning import ReturningQuerySet
+        return len(values) if ret_fds is None else ReturningQuerySet(None)
 
     values_sql, values_params = _with_values_query_part(model, values, conn, key_fds, upd_fds)
     upd_sql, upd_params = _bulk_update_query_part(model, conn, key_fds, upd_fds, where)
     ret_sql, ret_params = _returning_query_part(model, conn, ret_fds)
 
-    sql = values_sql + upd_sql + ret_sql
+    sql = "%s %s %s" % (values_sql, upd_sql, ret_sql)
     params = values_params + upd_params + ret_params
 
     return _execute_update_query(model, conn, sql, params, ret_fds)
@@ -588,11 +589,7 @@ def bulk_update(model, values, key_fields='id', using=None, set_functions=None, 
     where = _validate_where(model, where, using)
 
     if len(values) == 0:
-        if ret_fds is None:
-            return 0
-        else:
-            from django_pg_returning import ReturningQuerySet
-            return ReturningQuerySet(None)
+        return _concat_batched_result([], ret_fds)
 
     key_fields = _validate_operators(key_fields, key_fields_ops)
     upd_fds = _validate_set_functions(model, upd_fds, set_functions)
@@ -667,7 +664,7 @@ def _insert_no_validation(model, values, default_fds, insert_fds, ret_fds, using
     insert_sql, insert_params = _insert_query_part(model, conn, insert_fds, default_fds)
     ret_sql, ret_params = _returning_query_part(model, conn, ret_fds)
 
-    sql = val_sql + insert_sql + ret_sql
+    sql = "%s %s %s" % (val_sql, insert_sql, ret_sql)
     params = val_params + insert_params + ret_params
 
     return _execute_update_query(model, conn, sql, params, ret_fds)
@@ -710,11 +707,7 @@ def bulk_create(model, values, using=None, set_functions=None, returning=None, b
     ret_fds = _validate_returning(model, returning)
 
     if len(values) == 0:
-        if ret_fds is None:
-            return 0
-        else:
-            from django_pg_returning import ReturningQuerySet
-            return ReturningQuerySet(None)
+        return _concat_batched_result([], ret_fds)
 
     default_fds = _get_default_fds(model, tuple(insert_fds))
     insert_fds = _validate_set_functions(model, insert_fds, set_functions)
@@ -867,7 +860,7 @@ def _insert_on_conflict_no_validation(model, values, key_fds, upd_fds, ret_fds, 
     upd_sql, upd_params = _insert_on_conflict_query_part(model, conn, key_fds, upd_fds, default_fds, update)
     ret_sql, ret_params = _returning_query_part(model, conn, ret_fds)
 
-    sql = val_sql + upd_sql + ret_sql
+    sql = "%s %s %s" % (val_sql, upd_sql, ret_sql)
     params = val_params + upd_params + ret_params
 
     return _execute_update_query(model, conn, sql, params, ret_fds)
@@ -930,11 +923,7 @@ def bulk_update_or_create(model, values, key_fields='id', using=None, set_functi
     ret_fds = _validate_returning(model, returning)
 
     if len(values) == 0:
-        if ret_fds is None:
-            return 0
-        else:
-            from django_pg_returning import ReturningQuerySet
-            return ReturningQuerySet(None)
+        return _concat_batched_result([], ret_fds)
 
     upd_fds = _validate_set_functions(model, upd_fds, set_functions)
 
