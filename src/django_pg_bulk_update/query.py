@@ -358,21 +358,28 @@ def _with_values_query_part(model, values, conn, key_fds, upd_fds, default_fds=(
     :param conn: Database connection used
     :return: Names of fields in select. A tuple of sql and it's parameters
     """
-    tpl = "WITH vals(%s) AS (VALUES %s)"
+    tpl = "WITH def_vals(%s) AS (VALUES %s)," \
+          " vals(%s) AS (VALUES %s)"
 
     # Form data for VALUES section
     # It includes both keys and update data: keys will be used in WHERE section, while update data in SET section
     values_items = []
-    values_update_params = []
 
     # Prepare default values to insert into database, if they are not provided in updates or keys
     # Dictionary keys list all db column names to be inserted.
+    default_sel_sql = ', '.join(
+        '"%s"' % fd.prefixed_name for fd in default_fds
+    )
+
     if default_fds:
-        default_vals = [fd.get_field(model).get_default() for fd in default_fds]
+        default_vals = (fd.get_field(model).get_default() for fd in default_fds)
         defaults_sql_items, defaults_params = _generate_fds_sql(model, conn, default_fds, default_vals, True, True)
+        default_values_sql = '(%s)' % ', '.join(defaults_sql_items)
+        values_update_params = defaults_params
     else:
-        defaults_sql_items = ''
-        defaults_params = []
+        default_sel_sql = '"empty"'
+        default_values_sql = '(%s)'
+        values_update_params = [None]
 
     first = True
     for keys, updates in values.items():
@@ -382,21 +389,21 @@ def _with_values_query_part(model, values, conn, key_fds, upd_fds, default_fds=(
         key_sql_items, key_params = _generate_fds_sql(model, conn, key_fds, keys, False, first)
 
         sql_items = key_sql_items + upd_sql_items
-        if default_fds:
-            sql_items.extend(defaults_sql_items)
 
         values_items.append(sql_items)
-        values_update_params.extend(chain(key_params, upd_params, defaults_params))
+        values_update_params.extend(chain(key_params, upd_params))
         first = False
 
-    values_items_sql = ['(%s)' % ', '.join(item) for item in values_items]
-
     # NOTE. No extra brackets here or VALUES will return nothing
-    values_sql = '%s' % ', '.join(values_items_sql)
+    values_sql = ', '.join(
+        '(%s)' % ', '.join(item) for item in values_items
+    )
 
-    sel_sql = ', '.join(['"%s"' % fd.prefixed_name for fd in chain(key_fds, upd_fds, default_fds)])
+    sel_sql = ', '.join(
+        '"%s"' % fd.prefixed_name for fd in chain(key_fds, upd_fds)
+    )
 
-    return tpl % (sel_sql, values_sql), values_update_params
+    return tpl % (default_sel_sql, default_values_sql, sel_sql, values_sql), values_update_params
 
 
 def _bulk_update_query_part(model, conn, key_fds, upd_fds, where):
@@ -462,7 +469,7 @@ def _returning_query_part(model, conn, ret_fds):
     if ret_fds is None:
         return '', []
 
-    return "RETURNING %s" % ', '.join(['"%s"' % fd.get_field(model).column for fd in ret_fds]), []
+    return "RETURNING %s" % ', '.join('"%s"' % fd.get_field(model).column for fd in ret_fds), []
 
 
 def _execute_update_query(model, conn, sql, params, ret_fds):
@@ -614,17 +621,17 @@ def _insert_query_part(model, conn, insert_fds, default_fds):
     """
     query = """
         INSERT INTO "%s" (%s)
-        SELECT %s FROM "vals"
+        SELECT %s FROM "vals" CROSS JOIN "def_vals"
     """
 
     # Table we save data to
     db_table = model._meta.db_table
 
     # Columns to insert to table
-    insert_fds = list(chain(insert_fds, default_fds))
-
-    columns = ['"%s"' % fd.get_field(model).column for fd in insert_fds]
-    columns = ', '.join(columns)
+    columns = ', '.join(
+        '"%s"' % fd.get_field(model).column
+        for fd in chain(insert_fds, default_fds)
+    )
 
     # Columns to select from values
     val_columns, val_columns_params = [], []
@@ -634,6 +641,14 @@ def _insert_query_part(model, conn, insert_fds, default_fds):
                                                          for_update=False)
         val_columns.append(func_sql)
         val_columns_params.extend(params)
+
+    for fd in default_fds:
+        val = '"def_vals"."%s"' % fd.prefixed_name
+        func_sql, params = fd.set_function.get_sql_value(fd.get_field(model), val, conn, val_as_param=False,
+                                                         for_update=False)
+        val_columns.append(func_sql)
+        val_columns_params.extend(params)
+
     val_columns = ', '.join(val_columns)
 
     sql = query % (db_table, columns, val_columns)
@@ -824,11 +839,11 @@ def _insert_on_conflict_query_part(model, conn, key_fds, upd_fds, default_fds, u
 
     # Columns to insert to table
     key_fields = {fd.get_field(model) for fd in key_fds}
-    insert_fds = list(chain(key_fds, (fd for fd in upd_fds if fd.get_field(model) not in key_fields)))
+    insert_fds = tuple(chain(key_fds, (fd for fd in upd_fds if fd.get_field(model) not in key_fields)))
     insert_sql, insert_params = _insert_query_part(model, conn, insert_fds, default_fds)
 
     # Conflict columns
-    key_columns = ', '.join(['"%s"' % fd.get_field(model).column for fd in key_fds])
+    key_columns = ', '.join('"%s"' % fd.get_field(model).column for fd in key_fds)
 
     sql = query % (insert_sql, key_columns, conflict_action)
     return sql, insert_params + conflict_action_params
