@@ -29,7 +29,7 @@ class FieldDescriptor(object):
     """
     This class is added in order to make passing parameters in queries easier
     """
-    __slots__ = ['name', '_set_function', '_key_operator', '_prefix']
+    __slots__ = ['name', '_set_function', '_key_operator', '_prefix', '_fields_cache']
 
     def __init__(self, name, set_function=None, key_operator=None):
         # type: (str, TSetFunction, TOperator) -> None
@@ -37,6 +37,7 @@ class FieldDescriptor(object):
         self.set_function = set_function
         self.key_operator = key_operator
         self._prefix = ''
+        self._fields_cache = {}
 
     def get_field(self, model):
         # type: (Type[Model]) -> Field
@@ -45,7 +46,11 @@ class FieldDescriptor(object):
         :param model: django.db.models.Model subclass
         :return: django.db.fields.Field instance
         """
-        return model._meta.get_field(self.name)
+        # Due to some reasons basic get_field is slow. In order to speed up I cache result.
+        if model not in self._fields_cache:
+            self._fields_cache[model] = model._meta.get_field(self.name)
+
+        return self._fields_cache[model]
 
     @property
     def set_function(self):
