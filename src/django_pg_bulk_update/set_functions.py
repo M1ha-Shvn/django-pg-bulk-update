@@ -9,7 +9,7 @@ from django.db.models import Field, Model
 
 from .compatibility import get_postgres_version, jsonb_available, Postgres94MergeJSONBMigration, hstore_serialize,\
     hstore_available
-from .types import TDatabase
+from .types import TDatabase, AbstractFieldFormatter
 from .utils import get_subclasses, format_field_value
 
 # When doing increment operations, we need to replace NULL values with something
@@ -74,25 +74,12 @@ else:
         pass
 
 
-class AbstractSetFunction(object):
+class AbstractSetFunction(AbstractFieldFormatter):
     names = set()
 
     # If set function supports any field class, this should be None.
     # Otherwise a set of class names supported
     supported_field_classes = None
-
-    def format_field_value(self, field, val, connection, cast_type=False, **kwargs):
-        # type: (Field, Any, TDatabase, bool, **Any) -> Tuple[str, Tuple[Any]]
-        """
-        Formats value, according to field rules
-        :param field: Django field to take format from
-        :param val: Value to format
-        :param connection: Connection used to update data
-        :param cast_type: Adds type casting to sql if flag is True
-        :param kwargs: Additional arguments, if needed
-        :return: A tuple: sql, replacing value in update and a tuple of parameters to pass to cursor
-        """
-        return format_field_value(field, val, connection, cast_type=cast_type)
 
     def modify_create_params(self, model, key, kwargs):
         # type: (Type[Model], str, Dict[str, Any]) -> Dict[str, Any]
