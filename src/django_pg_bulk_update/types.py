@@ -29,7 +29,7 @@ class FieldDescriptor(object):
     """
     This class is added in order to make passing parameters in queries easier
     """
-    __slots__ = ['name', '_set_function', '_key_operator', '_prefix', '_fields_cache']
+    __slots__ = ['name', '_set_function', '_key_operator', '_prefix']
 
     def __init__(self, name, set_function=None, key_operator=None):
         # type: (str, TSetFunction, TOperator) -> None
@@ -37,7 +37,6 @@ class FieldDescriptor(object):
         self.set_function = set_function
         self.key_operator = key_operator
         self._prefix = ''
-        self._fields_cache = {}
 
     def get_field(self, model):
         # type: (Type[Model]) -> Field
@@ -46,11 +45,7 @@ class FieldDescriptor(object):
         :param model: django.db.models.Model subclass
         :return: django.db.fields.Field instance
         """
-        # Due to some reasons basic get_field is slow. In order to speed up I cache result.
-        if model not in self._fields_cache:
-            self._fields_cache[model] = model._meta.get_field(self.name)
-
-        return self._fields_cache[model]
+        return model._meta.get_field(self.name)
 
     @property
     def set_function(self):
@@ -128,3 +123,19 @@ class FieldDescriptor(object):
         if self._prefix is None:
             raise ValueError('prefix has not been set yet')
         return "%s__%s" % (self._prefix, self.name)
+
+
+class AbstractFieldFormatter(object):
+    def format_field_value(self, field, val, connection, cast_type=False, **kwargs):
+        # type: (Field, Any, TDatabase, bool, **Any) -> Tuple[str, Tuple[Any]]
+        """
+        Formats value, according to field rules
+        :param field: Django field to take format from
+        :param val: Value to format
+        :param connection: Connection used to update data
+        :param cast_type: Adds type casting to sql if flag is True
+        :param kwargs: Additional arguments, if needed
+        :return: A tuple: sql, replacing value in update and a tuple of parameters to pass to cursor
+        """
+        from .utils import format_field_value
+        return format_field_value(field, val, connection, cast_type=cast_type)

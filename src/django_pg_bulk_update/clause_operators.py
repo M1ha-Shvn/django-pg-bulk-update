@@ -1,16 +1,14 @@
 """
 This function contains operators used in WHERE query part
 """
-from typing import Type, Optional, Any, Tuple, Iterable, Dict
-
-from django.db.models import Field
+from typing import Type, Optional, Any, Iterable, Dict
 
 from .compatibility import array_available, get_field_db_type
-from .types import TDatabase
-from .utils import get_subclasses, format_field_value
+from .types import AbstractFieldFormatter
+from .utils import get_subclasses
 
 
-class AbstractClauseOperator(object):
+class AbstractClauseOperator(AbstractFieldFormatter):
     inverse = False
     names = set()
     requires_value = True
@@ -52,19 +50,6 @@ class AbstractClauseOperator(object):
         :return: String
         """
         return "%s %s %s" % (table_field, self.get_sql_operator(), value)
-
-    def format_field_value(self, field, val, connection, cast_type=False, **kwargs):
-        # type: (Field, Any, TDatabase, bool, **Any) -> Tuple[str, Tuple[Any]]
-        """
-        Formats value, according to field rules
-        :param field: Django field to take format from
-        :param val: Value to format
-        :param connection: Connection used to update data
-        :param cast_type: Adds type casting to sql if flag is True
-        :param kwargs: Additional arguments, if needed
-        :return: A tuple: sql, replacing value in update and a tuple of parameters to pass to cursor
-        """
-        return format_field_value(field, val, connection, cast_type=cast_type)
 
 
 class AbstractArrayValueOperator(AbstractClauseOperator):

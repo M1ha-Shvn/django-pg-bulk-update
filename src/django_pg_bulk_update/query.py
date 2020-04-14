@@ -10,7 +10,7 @@ from logging import getLogger
 
 import six
 from django.db import transaction, connection, connections
-from django.db.models import Model, Q, AutoField
+from django.db.models import Model, Q, AutoField, Field
 from typing import Any, Type, Iterable as TIterable, Union, Optional, List, Tuple
 
 from django.db.models.sql import UpdateQuery
@@ -19,7 +19,7 @@ from django.db.models.sql.where import WhereNode
 from .compatibility import get_postgres_version, get_model_fields, returning_available
 from .set_functions import AbstractSetFunction
 from .types import TOperators, TFieldNames, TUpdateValues, TSetFunctions, TOperatorsValid, TUpdateValuesValid, \
-    TSetFunctionsValid, TDatabase, FieldDescriptor
+    TSetFunctionsValid, TDatabase, FieldDescriptor, AbstractFieldFormatter
 from .utils import batched_operation
 
 __all__ = ['pdnf_clause', 'bulk_update', 'bulk_update_or_create', 'bulk_create']
@@ -328,24 +328,17 @@ def _get_default_fds(model, existing_fds):
     return tuple(result)
 
 
-def _generate_fds_sql(model, conn, fds, values, for_set, cast_type):
-    # type: (Type[Model], TDatabase, Tuple[FieldDescriptor], Iterable[Any], bool, bool) -> Tuple[List[str], List[Any]]
-    """
-    Generates
-    :param fds:
-    :param for_set:
-    :return:
-    """
-    sql_list, params_list = [], []
-    for fd, val in zip(fds, values):
-        # These would not be different for different update objects and can be generated once
-        field = fd.get_field(model)
-        format_base = fd.set_function if for_set else fd.key_operator
-        item_sql, item_upd_params = format_base.format_field_value(field, val, conn, cast_type=cast_type)
-        sql_list.append(item_sql)
-        params_list.extend(item_upd_params)
+def _generate_fds_sql(conn, fields, format_bases, values, cast_type):
+    # type: (TDatabase, Tuple[Field], Iterable[AbstractFieldFormatter], Iterable[Any], bool) -> Tuple[Tuple[str], Tuple[Any]]
+    if not fields:
+        return tuple(), tuple()
 
-    return sql_list, params_list
+    sql_list, params_list = zip(*(
+        format_base.format_field_value(field, val, conn, cast_type=cast_type)
+        for field, format_base, val in zip(fields, format_bases, values)
+    ))
+
+    return sql_list, tuple(chain(*params_list))
 
 
 def _with_values_query_part(model, values, conn, key_fds, upd_fds, default_fds=()):
@@ -368,20 +361,27 @@ def _with_values_query_part(model, values, conn, key_fds, upd_fds, default_fds=(
     if default_fds:
         # Prepare default values to insert into database, if they are not provided in updates or keys
         # Dictionary keys list all db column names to be inserted.
-        default_sel_sql = ', '.join('"%s"' % fd.prefixed_name for fd in default_fds)
-        default_vals = (fd.get_field(model).get_default() for fd in default_fds)
-        defaults_sql_items, defaults_params = _generate_fds_sql(model, conn, default_fds, default_vals, True, True)
-        defaults_sql = ",\n default_vals(%s) AS (VALUES (%s))" % (default_sel_sql, ', '.join(defaults_sql_items))
+        defaults_sel_sql = ', '.join('"%s"' % fd.prefixed_name for fd in default_fds)
+        defaults_vals = (fd.get_field(model).get_default() for fd in default_fds)
+        defaults_fields = tuple(fd.get_field(model) for fd in default_fds)
+        defaults_format_bases = tuple(fd.set_function for fd in default_fds)
+        defaults_sql_items, defaults_params = _generate_fds_sql(conn, defaults_fields, defaults_format_bases,
+                                                                defaults_vals, True)
+        defaults_sql = ",\n default_vals(%s) AS (VALUES (%s))" % (defaults_sel_sql, ', '.join(defaults_sql_items))
     else:
         defaults_sql = ''
         defaults_params = []
 
     first = True
+    key_fields = tuple(fd.get_field(model) for fd in key_fds)
+    key_format_bases = tuple(fd.key_operator for fd in key_fds)
+    upd_fields = tuple(fd.get_field(model) for fd in upd_fds)
+    upd_format_bases = tuple(fd.set_function for fd in upd_fds)
     for keys, updates in values.items():
         # For field sql and params
         upd_values = [updates[fd.name] for fd in upd_fds]
-        upd_sql_items, upd_params = _generate_fds_sql(model, conn, upd_fds, upd_values, True, first)
-        key_sql_items, key_params = _generate_fds_sql(model, conn, key_fds, keys, False, first)
+        upd_sql_items, upd_params = _generate_fds_sql(conn, upd_fields, upd_format_bases, upd_values, first)
+        key_sql_items, key_params = _generate_fds_sql(conn, key_fields, key_format_bases, keys, first)
 
         sql_items = key_sql_items + upd_sql_items
 
@@ -398,7 +398,7 @@ def _with_values_query_part(model, values, conn, key_fds, upd_fds, default_fds=(
         '"%s"' % fd.prefixed_name for fd in chain(key_fds, upd_fds)
     )
 
-    return tpl % (sel_sql, values_sql, defaults_sql), values_update_params + defaults_params
+    return tpl % (sel_sql, values_sql, defaults_sql), values_update_params + list(defaults_params)
 
 
 def _bulk_update_query_part(model, conn, key_fds, upd_fds, where):
