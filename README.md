@@ -180,7 +180,7 @@ There are 4 query helpers in this library. There parameters are unified and desc
 ### Examples
 ```python
 from django.db import models
-from djngo_pg_bulk_udpate import bulk_update, bulk_update_or_create, pdnf_clause
+from django_pg_bulk_udpate import bulk_update, bulk_update_or_create, pdnf_clause
 
 # Test model
 class TestModel(models.Model):
