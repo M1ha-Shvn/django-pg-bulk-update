@@ -512,12 +512,13 @@ which contains alias in `names` attribute.
 Library supports django.contrib.postgres.fields:  
 + ArrayField  
 + JSONField  
-+ HStoreField  
++ HStoreField
++ RangeField (IntegerRangeField, BigIntegerRangeField, FloatRangeField, DateTimeRangeField, DateRangeField)
 
 Note that ArrayField and HStoreField are available since django 1.8, JSONField - since django 1.9.  
+RangeField supports are available since PostgreSQL 9.2, psycopg2 since 2.5 and django since 1.8.  
 PostgreSQL before 9.4 doesn't support jsonb, and so - JSONField.  
-PostgreSQL 9.4 supports JSONB, but doesn't support concatenation operator (||).
-In order to support this set function a special function for postgres 9.4 was written. Add a migration to create it:
+PostgreSQL 9.4 supports JSONB, but doesn't support concatenation operator (||). In order to support this set function a special function for postgres 9.4 was written. Add a migration to create it:
 
 ```python
 from django.db import migrations,
