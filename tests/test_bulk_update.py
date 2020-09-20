@@ -143,6 +143,7 @@ class TestInputFormats(TestCase):
 
 class TestSimple(TestCase):
     fixtures = ['test_model', 'm2m_relation', 'test_upper_case_model']
+    databases = ['default', 'secondary']
     multi_db = True
 
     def test_update(self):
@@ -766,6 +767,7 @@ class TestClauseOperators(TestCase):
 class TestManager(TestCase):
     fixtures = ['test_model']
     multi_db = True
+    databases = ['default', 'secondary']
 
     def test_bulk_update(self):
         res = TestModel.objects.pg_bulk_update([{

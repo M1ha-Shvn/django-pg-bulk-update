@@ -3,7 +3,7 @@ Django extension to update multiple table records with similar (but not equal) c
 
 ## Requirements
 * Python 2.7 or Python 3.5+
-* django >= 1.7  
+* django >= 1.8  
   Previous versions may also work, but haven't been tested.  
   django.postgres.contrib fields are also supported (available since django 1.8)
   django.postgres.contrib.JSONField is supported since django 1.9  
