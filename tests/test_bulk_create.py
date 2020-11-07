@@ -88,6 +88,7 @@ class TestInputFormats(TestCase):
 class TestSimple(TestCase):
     fixtures = ['test_model', 'test_upper_case_model']
     multi_db = True
+    databases = ['default', 'secondary']
 
     def test_create(self):
         res = bulk_create(TestModel, [{
@@ -385,6 +386,7 @@ class TestSetFunctions(TestCase):
 class TestManager(TestCase):
     fixtures = ['test_model']
     multi_db = True
+    databases = ['default', 'secondary']
 
     def test_bulk_create(self):
         res = TestModel.objects.pg_bulk_create([{

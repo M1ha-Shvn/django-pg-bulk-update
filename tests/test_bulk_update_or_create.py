@@ -151,6 +151,7 @@ class TestInputFormats(TestCase):
 
 class TestSimple(TestCase):
     fixtures = ['test_model', 'test_upper_case_model']
+    databases = ['default', 'secondary']
     multi_db = True
 
     def test_update(self):
@@ -699,6 +700,7 @@ class TestSetFunctions(TestCase):
 
 class TestManager(TestCase):
     fixtures = ['test_model']
+    databases = ['default', 'secondary']
     multi_db = True
 
     def test_bulk_update_or_create(self):
