@@ -146,8 +146,8 @@ class TestInputFormats(TestCase):
 
 class TestSimple(TestCase):
     fixtures = ['test_model', 'm2m_relation', 'test_upper_case_model', 'auto_now_model']
-    databases = ['default', 'secondary']
     multi_db = True
+    databases = ['default', 'secondary']
 
     def test_update(self):
         res = bulk_update(TestModel, [{

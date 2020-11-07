@@ -154,8 +154,8 @@ class TestInputFormats(TestCase):
 
 class TestSimple(TestCase):
     fixtures = ['test_model', 'test_upper_case_model', 'auto_now_model']
-    databases = ['default', 'secondary']
     multi_db = True
+    databases = ['default', 'secondary']
 
     def test_update(self):
         res = bulk_update_or_create(TestModel, [{
@@ -726,8 +726,8 @@ class TestSetFunctions(TestCase):
 
 class TestManager(TestCase):
     fixtures = ['test_model']
-    databases = ['default', 'secondary']
     multi_db = True
+    databases = ['default', 'secondary']
 
     def test_bulk_update_or_create(self):
         res = TestModel.objects.pg_bulk_update_or_create([{
