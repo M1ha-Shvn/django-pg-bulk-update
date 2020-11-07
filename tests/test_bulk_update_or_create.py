@@ -151,6 +151,7 @@ class TestInputFormats(TestCase):
 
 class TestSimple(TestCase):
     fixtures = ['test_model', 'test_upper_case_model']
+    databases = ['default', 'secondary']
     multi_db = True
 
     def test_update(self):
