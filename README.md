@@ -108,6 +108,8 @@ There are 4 query helpers in this library. There parameters are unified and desc
       This function combines ArrayField value with previous one, removing duplicates.
     - 'array_remove'  
       This function deletes value from ArrayField field using array_remove PSQL Function.
+    - 'now', 'NOW'  
+      This function sets field value to `NOW()` database function. Doesn't require any value in `values` parameter.  
     - You can define your own set function. See section below.
   
     Increment, union and concatenate functions concern NULL as default value.
