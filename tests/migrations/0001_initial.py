@@ -5,7 +5,7 @@ from __future__ import unicode_literals
 from django.db import migrations, models
 
 from django_pg_bulk_update.compatibility import jsonb_available, hstore_available, array_available, \
-    get_postgres_version, Postgres94MergeJSONBMigration
+    get_postgres_version, Postgres94MergeJSONBMigration, import_pg_field_or_dummy
 
 test_model_fields = [
     ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
@@ -14,7 +14,7 @@ test_model_fields = [
 ]
 
 if jsonb_available():
-    from django.contrib.postgres.fields import JSONField
+    JSONField = import_pg_field_or_dummy('JSONField', jsonb_available)
     test_model_fields.append(('json_field', JSONField(null=True, blank=True)))
 
 if array_available():

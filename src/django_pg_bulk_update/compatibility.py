@@ -64,8 +64,13 @@ def import_pg_field_or_dummy(field_name, available_func):  # type: (str, Callabl
     dummy_class = type(field_name, (), {})
 
     if available_func():
-        module = importlib.import_module('django.contrib.postgres.fields')
-        return getattr(module, field_name, dummy_class)
+        # Since django 3.1 JSONField is moved to django.db.models
+        module_basic = importlib.import_module('django.db.models')
+        if hasattr(module_basic, field_name):
+            return getattr(module_basic, field_name, dummy_class)
+
+        module_pg = importlib.import_module('django.contrib.postgres.fields')
+        return getattr(module_pg, field_name, dummy_class)
     else:
         return dummy_class
 
