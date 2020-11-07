@@ -154,8 +154,8 @@ class TestInputFormats(TestCase):
 
 class TestSimple(TestCase):
     fixtures = ['test_model', 'test_upper_case_model', 'auto_now_model']
-    multi_db = True
     databases = ['default', 'secondary']
+    multi_db = True
 
     def test_update(self):
         res = bulk_update_or_create(TestModel, [{
