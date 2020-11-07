@@ -3,6 +3,7 @@ This file contains number of functions to handle different software versions com
 """
 import importlib
 import json
+import sys
 from typing import Dict, Any, Optional, Union, Tuple, List, Type, Callable
 
 import django
@@ -61,6 +62,9 @@ def import_pg_field_or_dummy(field_name, available_func):  # type: (str, Callabl
     :param available_func: Function to check if field is available. Should return boolean
     :return: Field class or dummy class
     """
+    if sys.version_info < (3,):
+        field_name = field_name.encode()
+
     dummy_class = type(field_name, (), {})
 
     if available_func():

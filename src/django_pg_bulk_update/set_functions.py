@@ -326,7 +326,7 @@ class NowSetFunction(AbstractSetFunction):
     supported_field_classes = {'DateField', 'DateTimeField'}
     needs_value = False
 
-    def __init__(self, if_null: bool = False):
+    def __init__(self, if_null=False):  # type: (bool) -> None
         self._if_null = if_null
         super(NowSetFunction, self).__init__()
 
