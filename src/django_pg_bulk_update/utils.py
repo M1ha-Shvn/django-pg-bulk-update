@@ -9,26 +9,10 @@ from django.db.models import Field
 from django.db.models.sql.subqueries import UpdateQuery
 from typing import TypeVar, Set, Any, Tuple, Iterable, Callable, Optional, List
 
-from .compatibility import hstore_serialize, hstore_available, jsonb_available, get_field_db_type
+from .compatibility import hstore_serialize, hstore_available, get_field_db_type, import_pg_field_or_dummy
 from .types import TDatabase
 
 logger = logging.getLogger('django-pg-bulk-update')
-
-# JSONField is available in django 1.9+ only
-# I create fake class for previous version in order to just skip isinstance(item, JSONField) if branch
-if jsonb_available():
-    from django.contrib.postgres.fields import JSONField
-else:
-    class JSONField:
-        pass
-
-# django.contrib.postgres is available in django 1.8+ only
-# I create fake class for previous version in order to just skip isinstance(item, HStoreField) if branch
-if hstore_available():
-    from django.contrib.postgres.fields import HStoreField
-else:
-    class HStoreField:
-        pass
 
 T = TypeVar('T')
 
@@ -64,6 +48,7 @@ def format_field_value(field, val, conn, cast_type=False):
     # And modified for our needs
     query = UpdateQuery(field.model)
     compiler = query.get_compiler(connection=conn)
+    HStoreField = import_pg_field_or_dummy('HStoreField', hstore_available)
 
     if hasattr(val, 'resolve_expression'):
         val = val.resolve_expression(query, allow_joins=False, for_save=True)
@@ -170,3 +155,11 @@ def batched_operation(handler, data, batch_size=None, batch_delay=0, args=(), kw
 
     return results
 
+
+def is_auto_set_field(field):  # type: (Field) -> bool
+    """
+    Checks if model fields should be set automatically if absent in values
+    :param field: Model field instance
+    :return: Boolean
+    """
+    return getattr(field, 'auto_now', False) or getattr(field, 'auto_now_add', False)

@@ -2,4 +2,4 @@ Django (>=1.7)
 pytz
 six
 typing
-psycopg2
+psycopg2-binary

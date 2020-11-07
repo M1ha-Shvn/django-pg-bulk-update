@@ -1,11 +1,14 @@
+from datetime import datetime, timedelta, date
 from unittest import skipIf
 
+import pytz
 from django.test import TestCase
+from django.utils.timezone import now
 
 from django_pg_bulk_update.compatibility import jsonb_available, array_available, hstore_available
 from django_pg_bulk_update.query import bulk_update_or_create
 from django_pg_bulk_update.set_functions import ConcatSetFunction
-from tests.models import TestModel, UniqueNotPrimary, UpperCaseModel
+from tests.models import TestModel, UniqueNotPrimary, UpperCaseModel, AutoNowModel
 
 
 class TestInputFormats(TestCase):
@@ -150,8 +153,9 @@ class TestInputFormats(TestCase):
 
 
 class TestSimple(TestCase):
-    fixtures = ['test_model', 'test_upper_case_model']
+    fixtures = ['test_model', 'test_upper_case_model', 'auto_now_model']
     multi_db = True
+    databases = ['default', 'secondary']
 
     def test_update(self):
         res = bulk_update_or_create(TestModel, [{
@@ -466,6 +470,29 @@ class TestSimple(TestCase):
         from django_pg_returning import ReturningQuerySet
         self.assertIsInstance(res, ReturningQuerySet)
         self.assertEqual(0, res.count())
+
+    def test_auto_now(self):
+        res = bulk_update_or_create(AutoNowModel, [{
+            'id': 1,
+            'checked': None
+        }, {
+            'id': 11,
+            'checked': datetime(2020, 1, 2, 0, 0, 0, tzinfo=pytz.utc)
+        }])
+        self.assertEqual(2, res)
+
+        # 1 from fixture + 1 created
+        self.assertEqual(2, AutoNowModel.objects.all().count())
+
+        for instance in AutoNowModel.objects.all():
+            self.assertEqual(instance.updated, date.today())
+
+            if instance.pk <= 10:
+                print(instance.pk)
+                self.assertEqual(datetime(2019, 1, 1, 0, 0, 0, tzinfo=pytz.utc), instance.created)
+            else:
+                self.assertGreaterEqual(instance.created, now() - timedelta(seconds=1))
+                self.assertLessEqual(instance.created, now() + timedelta(seconds=1))
 
 
 class TestReadmeExample(TestCase):

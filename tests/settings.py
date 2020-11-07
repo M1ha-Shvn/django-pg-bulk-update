@@ -41,6 +41,7 @@ LOGGING = {
 from django_pg_bulk_update.compatibility import jsonb_available, array_available, hstore_available
 
 INSTALLED_APPS = []
+USE_TZ = True
 
 if hstore_available() or jsonb_available() or array_available():
     INSTALLED_APPS.append("django.contrib.postgres")

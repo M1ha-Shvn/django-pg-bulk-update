@@ -1,10 +1,13 @@
-from django.test import TestCase
+from datetime import timedelta, date
 from unittest import skipIf
+
+from django.test import TestCase
+from django.utils.timezone import now
 
 from django_pg_bulk_update.compatibility import jsonb_available, hstore_available, array_available
 from django_pg_bulk_update.query import bulk_create
 from django_pg_bulk_update.set_functions import ConcatSetFunction
-from tests.models import TestModel, UpperCaseModel
+from tests.models import TestModel, UpperCaseModel, AutoNowModel
 
 
 class TestInputFormats(TestCase):
@@ -301,6 +304,17 @@ class TestSimple(TestCase):
         self.assertIsInstance(res, ReturningQuerySet)
         self.assertEqual(0, res.count())
 
+    def test_auto_now(self):
+        res = bulk_create(AutoNowModel, [{
+            'id': 11
+        }])
+        self.assertEqual(1, res)
+        instance = AutoNowModel.objects.get(pk=11)
+        self.assertGreaterEqual(instance.created, now() - timedelta(seconds=1))
+        self.assertLessEqual(instance.created, now() + timedelta(seconds=1))
+        self.assertEqual(instance.updated, date.today())
+        self.assertIsNone(instance.checked)
+
 
 class TestReadmeExample(TestCase):
     def test_example(self):
@@ -381,6 +395,15 @@ class TestSetFunctions(TestCase):
             else:
                 self.assertEqual('test%d' % pk, name)
                 self.assertEqual(pk, int_field)
+
+    def test_now(self):
+        res = bulk_create(AutoNowModel, [{
+            'id': 1
+        }], set_functions={'checked': 'now'})
+        self.assertEqual(1, res)
+        instance = AutoNowModel.objects.get(pk=1)
+        self.assertGreaterEqual(instance.checked, now() - timedelta(seconds=1))
+        self.assertLessEqual(instance.checked, now() + timedelta(seconds=1))
 
 
 class TestManager(TestCase):

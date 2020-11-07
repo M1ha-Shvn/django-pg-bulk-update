@@ -1,13 +1,13 @@
 """
 This file contains number of functions to handle different software versions compatibility
 """
+import importlib
 import json
-
-from django.db.models import Model, Field, BigIntegerField, IntegerField
-from typing import Dict, Any, Optional, Union, Tuple, List, Type
+from typing import Dict, Any, Optional, Union, Tuple, List, Type, Callable
 
 import django
 from django.db import connection, connections, models, migrations
+from django.db.models import Model, Field, BigIntegerField, IntegerField
 
 from .types import TDatabase
 
@@ -51,6 +51,23 @@ def array_available():  # type: () -> bool
     :return: Bool
     """
     return django.VERSION >= (1, 8)
+
+
+def import_pg_field_or_dummy(field_name, available_func):  # type: (str, Callable) -> Any
+    """
+    Imports PostgreSQL specific field, if it is avaialbe. Otherwise returns dummy class
+    This is used to simplify isinstance(f, PGField) checks
+    :param field_name: Field name. It should have same case as class name
+    :param available_func: Function to check if field is available. Should return boolean
+    :return: Field class or dummy class
+    """
+    dummy_class = type(field_name, (), {})
+
+    if available_func():
+        module = importlib.import_module('django.contrib.postgres.fields')
+        return getattr(module, field_name, dummy_class)
+    else:
+        return dummy_class
 
 
 def returning_available(raise_exception=False):

@@ -7,8 +7,8 @@ from typing import Type, Optional, Any, Tuple, Dict
 import pytz
 from django.db.models import Field, Model
 
-from .compatibility import get_postgres_version, jsonb_available, Postgres94MergeJSONBMigration, hstore_serialize,\
-    hstore_available
+from .compatibility import get_postgres_version, jsonb_available, Postgres94MergeJSONBMigration, hstore_serialize, \
+    hstore_available, import_pg_field_or_dummy
 from .types import TDatabase, AbstractFieldFormatter
 from .utils import get_subclasses, format_field_value
 
@@ -65,21 +65,15 @@ NULL_DEFAULTS = {
 }
 
 
-# JSONField is available in django 1.9+ only
-# I create fake class for previous version in order to just skip isinstance(item, JSONField) if branch
-if jsonb_available():
-    from django.contrib.postgres.fields import JSONField
-else:
-    class JSONField:
-        pass
-
-
 class AbstractSetFunction(AbstractFieldFormatter):
     names = set()
 
     # If set function supports any field class, this should be None.
     # Otherwise a set of class names supported
     supported_field_classes = None
+
+    # If set functions doesn't need value from input, set this to False.
+    needs_value = True
 
     def modify_create_params(self, model, key, kwargs):
         # type: (Type[Model], str, Dict[str, Any]) -> Dict[str, Any]
@@ -254,6 +248,7 @@ class ConcatSetFunction(AbstractSetFunction):
 
     def get_sql_value(self, field, val, connection, val_as_param=True, with_table=False, for_update=True, **kwargs):
         null_default, null_default_params = self._parse_null_default(field, connection, **kwargs)
+        JSONField = import_pg_field_or_dummy('JSONField', jsonb_available)
 
         # Postgres 9.4 has JSONB support, but doesn't support concat operator (||)
         # So I've taken function to solve the problem from
@@ -324,3 +319,20 @@ class ArrayRemoveSetFunction(AbstractSetFunction):
             sql, params = self.format_field_value(field, field.get_default(), connection)
 
         return sql, params
+
+
+class NowSetFunction(AbstractSetFunction):
+    names = {'now', 'NOW'}
+    supported_field_classes = {'DateField', 'DateTimeField'}
+    needs_value = False
+
+    def __init__(self, if_null: bool = False):
+        self._if_null = if_null
+        super(NowSetFunction, self).__init__()
+
+    def get_sql_value(self, field, val, connection, val_as_param=True, with_table=False, for_update=True, **kwargs):
+        if for_update and self._if_null:
+            default_value, default_params = self._get_field_column(field, with_table=with_table), tuple()
+            return "COALESCE(%s, NOW())" % default_value, default_params
+        else:
+            return 'NOW()', tuple()

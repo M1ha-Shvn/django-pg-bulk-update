@@ -1,11 +1,14 @@
-from django.test import TestCase
+from datetime import datetime, date
 from unittest import skipIf
+
+import pytz
+from django.test import TestCase
 
 from django_pg_bulk_update.clause_operators import InClauseOperator
 from django_pg_bulk_update.compatibility import jsonb_available, hstore_available, array_available
 from django_pg_bulk_update.query import bulk_update
 from django_pg_bulk_update.set_functions import ConcatSetFunction
-from tests.models import TestModel, RelationModel, UpperCaseModel
+from tests.models import TestModel, RelationModel, UpperCaseModel, AutoNowModel
 
 
 class TestInputFormats(TestCase):
@@ -142,7 +145,7 @@ class TestInputFormats(TestCase):
 
 
 class TestSimple(TestCase):
-    fixtures = ['test_model', 'm2m_relation', 'test_upper_case_model']
+    fixtures = ['test_model', 'm2m_relation', 'test_upper_case_model', 'auto_now_model']
     databases = ['default', 'secondary']
     multi_db = True
 
@@ -379,6 +382,20 @@ class TestSimple(TestCase):
             else:
                 self.assertEqual('test%d' % pk, name)
             self.assertEqual(pk, int_field)
+
+    def test_auto_now(self):
+        res = bulk_update(AutoNowModel, [{
+            'id': 1,
+            'checked': datetime(2020, 1, 2, 0, 0, 0, tzinfo=pytz.utc)
+        }])
+        self.assertEqual(1, res)
+
+        self.assertEqual(1, AutoNowModel.objects.all().count())
+
+        instance = AutoNowModel.objects.get()
+        self.assertEqual(datetime(2019, 1, 1,  tzinfo=pytz.utc), instance.created)
+        self.assertEqual(instance.updated, date.today())
+        self.assertEqual(datetime(2020, 1, 2, 0, 0, 0,  tzinfo=pytz.utc), instance.checked)
 
 
 class TestReadmeExample(TestCase):

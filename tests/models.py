@@ -58,3 +58,9 @@ class RelationModel(models.Model):
     m2m = models.ManyToManyField(TestModel)
     fk = models.ForeignKey(TestModel, on_delete=models.CASCADE, related_name='fk')
     o2o = models.OneToOneField(TestModel, on_delete=models.CASCADE, related_name='o2o')
+
+
+class AutoNowModel(models.Model):
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateField(auto_now=True)
+    checked = models.DateTimeField(null=True, blank=True)
