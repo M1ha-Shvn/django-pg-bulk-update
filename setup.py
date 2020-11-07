@@ -23,5 +23,5 @@ setup(
     description='Django extension, executing bulk update operations for PostgreSQL',
     long_description=long_description,
     long_description_content_type="text/markdown",
-    requires=requires
+    install_requires=requires
 )
