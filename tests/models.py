@@ -4,7 +4,8 @@ This file contains sample models to use in tests
 from django.db import models
 
 from django_pg_bulk_update.manager import BulkUpdateManager
-from django_pg_bulk_update.compatibility import jsonb_available, hstore_available, array_available
+from django_pg_bulk_update.compatibility import jsonb_available, hstore_available, array_available, \
+    import_pg_field_or_dummy
 
 
 class Meta:
@@ -30,7 +31,7 @@ if hstore_available():
     model_attrs['hstore_field'] = HStoreField(null=True, blank=True)
 
 if jsonb_available():
-    from django.contrib.postgres.fields import JSONField
+    JSONField = import_pg_field_or_dummy('JSONField', jsonb_available)
     model_attrs['json_field'] = JSONField(null=True, blank=True)
 
 TestModel = type('TestModel', (models.Model,), model_attrs)
@@ -58,3 +59,9 @@ class RelationModel(models.Model):
     m2m = models.ManyToManyField(TestModel)
     fk = models.ForeignKey(TestModel, on_delete=models.CASCADE, related_name='fk')
     o2o = models.OneToOneField(TestModel, on_delete=models.CASCADE, related_name='o2o')
+
+
+class AutoNowModel(models.Model):
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateField(auto_now=True)
+    checked = models.DateTimeField(null=True, blank=True)

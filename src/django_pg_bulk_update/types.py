@@ -29,13 +29,14 @@ class FieldDescriptor(object):
     """
     This class is added in order to make passing parameters in queries easier
     """
-    __slots__ = ['name', '_set_function', '_key_operator', '_prefix']
+    __slots__ = ['name', 'auto_set', '_set_function', '_key_operator', '_prefix']
 
     def __init__(self, name, set_function=None, key_operator=None):
         # type: (str, TSetFunction, TOperator) -> None
         self.name = name
         self.set_function = set_function
         self.key_operator = key_operator
+        self.auto_set = False
         self._prefix = ''
 
     def get_field(self, model):

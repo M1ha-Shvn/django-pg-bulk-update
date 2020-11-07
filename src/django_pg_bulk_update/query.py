@@ -7,20 +7,20 @@ import json
 from collections import Iterable
 from itertools import chain
 from logging import getLogger
+from typing import Any, Type, Iterable as TIterable, Union, Optional, List, Tuple
 
 import six
 from django.db import transaction, connection, connections
 from django.db.models import Model, Q, AutoField, Field
-from typing import Any, Type, Iterable as TIterable, Union, Optional, List, Tuple
-
 from django.db.models.sql import UpdateQuery
 from django.db.models.sql.where import WhereNode
 
 from .compatibility import get_postgres_version, get_model_fields, returning_available
-from .set_functions import AbstractSetFunction
+from .set_functions import AbstractSetFunction, NowSetFunction
 from .types import TOperators, TFieldNames, TUpdateValues, TSetFunctions, TOperatorsValid, TUpdateValuesValid, \
     TSetFunctionsValid, TDatabase, FieldDescriptor, AbstractFieldFormatter
-from .utils import batched_operation
+from .utils import batched_operation, is_auto_set_field
+
 
 __all__ = ['pdnf_clause', 'bulk_update', 'bulk_update_or_create', 'bulk_create']
 logger = getLogger('django-pg-bulk-update')
@@ -102,8 +102,8 @@ def _validate_operators(key_fds, operators):
     return key_fds
 
 
-def _validate_update_values(key_fds, values):
-    # type: (Tuple[FieldDescriptor], TUpdateValues) -> Tuple[Tuple[FieldDescriptor], TUpdateValuesValid]
+def _validate_update_values(model, key_fds, values):
+    # type: (Type[Model], Tuple[FieldDescriptor], TUpdateValues) -> Tuple[Tuple[FieldDescriptor], TUpdateValuesValid]
     """
     Parses and validates input data for bulk_update and bulk_update_or_create.
     It can come in 2 forms:
@@ -182,6 +182,14 @@ def _validate_update_values(key_fds, values):
         raise TypeError("'values' parameter must be dict or Iterable")
 
     descriptors = tuple(FieldDescriptor(name) for name in upd_keys_tuple)
+    fd_names = {fd.name for fd in descriptors}
+
+    # Add field names which are added automatically
+    descriptors += tuple(
+        FieldDescriptor(f.name)
+        for f in get_model_fields(model)
+        if is_auto_set_field(f) and f.name not in fd_names
+    )
 
     # Add prefix to all descriptors
     for name in descriptors:
@@ -190,14 +198,14 @@ def _validate_update_values(key_fds, values):
     return descriptors, result
 
 
-def _validate_set_functions(model, upd_fds, functions):
+def _validate_set_functions(model, fds, functions):
     # type: (Type[Model], Tuple[FieldDescriptor], TSetFunctions) -> TSetFunctionsValid
     """
     Validates set functions.
     It should be a dict with field name as key and function name or AbstractSetFunction instance as value
     Default set function is EqualSetFunction
     :param model: Model updated
-    :param upd_fds: A tuple of FieldDescriptors to update. It will be modified.
+    :param fds: A tuple of FieldDescriptors to update. It will be modified.
     :param functions: Functions to validate
     :return: A tuple of FieldDescriptor objects with set functions.
     """
@@ -212,12 +220,28 @@ def _validate_set_functions(model, upd_fds, functions):
         if not isinstance(v, (six.string_types, AbstractSetFunction)):
             raise ValueError("'set_functions' values must be string or AbstractSetFunction instance")
 
-    for f in upd_fds:
-        f.set_function = functions.get(f.name)
-        if not f.set_function.field_is_supported(f.get_field(model)):
+    for f in fds:
+        field = f.get_field(model)
+        if getattr(field, 'auto_now', False):
+            f.set_function = NowSetFunction(if_null=False)
+        elif getattr(field, 'auto_now_add', False):
+            f.set_function = NowSetFunction(if_null=True)
+        else:
+            f.set_function = functions.get(f.name)
+
+        if not f.set_function.field_is_supported(field):
             raise ValueError("'%s' doesn't support '%s' field" % (f.set_function.__class__.__name__, f.name))
 
-    return upd_fds
+    # Add functions which doesn't require values
+    fd_names = {fd.name for fd in fds}
+    no_value_fds = []
+    for k, v in functions.items():
+        if k not in fd_names:
+            fd = FieldDescriptor(k, set_function=v)
+            if not fd.set_function.needs_value:
+                no_value_fds.append(fd)
+
+    return fds + tuple(no_value_fds)
 
 
 def _validate_where(model, where, using):
@@ -379,7 +403,7 @@ def _with_values_query_part(model, values, conn, key_fds, upd_fds, default_fds=(
     upd_format_bases = tuple(fd.set_function for fd in upd_fds)
     for keys, updates in values.items():
         # For field sql and params
-        upd_values = [updates[fd.name] for fd in upd_fds]
+        upd_values = [updates[fd.name] for fd in upd_fds if fd.set_function.needs_value]
         upd_sql_items, upd_params = _generate_fds_sql(conn, upd_fields, upd_format_bases, upd_values, first)
         key_sql_items, key_params = _generate_fds_sql(conn, key_fields, key_format_bases, keys, first)
 
@@ -395,7 +419,7 @@ def _with_values_query_part(model, values, conn, key_fds, upd_fds, default_fds=(
     )
 
     sel_sql = ', '.join(
-        '"%s"' % fd.prefixed_name for fd in chain(key_fds, upd_fds)
+        '"%s"' % fd.prefixed_name for fd in chain(key_fds, upd_fds) if fd.set_function.needs_value
     )
 
     return tpl % (sel_sql, values_sql, defaults_sql), values_update_params + list(defaults_params)
@@ -586,7 +610,7 @@ def bulk_update(model, values, key_fields='id', using=None, set_functions=None, 
         raise ValueError("using parameter must be existing database alias")
 
     key_fields = _validate_field_names(key_fields)
-    upd_fds, values = _validate_update_values(key_fields, values)
+    upd_fds, values = _validate_update_values(model, key_fields, values)
     ret_fds = _validate_returning(model, returning)
     where = _validate_where(model, where, using)
 
@@ -714,7 +738,7 @@ def bulk_create(model, values, using=None, set_functions=None, returning=None, b
     if using is not None and using not in connections:
         raise ValueError("using parameter must be None or existing database alias")
 
-    insert_fds, values = _validate_update_values(tuple(), values)
+    insert_fds, values = _validate_update_values(model, tuple(), values)
     ret_fds = _validate_returning(model, returning)
 
     if len(values) == 0:
@@ -930,7 +954,7 @@ def bulk_update_or_create(model, values, key_fields='id', using=None, set_functi
     for i, f in enumerate(key_fds):
         f.set_prefix('key', index=i)
 
-    upd_fds, values = _validate_update_values(key_fds, values)
+    upd_fds, values = _validate_update_values(model, key_fds, values)
     ret_fds = _validate_returning(model, returning)
 
     if len(values) == 0:

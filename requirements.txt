@@ -1,5 +1,5 @@
-Django (>=1.7)
+django>=1.7
+psycopg2-binary
 pytz
 six
 typing
-psycopg2
