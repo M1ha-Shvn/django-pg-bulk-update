@@ -546,6 +546,25 @@ Updating records one by one took 51,68 seconds.
 Updating records with bulk_update took 0.13 seconds.  
 You can write your own tests, based on test.test_performance and running it.
 
+# Development
+
+## Running tests
+
+Create a superuser named 'test' on your local Postgres instance:
+```
+CREATE ROLE test;
+ALTER ROLE test WITH SUPERUSER;
+ALTER ROLE test WITH LOGIN;
+ALTER ROLE test PASSWORD 'test';
+CREATE DATABASE test OWNER test;
+CREATE DATABASE test2 OWNER test;
+```
+
+Run tests:
+```
+python runtests.py
+```
+
 ## [django 2.2 bulk_update](https://docs.djangoproject.com/en/2.2/ref/models/querysets/#bulk-update) difference  
 Pros:  
 * bulk_update_or_create() method
