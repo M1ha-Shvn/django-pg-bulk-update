@@ -394,7 +394,7 @@ class TestSimple(TestCase):
 
         instance = AutoNowModel.objects.get()
         self.assertEqual(datetime(2019, 1, 1,  tzinfo=pytz.utc), instance.created)
-        self.assertEqual(instance.updated, date.today())
+        self.assertEqual(instance.updated, datetime.now(pytz.utc).date())
         self.assertEqual(datetime(2020, 1, 2, 0, 0, 0,  tzinfo=pytz.utc), instance.checked)
 
 
