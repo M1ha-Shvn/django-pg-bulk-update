@@ -8,11 +8,11 @@ from django_pg_bulk_update.clause_operators import InClauseOperator
 from django_pg_bulk_update.compatibility import jsonb_available, hstore_available, array_available
 from django_pg_bulk_update.query import bulk_update
 from django_pg_bulk_update.set_functions import ConcatSetFunction
-from tests.models import TestModel, RelationModel, UpperCaseModel, AutoNowModel
+from tests.models import TestModel, RelationModel, UpperCaseModel, AutoNowModel, TestModelWithSchema
 
 
 class TestInputFormats(TestCase):
-    fixtures = ['test_model']
+    fixtures = ['test_model', 'test_model_with_schema']
 
     def test_model(self):
         with self.assertRaises(TypeError):
@@ -44,6 +44,8 @@ class TestInputFormats(TestCase):
         self.assertEqual(1, bulk_update(TestModel, {(1,): {'name': 'abc'}}))
         self.assertEqual(1, bulk_update(TestModel, {(2, 'test2'): {'int_field': 2}}, key_fields=('id', 'name')))
         self.assertEqual(1, bulk_update(TestModel, {('test3',): {'int_field': 2}}, key_fields='name'))
+
+        self.assertEqual(1, bulk_update(TestModelWithSchema, [{'id': 1, 'name': 'abc'}]))
 
     def test_key_fields(self):
         values = [{
@@ -394,7 +396,7 @@ class TestSimple(TestCase):
 
         instance = AutoNowModel.objects.get()
         self.assertEqual(datetime(2019, 1, 1,  tzinfo=pytz.utc), instance.created)
-        self.assertEqual(instance.updated, date.today())
+        self.assertEqual(instance.updated, datetime.now(pytz.utc).date())
         self.assertEqual(datetime(2020, 1, 2, 0, 0, 0,  tzinfo=pytz.utc), instance.checked)
 
 

@@ -8,7 +8,7 @@ from django.utils.timezone import now
 from django_pg_bulk_update.compatibility import jsonb_available, array_available, hstore_available
 from django_pg_bulk_update.query import bulk_update_or_create
 from django_pg_bulk_update.set_functions import ConcatSetFunction
-from tests.models import TestModel, UniqueNotPrimary, UpperCaseModel, AutoNowModel
+from tests.models import TestModel, UniqueNotPrimary, UpperCaseModel, AutoNowModel, TestModelWithSchema
 
 
 class TestInputFormats(TestCase):
@@ -52,6 +52,9 @@ class TestInputFormats(TestCase):
         self.assertEqual(2, bulk_update_or_create(
             TestModel, {('test33',): {'int_field': 2}, ('test3',): {'int_field': 2}}, key_fields='name',
             key_is_unique=False))
+
+        self.assertEqual(2, bulk_update_or_create(
+            TestModelWithSchema, [{'id': 1, 'name': 'abc'}, {'id': 21, 'name': 'create'}]))
 
     def test_key_fields(self):
         values = [{
@@ -485,7 +488,7 @@ class TestSimple(TestCase):
         self.assertEqual(2, AutoNowModel.objects.all().count())
 
         for instance in AutoNowModel.objects.all():
-            self.assertEqual(instance.updated, date.today())
+            self.assertEqual(instance.updated, datetime.now(pytz.utc).date())
 
             if instance.pk <= 10:
                 print(instance.pk)

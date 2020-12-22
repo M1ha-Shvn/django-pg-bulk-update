@@ -471,7 +471,8 @@ def _bulk_update_query_part(model, conn, key_fds, upd_fds, where):
     set_sql = ', '.join(set_items)
 
     # Substitute query placeholders and concatenate with VALUES section
-    query = query % ('"%s"' % db_table, set_sql, where_sql)
+    quoted_table = _ensure_table_name_is_quoted(db_table)
+    query = query % (quoted_table, set_sql, where_sql)
     return query, set_params + where_params
 
 
@@ -627,6 +628,15 @@ def bulk_update(model, values, key_fields='id', using=None, set_functions=None, 
 
     return _concat_batched_result(batched_result, ret_fds)
 
+def _ensure_table_name_is_quoted(raw_table_name):
+    """
+    Adds double quotes to the given table name, unless it already starts and ends with double quotes.
+    """
+    if raw_table_name.startswith('"') and raw_table_name.endswith('"'):
+        return raw_table_name
+    else:
+        # Add double-quotes only if the table name is not already quoted
+        return '"%s"' % raw_table_name
 
 def _insert_query_part(model, conn, insert_fds, default_fds):
     # type: (Type[Model], TDatabase, Tuple[FieldDescriptor], Tuple[FieldDescriptor]) -> Tuple[str, List[Any]]
@@ -639,9 +649,11 @@ def _insert_query_part(model, conn, insert_fds, default_fds):
     :return: A tuple of sql and it's parameters
     """
     query = """
-        INSERT INTO "%s" (%s)
+        INSERT INTO %s (%s)
         SELECT %s FROM %s
     """
+
+    db_table = _ensure_table_name_is_quoted(model._meta.db_table)
 
     # Table we save data to
     db_table = model._meta.db_table

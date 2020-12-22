@@ -1,4 +1,5 @@
-from datetime import timedelta, date
+from datetime import timedelta, date, datetime
+import pytz
 from unittest import skipIf
 
 from django.test import TestCase
@@ -7,7 +8,7 @@ from django.utils.timezone import now
 from django_pg_bulk_update.compatibility import jsonb_available, hstore_available, array_available
 from django_pg_bulk_update.query import bulk_create
 from django_pg_bulk_update.set_functions import ConcatSetFunction
-from tests.models import TestModel, UpperCaseModel, AutoNowModel
+from tests.models import TestModel, UpperCaseModel, AutoNowModel, TestModelWithSchema
 
 
 class TestInputFormats(TestCase):
@@ -32,6 +33,8 @@ class TestInputFormats(TestCase):
 
         self.assertEqual(1, bulk_create(TestModel, [{'name': 'abc'}]))
         self.assertEqual(1, bulk_create(TestModel, [{'name': 'abc', 'int_field': 2}]))
+
+        self.assertEqual(1, bulk_create(TestModelWithSchema, [{'name': 'abc'}]))
 
     def test_using(self):
         values = [{
@@ -312,7 +315,7 @@ class TestSimple(TestCase):
         instance = AutoNowModel.objects.get(pk=11)
         self.assertGreaterEqual(instance.created, now() - timedelta(seconds=1))
         self.assertLessEqual(instance.created, now() + timedelta(seconds=1))
-        self.assertEqual(instance.updated, date.today())
+        self.assertEqual(instance.updated, datetime.now(pytz.utc).date())
         self.assertIsNone(instance.checked)
 
 
