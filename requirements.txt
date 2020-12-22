@@ -3,3 +3,4 @@ psycopg2-binary
 pytz
 six
 typing
+django-pg-returning
