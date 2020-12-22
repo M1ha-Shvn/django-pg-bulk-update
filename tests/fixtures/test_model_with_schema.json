@@ -1,0 +1,10 @@
+[
+  {
+    "model": "tests.TestModelWithSchema",
+    "pk": 1,
+    "fields": {
+      "name": "test1",
+      "int_field": 1
+    }
+  }
+]
