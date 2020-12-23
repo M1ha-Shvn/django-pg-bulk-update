@@ -1,0 +1,7 @@
+django>=1.7
+psycopg2-binary
+pytz
+six
+typing
+
+django-pg-returning
