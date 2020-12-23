@@ -2,7 +2,8 @@
 Django extension to update multiple table records with similar (but not equal) conditions in efficient way on PostgreSQL
 
 ## Requirements
-* Python 2.7 or Python 3.5+
+* Python 3.5+
+  Previous versions may also work, but haven't been tested  
 * django >= 1.8  
   Previous versions may also work, but haven't been tested.  
   django.postgres.contrib fields are also supported (available since django 1.8)
