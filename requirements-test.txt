@@ -4,4 +4,8 @@ pytz
 six
 typing
 
+# Not required, but should be tested
 django-pg-returning
+
+# Linter
+flake8
