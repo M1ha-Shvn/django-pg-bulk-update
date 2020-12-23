@@ -13,13 +13,13 @@ except ImportError:
 
 TFieldNames = Union[str, Iterable[str]]
 
-TOperator = Union[str, 'AbstractClauseOperator']
+TOperator = Union[str, 'AbstractClauseOperator']  # noqa: F821
 TOperatorsValid = Tuple['FieldDescriptor']
 
 TOperators = Union[Dict[str, TOperator], Iterable[TOperator]]
 TUpdateValuesValid = Dict[Tuple[Any], Dict[str, Any]]
 TUpdateValues = Union[Union[TUpdateValuesValid, Dict[Any, Dict[str, Any]]], Iterable[Dict[str, Any]]]
-TSetFunction = Union[str, 'AbstractSetFunction']
+TSetFunction = Union[str, 'AbstractSetFunction']  # noqa: F821
 TSetFunctions = Optional[Dict[str, TSetFunction]]
 TSetFunctionsValid = Tuple['FieldDescriptor']
 TDatabase = Union[DefaultConnectionProxy]
@@ -50,7 +50,7 @@ class FieldDescriptor(object):
 
     @property
     def set_function(self):
-        # type: () -> 'AbstractSetFunction'
+        # type: () -> 'AbstractSetFunction'  # noqa: F821
         """
         Returns set_function for this field descriptor.
         :return: AbstractSetFunction instance
@@ -78,7 +78,7 @@ class FieldDescriptor(object):
 
     @property
     def key_operator(self):
-        # type: () -> 'AbstractClauseOperator'
+        # type: () -> 'AbstractClauseOperator'  # noqa: F821
         """
         Returns operator to use in comparison
         :return: AbstractKeyOperator instance

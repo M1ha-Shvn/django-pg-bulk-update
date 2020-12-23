@@ -492,7 +492,7 @@ def _returning_query_part(model, conn, ret_fds):
 
 
 def _execute_update_query(model, conn, sql, params, ret_fds):
-    # type: (Type[Model], TDatabase, str, List[Any], Optional[Tuple[FieldDescriptor]]) -> Union[int, 'ReturningQuerySet']
+    # type: (Type[Model], TDatabase, str, List[Any], Optional[Tuple[FieldDescriptor]]) -> Union[int, 'ReturningQuerySet']  # noqa: F821
     """
     Does bulk update, skipping parameters validation.
     It is used for speed up in bulk_update_or_create, where parameters are already formatted.
@@ -515,7 +515,7 @@ def _execute_update_query(model, conn, sql, params, ret_fds):
 
 
 def _bulk_update_no_validation(model, values, conn, key_fds, upd_fds, ret_fds, where):
-    # type: (Type[Model], TUpdateValuesValid, TDatabase, Tuple[FieldDescriptor], Tuple[FieldDescriptor], Optional[Tuple[FieldDescriptor]], Tuple[str, tuple]) -> Union[int, 'ReturningQuerySet']
+    # type: (Type[Model], TUpdateValuesValid, TDatabase, Tuple[FieldDescriptor], Tuple[FieldDescriptor], Optional[Tuple[FieldDescriptor]], Tuple[str, tuple]) -> Union[int, 'ReturningQuerySet']    # noqa: F821
     """
     Does bulk update, skipping parameters validation.
     It is used for speed up in bulk_update_or_create, where parameters are already formatted.
@@ -545,7 +545,7 @@ def _bulk_update_no_validation(model, values, conn, key_fds, upd_fds, ret_fds, w
 
 
 def _concat_batched_result(batched_result, ret_fds):
-    # type: (List[Any], Optional[Tuple[FieldDescriptor]]) -> Union[int, 'ReturningQuerySet']
+    # type: (List[Any], Optional[Tuple[FieldDescriptor]]) -> Union[int, 'ReturningQuerySet']  # noqa: F821
     """
     Gets results of batched execution and format it to appropriate request answer
     :param batched_result: Batched result
@@ -565,7 +565,7 @@ def _concat_batched_result(batched_result, ret_fds):
 
 def bulk_update(model, values, key_fields='id', using=None, set_functions=None, key_fields_ops=(),
                 where=None, returning=None, batch_size=None, batch_delay=0):
-    # type: (Type[Model], TUpdateValues, TFieldNames, Optional[str], TSetFunctions, TOperators, Optional[WhereNode], Optional[TFieldNames], Optional[int], float) -> Union[int, 'ReturningQuerySet']
+    # type: (Type[Model], TUpdateValues, TFieldNames, Optional[str], TSetFunctions, TOperators, Optional[WhereNode], Optional[TFieldNames], Optional[int], float) -> Union[int, 'ReturningQuerySet']    # noqa: F821
     """
     Updates multiple records of a given model, finding them by key_fields.
 
@@ -676,7 +676,7 @@ def _insert_query_part(model, conn, insert_fds, default_fds):
 
 
 def _insert_no_validation(model, values, default_fds, insert_fds, ret_fds, using):
-    # type: (Type[Model], TUpdateValues, Tuple[FieldDescriptor], Tuple[FieldDescriptor], Optional[Tuple[FieldDescriptor]], Optional[str]) -> Union[int, 'ReturningQuerySet']
+    # type: (Type[Model], TUpdateValues, Tuple[FieldDescriptor], Tuple[FieldDescriptor], Optional[Tuple[FieldDescriptor]], Optional[str]) -> Union[int, 'ReturningQuerySet']  # noqa: F821
     """
     Creates a batch of records in database.
     Acts like native QuerySet.bulk_create() method, but uses library infrastructure and input formats
@@ -706,7 +706,7 @@ def _insert_no_validation(model, values, default_fds, insert_fds, ret_fds, using
 
 
 def bulk_create(model, values, using=None, set_functions=None, returning=None, batch_size=None, batch_delay=0):
-    # type: (Type[Model], TUpdateValues, Optional[str], TSetFunctions, Optional[TFieldNames], Optional[int], float) -> Union[int, 'ReturningQuerySet']
+    # type: (Type[Model], TUpdateValues, Optional[str], TSetFunctions, Optional[TFieldNames], Optional[int], float) -> Union[int, 'ReturningQuerySet']  # noqa: F821
     """
     Creates a batch of records in database.
     Acts like native QuerySet.bulk_create() method, but uses library infrastructure and input formats
@@ -870,7 +870,7 @@ def _insert_on_conflict_query_part(model, conn, key_fds, upd_fds, default_fds, u
 
 
 def _insert_on_conflict_no_validation(model, values, key_fds, upd_fds, ret_fds, using, update):
-    # type: (Type[Model], TUpdateValues, Tuple[FieldDescriptor], Tuple[FieldDescriptor], Optional[Tuple[FieldDescriptor]], Optional[str], bool) -> Union[int, 'ReturningQuerySet']
+    # type: (Type[Model], TUpdateValues, Tuple[FieldDescriptor], Tuple[FieldDescriptor], Optional[Tuple[FieldDescriptor]], Optional[str], bool) -> Union[int, 'ReturningQuerySet']  # noqa: F821
     """
     Searches for records, given in values by key_fields. If records are found, updates them from values.
     If not found - creates them from values. Note, that all fields without default value must be present in values.
@@ -903,7 +903,7 @@ def _insert_on_conflict_no_validation(model, values, key_fds, upd_fds, ret_fds, 
 
 def bulk_update_or_create(model, values, key_fields='id', using=None, set_functions=None, update=True,
                           key_is_unique=True, returning=None, batch_size=None, batch_delay=0):
-    # type: (Type[Model], TUpdateValues, TFieldNames, Optional[str], TSetFunctions, bool, bool, Optional[TFieldNames], Optional[int], float) -> Union[int, 'ReturningQuerySet']
+    # type: (Type[Model], TUpdateValues, TFieldNames, Optional[str], TSetFunctions, bool, bool, Optional[TFieldNames], Optional[int], float) -> Union[int, 'ReturningQuerySet']  # noqa: F821
     """
     Searches for records, given in values by key_fields. If records are found, updates them from values.
     If not found - creates them from values. Note, that all fields without default value must be present in values.

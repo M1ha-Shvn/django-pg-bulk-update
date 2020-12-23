@@ -37,7 +37,7 @@ class BulkUpdateMixin:
 
     def pg_bulk_update(self, values, key_fields='id', set_functions=None, key_fields_ops=(), returning=None,
                        batch_size=None, batch_delay=0):
-        # type: (TUpdateValues, TFieldNames, TSetFunctions, TOperators, Optional[Iterable[str]], Optional[int], float) -> Union[int, 'ReturningQuerySet']
+        # type: (TUpdateValues, TFieldNames, TSetFunctions, TOperators, Optional[Iterable[str]], Optional[int], float) -> Union[int, 'ReturningQuerySet']  # noqa: F821
         """
         Updates multiple records of a given model, finding them by key_fields.
 
@@ -116,7 +116,7 @@ class BulkUpdateMixin:
 
     def pg_bulk_update_or_create(self, values, key_fields='id', set_functions=None, update=True, key_is_unique=True,
                                  returning=None, batch_size=None, batch_delay=0):
-        # type: (TUpdateValues, TFieldNames, TSetFunctions, bool, bool, Optional[Iterable[str]], Optional[int], float) -> Union[int, 'ReturningQuerySet']
+        # type: (TUpdateValues, TFieldNames, TSetFunctions, bool, bool, Optional[Iterable[str]], Optional[int], float) -> Union[int, 'ReturningQuerySet']  # noqa: F821
         """
         Searches for records, given in values by key_fields. If records are found, updates them from values.
         If not found - creates them from values. Note, that all fields without default value must be present in values.
@@ -153,7 +153,7 @@ class BulkUpdateMixin:
                                      returning=returning, batch_size=batch_size, batch_delay=batch_delay)
 
     def pg_bulk_create(self, values, set_functions=None, returning=None, batch_size=None, batch_delay=0):
-        # type: (TUpdateValues, TSetFunctions, Optional[TFieldNames], Optional[int], float) -> Union[int, 'ReturningQuerySet']
+        # type: (TUpdateValues, TSetFunctions, Optional[TFieldNames], Optional[int], float) -> Union[int, 'ReturningQuerySet']  # noqa: F821
         """
         Creates a batch of records in database.
         Acts like native QuerySet.bulk_create() method, but uses library infrastructure and input formats
@@ -182,7 +182,7 @@ class BulkUpdateMixin:
 
     def bulk_update(self, values, key_fields='id', set_functions=None, key_fields_ops=(), returning=None,
                     batch_size=None, batch_delay=0):
-        # type: (TUpdateValues, TFieldNames, TSetFunctions, TOperators, Optional[Iterable[str]], Optional[int], float) -> Union[int, 'ReturningQuerySet']
+        # type: (TUpdateValues, TFieldNames, TSetFunctions, TOperators, Optional[Iterable[str]], Optional[int], float) -> Union[int, 'ReturningQuerySet']  # noqa: F821
         """
         Updates multiple records of a given model, finding them by key_fields.
 
@@ -253,7 +253,7 @@ class BulkUpdateMixin:
 
     def bulk_update_or_create(self, values, key_fields='id', set_functions=None, update=True, key_is_unique=True,
                               returning=None, batch_size=None, batch_delay=0):
-        # type: (TUpdateValues, TFieldNames, TSetFunctions, bool, bool, Optional[Iterable[str]], Optional[int], float) -> Union[int, 'ReturningQuerySet']
+        # type: (TUpdateValues, TFieldNames, TSetFunctions, bool, bool, Optional[Iterable[str]], Optional[int], float) -> Union[int, 'ReturningQuerySet']  # noqa: F821
         """
         Searches for records, given in values by key_fields. If records are found, updates them from values.
         If not found - creates them from values. Note, that all fields without default value must be present in values.
