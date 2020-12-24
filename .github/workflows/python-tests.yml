@@ -11,48 +11,48 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [3.5, 3.6, 3.7, 3.8, 3.9]
-        postgres-version: [9.4, 9.5, 9.6, 10, 11, 12]
-        django-version: [1.8, 1.9, 1.10, 1.11, 2.0, 2.1, 2.2, 3.0, 3.1]
+        python-version: ["3.5", "3.6", "3.7", "3.8", "3.9"]
+        postgres-version: ["9.4", "9.5", "9.6", "10", "11", "12"]
+        django-version: ["1.8", "1.9", "1.10", "1.11", "2.0", "2.1", "2.2", "3.0", "3.1"]
         exclude:
         # Django 3.0+ doesn't support python 3.5
-        - python-version: 3.5
-          django-version: 3.0
-        - python-version: 3.5
-          django-version: 3.1
+        - python-version: "3.5"
+          django-version: "3.0"
+        - python-version: "3.5"
+          django-version: "3.1"
           
         # Django 3.0+ doesn't support PostgreSQL 9.4
-        - django-version: 3.0
-          postgres-version: 9.4
-        - django-version: 3.1
-          postgres-version: 9.4
+        - django-version: "3.0"
+          postgres-version: "9.4"
+        - django-version: "3.1"
+          postgres-version: "9.4"
           
         # python 3.6+ has deprecated issue with django before 1.11
         # https://stackoverflow.com/questions/41343263/provide-classcell-example-for-python-3-6-metaclass\
-        - python-version: 3.6
-          django-version: 1.8
-        - python-version: 3.6
-          django-version: 1.9
-        - python-version: 3.6
-          django-version: 1.10
-        - python-version: 3.7
-          django-version: 1.8
-        - python-version: 3.7
-          django-version: 1.9
-        - python-version: 3.7
-          django-version: 1.10
-        - python-version: 3.8
-          django-version: 1.8
-        - python-version: 3.8
-          django-version: 1.9
-        - python-version: 3.8
-          django-version: 1.10
-        - python-version: 3.9
-          django-version: 1.8
-        - python-version: 3.9
-          django-version: 1.9
-        - python-version: 3.9
-          django-version: 1.10
+        - python-version: "3.6"
+          django-version: "1.8"
+        - python-version: "3.6"
+          django-version: "1.9"
+        - python-version: "3.6"
+          django-version: "1.10"
+        - python-version: "3.7"
+          django-version: "1.8"
+        - python-version: "3.7"
+          django-version: "1.9"
+        - python-version: "3.7"
+          django-version: "1.10"
+        - python-version: "3.8"
+          django-version: "1.8"
+        - python-version: "3.8"
+          django-version: "1.9"
+        - python-version: "3.8"
+          django-version: "1.10"
+        - python-version: "3.9"
+          django-version: "1.8"
+        - python-version: "3.9"
+          django-version: "1.9"
+        - python-version: "3.9"
+          django-version: "1.10"
     
     services:
       postgres:
