@@ -1,0 +1,11 @@
+django>=1.7
+psycopg2-binary
+pytz
+six
+typing
+
+# Not required, but should be tested
+django-pg-returning
+
+# Linter
+flake8
