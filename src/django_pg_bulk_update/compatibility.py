@@ -86,7 +86,7 @@ def returning_available(raise_exception=False):
     :return: boolean
     """
     try:
-        from django_pg_returning import ReturningQuerySet
+        from django_pg_returning import ReturningQuerySet  # noqa: F401
         return True
     except ImportError:
         if raise_exception:
@@ -201,9 +201,8 @@ class Postgres94MergeJSONBMigration(migrations.RunSQL):
                UNION SELECT jsonb_object_keys(jsonb2) AS KEY,
                  2::INT AS jsb,
                  jsonb2 -> jsonb_object_keys(jsonb2) AS value ) AS t1
-            );
-                         
-            RETURN COALESCE(result, '{}'::JSONB);
+           );
+           RETURN COALESCE(result, '{}'::JSONB);
         END;
         $$ LANGUAGE plpgsql;
     """

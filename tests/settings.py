@@ -38,7 +38,7 @@ LOGGING = {
 }
 
 # DATABASES should be defined before this call
-from django_pg_bulk_update.compatibility import jsonb_available, array_available, hstore_available
+from django_pg_bulk_update.compatibility import jsonb_available, array_available, hstore_available  # noqa: W292
 
 INSTALLED_APPS = []
 USE_TZ = True

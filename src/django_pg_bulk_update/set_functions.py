@@ -300,7 +300,7 @@ class ArrayRemoveSetFunction(AbstractSetFunction):
             field.base_field.model = field.model
 
         return format_field_value(field.base_field, val, connection, cast_type=cast_type)
-    
+
     def modify_create_params(self, model, key, kwargs):
         if kwargs.get(key):
             kwargs[key] = model._meta.get_field(key).get_default()

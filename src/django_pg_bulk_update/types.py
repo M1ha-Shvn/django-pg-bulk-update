@@ -4,12 +4,6 @@ import six
 from django.db import DefaultConnectionProxy
 from django.db.models import Model, Field
 
-try:
-    from django.db.backends.base.base import BaseDatabaseWrapper
-except ImportError:
-    # Django 1.7
-    from django.db.backends import BaseDatabaseWrapper
-
 
 TFieldNames = Union[str, Iterable[str]]
 
