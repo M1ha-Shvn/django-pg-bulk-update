@@ -4,11 +4,6 @@ from __future__ import unicode_literals
 
 from django.db import migrations, models
 
-test_model_fields = [
-    ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-    ('int_field', models.IntegerField(null=True, blank=True)),
-    ('name', models.CharField(max_length=50, null=True, blank=True))
-]
 
 class Migration(migrations.Migration):
     dependencies = [
@@ -18,11 +13,15 @@ class Migration(migrations.Migration):
     operations = [
         migrations.RunSQL(
             "CREATE SCHEMA IF NOT EXISTS appschema",
-            "DROP SCHEMA IF EXISTS appschema"
+            reverse_sql="DROP SCHEMA IF EXISTS appschema"
         ),
         migrations.CreateModel(
             name='TestModelWithSchema',
-            fields=test_model_fields,
+            fields=[
+                ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
+                ('int_field', models.IntegerField(null=True, blank=True)),
+                ('name', models.CharField(max_length=50, null=True, blank=True))
+            ],
             options={
                 'abstract': False,
                 'db_table': '"appschema"."testmodel"'

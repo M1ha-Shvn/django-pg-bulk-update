@@ -53,9 +53,6 @@ class TestInputFormats(TestCase):
             TestModel, {('test33',): {'int_field': 2}, ('test3',): {'int_field': 2}}, key_fields='name',
             key_is_unique=False))
 
-        self.assertEqual(2, bulk_update_or_create(
-            TestModelWithSchema, [{'id': 1, 'name': 'abc'}, {'id': 21, 'name': 'create'}]))
-
     def test_key_fields(self):
         values = [{
             'id': 1,
@@ -496,6 +493,11 @@ class TestSimple(TestCase):
             else:
                 self.assertGreaterEqual(instance.created, now() - timedelta(seconds=1))
                 self.assertLessEqual(instance.created, now() + timedelta(seconds=1))
+
+    def test_quoted_table_name(self):
+        # Test for https://github.com/M1ha-Shvn/django-pg-bulk-update/issues/63
+        self.assertEqual(2, bulk_update_or_create(
+            TestModelWithSchema, [{'id': 1, 'name': 'abc'}, {'id': 21, 'name': 'create'}]))
 
 
 class TestReadmeExample(TestCase):

@@ -34,8 +34,6 @@ class TestInputFormats(TestCase):
         self.assertEqual(1, bulk_create(TestModel, [{'name': 'abc'}]))
         self.assertEqual(1, bulk_create(TestModel, [{'name': 'abc', 'int_field': 2}]))
 
-        self.assertEqual(1, bulk_create(TestModelWithSchema, [{'name': 'abc'}]))
-
     def test_using(self):
         values = [{
             'name': 'bulk_update_1'
@@ -317,6 +315,10 @@ class TestSimple(TestCase):
         self.assertLessEqual(instance.created, now() + timedelta(seconds=1))
         self.assertEqual(instance.updated, datetime.now(pytz.utc).date())
         self.assertIsNone(instance.checked)
+
+    def test_quoted_table_name(self):
+        # Test for https://github.com/M1ha-Shvn/django-pg-bulk-update/issues/63
+        self.assertEqual(1, bulk_create(TestModelWithSchema, [{'name': 'abc'}]))
 
 
 class TestReadmeExample(TestCase):
