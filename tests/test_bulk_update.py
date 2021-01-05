@@ -3,12 +3,12 @@ from unittest import skipIf
 
 import pytz
 from django.test import TestCase
-from django.utils.timezone import now
 
 from django_pg_bulk_update.clause_operators import InClauseOperator
 from django_pg_bulk_update.compatibility import jsonb_available, hstore_available, array_available
 from django_pg_bulk_update.query import bulk_update
 from django_pg_bulk_update.set_functions import ConcatSetFunction
+from tests.compatibility import get_auto_now_date
 from tests.models import TestModel, RelationModel, UpperCaseModel, AutoNowModel, TestModelWithSchema
 
 
@@ -395,8 +395,8 @@ class TestSimple(TestCase):
 
         instance = AutoNowModel.objects.get()
         self.assertEqual(datetime(2019, 1, 1,  tzinfo=pytz.utc), instance.created)
-        self.assertEqual(instance.updated, now().date())
         self.assertEqual(datetime(2020, 1, 2, 0, 0, 0,  tzinfo=pytz.utc), instance.checked)
+        self.assertEqual(instance.updated, get_auto_now_date())
 
     def test_quoted_table_name(self):
         # Test for https://github.com/M1ha-Shvn/django-pg-bulk-update/issues/63

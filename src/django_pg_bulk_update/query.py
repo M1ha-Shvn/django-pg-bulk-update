@@ -471,7 +471,7 @@ def _bulk_update_query_part(model, conn, key_fds, upd_fds, where):
     set_sql = ', '.join(set_items)
 
     # Substitute query placeholders and concatenate with VALUES section
-    quoted_table = _ensure_table_name_is_quoted(db_table)
+    quoted_table = conn.ops.quote_name(db_table)
     query = query % (quoted_table, set_sql, where_sql)
     return query, set_params + where_params
 
@@ -628,15 +628,6 @@ def bulk_update(model, values, key_fields='id', using=None, set_functions=None, 
 
     return _concat_batched_result(batched_result, ret_fds)
 
-def _ensure_table_name_is_quoted(raw_table_name):
-    """
-    Adds double quotes to the given table name, unless it already starts and ends with double quotes.
-    """
-    if raw_table_name.startswith('"') and raw_table_name.endswith('"'):
-        return raw_table_name
-    else:
-        # Add double-quotes only if the table name is not already quoted
-        return '"%s"' % raw_table_name
 
 def _insert_query_part(model, conn, insert_fds, default_fds):
     # type: (Type[Model], TDatabase, Tuple[FieldDescriptor], Tuple[FieldDescriptor]) -> Tuple[str, List[Any]]
@@ -653,10 +644,8 @@ def _insert_query_part(model, conn, insert_fds, default_fds):
         SELECT %s FROM %s
     """
 
-    db_table = _ensure_table_name_is_quoted(model._meta.db_table)
-
     # Table we save data to
-    db_table = model._meta.db_table
+    db_table = conn.ops.quote_name(model._meta.db_table)
     from_table = '"vals" CROSS JOIN "default_vals"' if default_fds else '"vals"'
 
     # Columns to insert to table
@@ -819,6 +808,8 @@ def _bulk_update_or_create_no_validation(model, values, key_fds, upd_fds, ret_fd
         update_result = _bulk_update_no_validation(model, update_items, conn, key_fds, upd_fds, ret_fds, ('', tuple()))
 
         # Create absent records
+        # auto_now and auto_now_add don't work in bulk_create, as they are set up in pre_save
+
         created_items = model.objects.db_manager(using).bulk_create(create_items)
 
         if ret_fds is None:
