@@ -37,6 +37,24 @@ if jsonb_available():
 TestModel = type('TestModel', (models.Model,), model_attrs)
 
 
+class MetaWithSchema:
+    db_table = '"appschema"."testmodel"'
+    unique_together = ['id', 'name']
+
+
+class TestModelWithSchema(models.Model):
+    """
+    Test model for https://github.com/M1ha-Shvn/django-pg-bulk-update/issues/63
+    """
+    class Meta:
+        db_table = '"appschema"."testmodel"'
+        unique_together = ['id', 'name']
+
+    name = models.CharField(max_length=50, null=True, blank=True, default='')
+    int_field = models.IntegerField(null=True, blank=True)
+    objects = BulkUpdateManager()
+
+
 class UpperCaseModel(models.Model):
     """
     Test model for https://github.com/M1hacka/django-pg-bulk-update/issues/46

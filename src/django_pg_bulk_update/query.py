@@ -471,7 +471,8 @@ def _bulk_update_query_part(model, conn, key_fds, upd_fds, where):
     set_sql = ', '.join(set_items)
 
     # Substitute query placeholders and concatenate with VALUES section
-    query = query % ('"%s"' % db_table, set_sql, where_sql)
+    quoted_table = conn.ops.quote_name(db_table)
+    query = query % (quoted_table, set_sql, where_sql)
     return query, set_params + where_params
 
 
@@ -639,12 +640,12 @@ def _insert_query_part(model, conn, insert_fds, default_fds):
     :return: A tuple of sql and it's parameters
     """
     query = """
-        INSERT INTO "%s" (%s)
+        INSERT INTO %s (%s)
         SELECT %s FROM %s
     """
 
     # Table we save data to
-    db_table = model._meta.db_table
+    db_table = conn.ops.quote_name(model._meta.db_table)
     from_table = '"vals" CROSS JOIN "default_vals"' if default_fds else '"vals"'
 
     # Columns to insert to table
@@ -807,6 +808,8 @@ def _bulk_update_or_create_no_validation(model, values, key_fds, upd_fds, ret_fd
         update_result = _bulk_update_no_validation(model, update_items, conn, key_fds, upd_fds, ret_fds, ('', tuple()))
 
         # Create absent records
+        # auto_now and auto_now_add don't work in bulk_create, as they are set up in pre_save
+
         created_items = model.objects.db_manager(using).bulk_create(create_items)
 
         if ret_fds is None:

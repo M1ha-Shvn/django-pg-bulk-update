@@ -8,7 +8,8 @@ from django.utils.timezone import now
 from django_pg_bulk_update.compatibility import jsonb_available, array_available, hstore_available
 from django_pg_bulk_update.query import bulk_update_or_create
 from django_pg_bulk_update.set_functions import ConcatSetFunction
-from tests.models import TestModel, UniqueNotPrimary, UpperCaseModel, AutoNowModel
+from tests.compatibility import get_auto_now_date
+from tests.models import TestModel, UniqueNotPrimary, UpperCaseModel, AutoNowModel, TestModelWithSchema
 
 
 class TestInputFormats(TestCase):
@@ -485,14 +486,18 @@ class TestSimple(TestCase):
         self.assertEqual(2, AutoNowModel.objects.all().count())
 
         for instance in AutoNowModel.objects.all():
-            self.assertEqual(instance.updated, date.today())
+            self.assertEqual(instance.updated, get_auto_now_date())
 
             if instance.pk <= 10:
-                print(instance.pk)
                 self.assertEqual(datetime(2019, 1, 1, 0, 0, 0, tzinfo=pytz.utc), instance.created)
             else:
                 self.assertGreaterEqual(instance.created, now() - timedelta(seconds=1))
                 self.assertLessEqual(instance.created, now() + timedelta(seconds=1))
+
+    def test_quoted_table_name(self):
+        # Test for https://github.com/M1ha-Shvn/django-pg-bulk-update/issues/63
+        self.assertEqual(2, bulk_update_or_create(
+            TestModelWithSchema, [{'id': 1, 'name': 'abc'}, {'id': 21, 'name': 'create'}]))
 
 
 class TestReadmeExample(TestCase):

@@ -8,7 +8,8 @@ from django_pg_bulk_update.clause_operators import InClauseOperator
 from django_pg_bulk_update.compatibility import jsonb_available, hstore_available, array_available
 from django_pg_bulk_update.query import bulk_update
 from django_pg_bulk_update.set_functions import ConcatSetFunction
-from tests.models import TestModel, RelationModel, UpperCaseModel, AutoNowModel
+from tests.compatibility import get_auto_now_date
+from tests.models import TestModel, RelationModel, UpperCaseModel, AutoNowModel, TestModelWithSchema
 
 
 class TestInputFormats(TestCase):
@@ -145,7 +146,7 @@ class TestInputFormats(TestCase):
 
 
 class TestSimple(TestCase):
-    fixtures = ['test_model', 'm2m_relation', 'test_upper_case_model', 'auto_now_model']
+    fixtures = ['test_model', 'm2m_relation', 'test_upper_case_model', 'auto_now_model', 'test_model_with_schema']
     multi_db = True
     databases = ['default', 'secondary']
 
@@ -394,8 +395,12 @@ class TestSimple(TestCase):
 
         instance = AutoNowModel.objects.get()
         self.assertEqual(datetime(2019, 1, 1,  tzinfo=pytz.utc), instance.created)
-        self.assertEqual(instance.updated, date.today())
         self.assertEqual(datetime(2020, 1, 2, 0, 0, 0,  tzinfo=pytz.utc), instance.checked)
+        self.assertEqual(instance.updated, get_auto_now_date())
+
+    def test_quoted_table_name(self):
+        # Test for https://github.com/M1ha-Shvn/django-pg-bulk-update/issues/63
+        self.assertEqual(1, bulk_update(TestModelWithSchema, [{'id': 1, 'name': 'abc'}]))
 
 
 class TestReadmeExample(TestCase):
