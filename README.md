@@ -551,6 +551,8 @@ You can write your own tests, based on test.test_performance and running it.
 
 ## Running tests
 
+Install requirements using `pip install -U -r requirements-test.txt`
+
 Create a superuser named 'test' on your local Postgres instance:
 ```
 CREATE ROLE test;
