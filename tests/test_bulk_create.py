@@ -313,7 +313,7 @@ class TestSimple(TestCase):
         instance = AutoNowModel.objects.get(pk=11)
         self.assertGreaterEqual(instance.created, now() - timedelta(seconds=1))
         self.assertLessEqual(instance.created, now() + timedelta(seconds=1))
-        self.assertEqual(instance.updated, datetime.now(pytz.utc).date())
+        self.assertEqual(instance.updated, now().date())
         self.assertIsNone(instance.checked)
 
     def test_quoted_table_name(self):

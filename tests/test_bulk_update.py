@@ -3,6 +3,7 @@ from unittest import skipIf
 
 import pytz
 from django.test import TestCase
+from django.utils.timezone import now
 
 from django_pg_bulk_update.clause_operators import InClauseOperator
 from django_pg_bulk_update.compatibility import jsonb_available, hstore_available, array_available
@@ -394,7 +395,7 @@ class TestSimple(TestCase):
 
         instance = AutoNowModel.objects.get()
         self.assertEqual(datetime(2019, 1, 1,  tzinfo=pytz.utc), instance.created)
-        self.assertEqual(instance.updated, datetime.now(pytz.utc).date())
+        self.assertEqual(instance.updated, now().date())
         self.assertEqual(datetime(2020, 1, 2, 0, 0, 0,  tzinfo=pytz.utc), instance.checked)
 
     def test_quoted_table_name(self):

@@ -485,7 +485,7 @@ class TestSimple(TestCase):
         self.assertEqual(2, AutoNowModel.objects.all().count())
 
         for instance in AutoNowModel.objects.all():
-            self.assertEqual(instance.updated, datetime.now(pytz.utc).date())
+            self.assertEqual(instance.updated, now().date())
 
             if instance.pk <= 10:
                 print(instance.pk)
