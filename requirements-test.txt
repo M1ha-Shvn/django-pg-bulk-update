@@ -2,7 +2,7 @@ django>=1.7
 psycopg2-binary
 pytz
 six
-typing
+typing; python_version < '3.5'
 
 # Not required, but should be tested
 django-pg-returning
