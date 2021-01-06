@@ -10,7 +10,7 @@ Django extension to update multiple table records with similar (but not equal) c
   django.postgres.contrib.JSONField is supported since django 1.9  
 * pytz
 * six
-* typing
+* typing for python before 3.5
 * psycopg2
 * PostgreSQL 9.4+   
   Previous versions may also work, but haven't been tested.  
