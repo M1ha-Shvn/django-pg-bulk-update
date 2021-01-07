@@ -14,7 +14,7 @@ from .types import TDatabase
 
 
 # six.string_types replacement in order to remove dependency
-string_types = (str,) if sys.version_info[0] == 3 else (str, unicode)
+string_types = (str,) if sys.version_info[0] == 3 else (str, unicode)  # noqa F821
 
 
 # pytz.utc timezone in order to remove dependency
