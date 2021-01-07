@@ -1,4 +1,4 @@
-from datetime import timedelta, date
+from datetime import timedelta
 from unittest import skipIf
 
 from django.test import TestCase
