@@ -1,11 +1,10 @@
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta
 from unittest import skipIf
 
-import pytz
 from django.test import TestCase
 from django.utils.timezone import now
 
-from django_pg_bulk_update.compatibility import jsonb_available, array_available, hstore_available
+from django_pg_bulk_update.compatibility import jsonb_available, array_available, hstore_available, tz_utc
 from django_pg_bulk_update.query import bulk_update_or_create
 from django_pg_bulk_update.set_functions import ConcatSetFunction
 from tests.compatibility import get_auto_now_date
@@ -478,7 +477,7 @@ class TestSimple(TestCase):
             'checked': None
         }, {
             'id': 11,
-            'checked': datetime(2020, 1, 2, 0, 0, 0, tzinfo=pytz.utc)
+            'checked': datetime(2020, 1, 2, 0, 0, 0, tzinfo=tz_utc)
         }])
         self.assertEqual(2, res)
 
@@ -489,7 +488,7 @@ class TestSimple(TestCase):
             self.assertEqual(instance.updated, get_auto_now_date())
 
             if instance.pk <= 10:
-                self.assertEqual(datetime(2019, 1, 1, 0, 0, 0, tzinfo=pytz.utc), instance.created)
+                self.assertEqual(datetime(2019, 1, 1, 0, 0, 0, tzinfo=tz_utc), instance.created)
             else:
                 self.assertGreaterEqual(instance.created, now() - timedelta(seconds=1))
                 self.assertLessEqual(instance.created, now() + timedelta(seconds=1))

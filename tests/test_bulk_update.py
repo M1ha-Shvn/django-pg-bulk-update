@@ -1,11 +1,10 @@
-from datetime import datetime, date
+from datetime import datetime
 from unittest import skipIf
 
-import pytz
 from django.test import TestCase
 
 from django_pg_bulk_update.clause_operators import InClauseOperator
-from django_pg_bulk_update.compatibility import jsonb_available, hstore_available, array_available
+from django_pg_bulk_update.compatibility import jsonb_available, hstore_available, array_available, tz_utc
 from django_pg_bulk_update.query import bulk_update
 from django_pg_bulk_update.set_functions import ConcatSetFunction
 from tests.compatibility import get_auto_now_date
@@ -387,15 +386,15 @@ class TestSimple(TestCase):
     def test_auto_now(self):
         res = bulk_update(AutoNowModel, [{
             'id': 1,
-            'checked': datetime(2020, 1, 2, 0, 0, 0, tzinfo=pytz.utc)
+            'checked': datetime(2020, 1, 2, 0, 0, 0, tzinfo=tz_utc)
         }])
         self.assertEqual(1, res)
 
         self.assertEqual(1, AutoNowModel.objects.all().count())
 
         instance = AutoNowModel.objects.get()
-        self.assertEqual(datetime(2019, 1, 1,  tzinfo=pytz.utc), instance.created)
-        self.assertEqual(datetime(2020, 1, 2, 0, 0, 0,  tzinfo=pytz.utc), instance.checked)
+        self.assertEqual(datetime(2019, 1, 1,  tzinfo=tz_utc), instance.created)
+        self.assertEqual(datetime(2020, 1, 2, 0, 0, 0,  tzinfo=tz_utc), instance.checked)
         self.assertEqual(instance.updated, get_auto_now_date())
 
     def test_quoted_table_name(self):

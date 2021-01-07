@@ -9,13 +9,12 @@ from itertools import chain
 from logging import getLogger
 from typing import Any, Type, Iterable as TIterable, Union, Optional, List, Tuple
 
-import six
 from django.db import transaction, connection, connections
 from django.db.models import Model, Q, AutoField, Field
 from django.db.models.sql import UpdateQuery
 from django.db.models.sql.where import WhereNode
 
-from .compatibility import get_postgres_version, get_model_fields, returning_available
+from .compatibility import get_postgres_version, get_model_fields, returning_available, string_types
 from .set_functions import AbstractSetFunction, NowSetFunction
 from .types import TOperators, TFieldNames, TUpdateValues, TSetFunctions, TOperatorsValid, TUpdateValuesValid, \
     TSetFunctionsValid, TDatabase, FieldDescriptor, AbstractFieldFormatter
@@ -38,12 +37,12 @@ def _validate_field_names(field_names, param_name='key_fields'):
     """
     error_message = "'%s' parameter must be iterable of strings" % param_name
 
-    if isinstance(field_names, six.string_types):
+    if isinstance(field_names, string_types):
         return FieldDescriptor(field_names),  # comma is not a bug, I need tuple returned
     elif isinstance(field_names, Iterable):
         field_names = list(field_names)
         for name in field_names:
-            if not isinstance(name, six.string_types):
+            if not isinstance(name, string_types):
                 raise TypeError(error_message)
         return tuple(FieldDescriptor(name) for name in field_names)
     else:
@@ -167,7 +166,7 @@ def _validate_update_values(model, key_fds, values):
             for fd in key_fds:
                 if isinstance(item[fd.name], dict):
                     raise TypeError("Dict is currently not supported as key field")
-                elif isinstance(item[fd.name], Iterable) and not isinstance(item[fd.name], six.string_types):
+                elif isinstance(item[fd.name], Iterable) and not isinstance(item[fd.name], string_types):
                     upd_key_values.append(tuple(item[fd.name]))
                 else:
                     upd_key_values.append(item[fd.name])
@@ -214,10 +213,10 @@ def _validate_set_functions(model, fds, functions):
         raise TypeError("'set_functions' must be a dict instance")
 
     for k, v in functions.items():
-        if not isinstance(k, six.string_types):
+        if not isinstance(k, string_types):
             raise ValueError("'set_functions' keys must be strings")
 
-        if not isinstance(v, (six.string_types, AbstractSetFunction)):
+        if not isinstance(v, (string_types, AbstractSetFunction)):
             raise ValueError("'set_functions' values must be string or AbstractSetFunction instance")
 
     for f in fds:
@@ -605,7 +604,7 @@ def bulk_update(model, values, key_fields='id', using=None, set_functions=None, 
         raise TypeError("model must be django.db.models.Model subclass")
     if not issubclass(model, Model):
         raise TypeError("model must be django.db.models.Model subclass")
-    if using is not None and not isinstance(using, six.string_types):
+    if using is not None and not isinstance(using, string_types):
         raise TypeError("using parameter must be None or string")
     if using and using not in connections:
         raise ValueError("using parameter must be existing database alias")
@@ -734,7 +733,7 @@ def bulk_create(model, values, using=None, set_functions=None, returning=None, b
         raise TypeError("model must be django.db.models.Model subclass")
     if not issubclass(model, Model):
         raise TypeError("model must be django.db.models.Model subclass")
-    if using is not None and not isinstance(using, six.string_types):
+    if using is not None and not isinstance(using, string_types):
         raise TypeError("using parameter must be None or existing database alias")
     if using is not None and using not in connections:
         raise ValueError("using parameter must be None or existing database alias")
@@ -942,7 +941,7 @@ def bulk_update_or_create(model, values, key_fields='id', using=None, set_functi
         raise TypeError("model must be django.db.models.Model subclass")
     if not issubclass(model, Model):
         raise TypeError("model must be django.db.models.Model subclass")
-    if using is not None and not isinstance(using, six.string_types):
+    if using is not None and not isinstance(using, string_types):
         raise TypeError("using parameter must be None or existing database alias")
     if using is not None and using not in connections:
         raise ValueError("using parameter must be None or existing database alias")

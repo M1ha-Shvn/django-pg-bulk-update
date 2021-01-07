@@ -1,5 +1,4 @@
 django>=1.7
 psycopg2-binary
-pytz
-six
-typing
+pytz; python_version < '3.3'
+typing; python_version < '3.5'

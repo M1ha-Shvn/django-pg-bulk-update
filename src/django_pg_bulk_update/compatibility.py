@@ -13,6 +13,20 @@ from django.db.models import Model, Field, BigIntegerField, IntegerField
 from .types import TDatabase
 
 
+# six.string_types replacement in order to remove dependency
+string_types = (str,) if sys.version_info[0] == 3 else (str, unicode)  # noqa F821
+
+
+# pytz.utc timezone in order to remove dependency
+try:
+    from datetime import timezone
+    tz_utc = timezone.utc
+except ImportError:
+    # For python before 3.3
+    import pytz
+    tz_utc = pytz.utc
+
+
 def zip_longest(*args, **kwargs):
     """
     https://docs.python.org/3.5/library/itertools.html#itertools.zip_longest

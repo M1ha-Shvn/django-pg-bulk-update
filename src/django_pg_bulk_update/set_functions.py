@@ -4,18 +4,17 @@ This file contains classes, describing functions which set values to fields.
 import datetime
 from typing import Type, Optional, Any, Tuple, Dict
 
-import pytz
 from django.db.models import Field, Model
 
 from .compatibility import get_postgres_version, jsonb_available, Postgres94MergeJSONBMigration, hstore_serialize, \
-    hstore_available, import_pg_field_or_dummy
+    hstore_available, import_pg_field_or_dummy, tz_utc
 from .types import TDatabase, AbstractFieldFormatter
 from .utils import get_subclasses, format_field_value
 
 # When doing increment operations, we need to replace NULL values with something
 # This dictionary contains field defaults by it's class name.
 # I don't use classes as keys not to import them here
-base_datetime = datetime.datetime(1970, 1, 1, 0, 0, 0, tzinfo=pytz.utc)
+base_datetime = datetime.datetime(1970, 1, 1, 0, 0, 0, tzinfo=tz_utc)
 NULL_DEFAULTS = {
     # Standard django types
     'IntegerField': 0,
