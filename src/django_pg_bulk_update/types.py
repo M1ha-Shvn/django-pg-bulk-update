@@ -1,9 +1,7 @@
 from typing import Iterable, Union, Dict, Tuple, Any, Optional, Type
 
-import six
 from django.db import DefaultConnectionProxy
 from django.db.models import Model, Field
-
 
 TFieldNames = Union[str, Iterable[str]]
 
@@ -59,11 +57,12 @@ class FieldDescriptor(object):
         :param val: Set function name or instance. Defaults to EqualSetFunction() if None is passed
         :return:
         """
+        from .compatibility import string_types
         from .set_functions import EqualSetFunction, AbstractSetFunction
 
         if val is None:
             self._set_function = EqualSetFunction()
-        elif isinstance(val, six.string_types):
+        elif isinstance(val, string_types):
             self._set_function = AbstractSetFunction.get_function_by_name(val)()
         elif isinstance(val, AbstractSetFunction):
             self._set_function = val
@@ -89,9 +88,11 @@ class FieldDescriptor(object):
         :return: None
         """
         from .clause_operators import EqualClauseOperator, AbstractClauseOperator
+        from .compatibility import string_types
+
         if val is None:
             self._key_operator = EqualClauseOperator()
-        elif isinstance(val, six.string_types):
+        elif isinstance(val, string_types):
             self._key_operator = AbstractClauseOperator.get_operator_by_name(val)()
         elif isinstance(val, AbstractClauseOperator):
             self._key_operator = val

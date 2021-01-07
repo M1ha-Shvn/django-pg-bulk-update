@@ -5,7 +5,7 @@ from django.utils.timezone import now
 from django_pg_bulk_update.compatibility import get_postgres_version
 
 
-def get_auto_now_date(key_is_unique: bool = True):  # type: () -> date
+def get_auto_now_date(key_is_unique=True):  # type: (bool) -> date
     """
     Django generates auto_now for DateField as datetime.date.today(),
        not looking at django selected timezone.
