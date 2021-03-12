@@ -1,3 +1,5 @@
+[![Python unit tests](https://github.com/M1ha-Shvn/django-pg-bulk-update/actions/workflows/python-tests.yml/badge.svg)](https://github.com/M1ha-Shvn/django-pg-bulk-update/actions/workflows/python-tests.yml)  [![Upload Python Package](https://github.com/M1ha-Shvn/django-pg-bulk-update/actions/workflows/python-publish.yml/badge.svg)](https://github.com/M1ha-Shvn/django-pg-bulk-update/actions/workflows/python-publish.yml) [![Downloads](https://pepy.tech/badge/django-pg-bulk-update/month)](https://pepy.tech/project/django-pg-bulk-update)
+
 # django-pg-bulk-update
 Django extension to update multiple table records with similar (but not equal) conditions in efficient way on PostgreSQL
 
