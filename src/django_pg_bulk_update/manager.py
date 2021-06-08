@@ -45,7 +45,7 @@ class BulkUpdateMixin:
         # Test model
         class TestModel(models.Model):
             name = models.CharField(max_length=50)
-            int_field = models.IntegerField(default=1)
+            int_field = models.IntegerField(default=0)
 
         # Create test data
         TestModel.objects.bulk_create([TestModel(pk=i, name="item%d" % i) for i in range(1, 4)])
@@ -67,8 +67,8 @@ class BulkUpdateMixin:
 
         print(list(TestModel.objects.all().order_by("id").values("id", "name", "int_field")))
         # Outputs: [
-        #     {"id": 1, "name": "updated1", "int_field": 2},
-        #     {"id": 2, "name": "updated1", "int_field": 3},
+        #     {"id": 1, "name": "updated1", "int_field": 1},
+        #     {"id": 2, "name": "updated2", "int_field": 2},
         #     {"id": 3, "name": "item3", "int_field": 0}
         # ]
 
@@ -190,7 +190,7 @@ class BulkUpdateMixin:
         # Test model
         class TestModel(models.Model):
             name = models.CharField(max_length=50)
-            int_field = models.IntegerField(default=1)
+            int_field = models.IntegerField(default=0)
 
         # Create test data
         TestModel.objects.bulk_create([TestModel(pk=i, name="item%d" % i) for i in range(1, 4)])
@@ -212,8 +212,8 @@ class BulkUpdateMixin:
 
         print(list(TestModel.objects.all().order_by("id").values("id", "name", "int_field")))
         # Outputs: [
-        #     {"id": 1, "name": "updated1", "int_field": 2},
-        #     {"id": 2, "name": "updated1", "int_field": 3},
+        #     {"id": 1, "name": "updated1", "int_field": 1},
+        #     {"id": 2, "name": "updated2", "int_field": 2},
         #     {"id": 3, "name": "item3", "int_field": 0}
         # ]
 
