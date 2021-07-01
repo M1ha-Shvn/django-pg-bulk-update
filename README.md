@@ -196,7 +196,7 @@ created = TestModel.objects.pg_bulk_create([
     {'id': i, 'name': "item%d" % i, 'int_field': 1} for i in range(1, 4)
 ])
 print(created)
-# Outputs 1
+# Outputs 3
 
 # Create test data returning
 created = TestModel.objects.pg_bulk_create([
