@@ -20,7 +20,6 @@ from .types import TOperators, TFieldNames, TUpdateValues, TSetFunctions, TOpera
     TSetFunctionsValid, TDatabase, FieldDescriptor, AbstractFieldFormatter
 from .utils import batched_operation, is_auto_set_field
 
-
 __all__ = ['pdnf_clause', 'bulk_update', 'bulk_update_or_create', 'bulk_create']
 logger = getLogger('django-pg-bulk-update')
 

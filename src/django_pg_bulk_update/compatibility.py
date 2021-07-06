@@ -10,7 +10,13 @@ import django
 from django.db import connection, connections, models, migrations
 from django.db.models import Model, Field, BigIntegerField, IntegerField
 
-from .types import TDatabase
+
+try:
+    # For django 3.2+
+    from django.utils.connection import ConnectionProxy
+except ImportError:
+    # For django before 3.2
+    from django.db import DefaultConnectionProxy as ConnectionProxy
 
 
 # six.string_types replacement in order to remove dependency
@@ -139,7 +145,7 @@ def get_postgres_version(using=None, as_tuple=True):
 
 
 def get_field_db_type(field, conn):
-    # type: (models.Field, TDatabase) -> str
+    # type: (models.Field, ConnectionProxy) -> str
     """
     Get database field type used for this field.
     :param field: django.db.models.Field instance
