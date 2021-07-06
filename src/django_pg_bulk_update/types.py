@@ -1,7 +1,8 @@
 from typing import Iterable, Union, Dict, Tuple, Any, Optional, Type
 
-from django.db import DefaultConnectionProxy
 from django.db.models import Model, Field
+
+from .compatibility import ConnectionProxy
 
 TFieldNames = Union[str, Iterable[str]]
 
@@ -14,7 +15,7 @@ TUpdateValues = Union[Union[TUpdateValuesValid, Dict[Any, Dict[str, Any]]], Iter
 TSetFunction = Union[str, 'AbstractSetFunction']  # noqa: F821
 TSetFunctions = Optional[Dict[str, TSetFunction]]
 TSetFunctionsValid = Tuple['FieldDescriptor']
-TDatabase = Union[DefaultConnectionProxy]
+TDatabase = Union[ConnectionProxy]
 
 
 class FieldDescriptor(object):

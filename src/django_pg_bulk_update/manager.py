@@ -16,14 +16,14 @@ Examples:
     class TestModel(models.Model):
         objects = CustomManager()
 """
-from django.db import models
+from logging import getLogger
 from typing import Optional, Iterable, Union
 
+from django.db import models
 from django.db.models.manager import BaseManager
-from logging import getLogger
 
-from .types import TUpdateValues, TFieldNames, TSetFunctions, TOperators
 from .query import bulk_update, bulk_update_or_create, bulk_create
+from .types import TUpdateValues, TFieldNames, TSetFunctions, TOperators
 
 logger = getLogger('django-pg-bulk-update')
 
