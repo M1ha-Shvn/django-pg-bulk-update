@@ -1,0 +1,29 @@
+---
+version: "3.9"
+services:
+  postgres_db:
+    image: postgres
+    environment:
+      - POSTGRES_PASSWORD=postgres
+    volumes:
+      - ./.docker/db-init.sql:/docker-entrypoint-initdb.d/db-init.sql
+    mem_limit: 1g
+    cpus: 1
+
+  run_tests:
+    image: django-pg-bulk-pupdate
+    build:
+      context: .
+      args:
+        - PYTHON_VER=latest
+    volumes:
+      - ./.docker/wait-for-it.sh:/bin/wait-for-it.sh
+    command: ["/bin/wait-for-it.sh", "postgres_db:5432", "-s", "-t", "0", "--", "python3", "runtests.py"]
+    environment:
+      - PGHOST=postgres_db
+      - PGUSER=postgres
+      - PGPASS=postgres
+    depends_on:
+      - postgres_db
+    mem_limit: 1g
+    cpus: 1

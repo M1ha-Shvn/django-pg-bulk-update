@@ -549,27 +549,40 @@ Updating records with bulk_update took 0.13 seconds.
 You can write your own tests, based on test.test_performance and running it.
 
 # Development
+This is an Open source project developed by `M1ha-Shvn` under BSD 3 license. 
+Feel free to create issues and make pull requests.   
+Library test system is based on [django.test](https://docs.djangoproject.com/en/3.2/topics/testing/overview/).
+You can find them in `tests` directory. 
+
+## Tests requirements  
+* [PostgreSQL](https://www.postgresql.org/)  
+* Pypi libraries listed in `requirements-test.txt` file  
 
 ## Running tests
+### Running in docker
+1. Install [docker and docker-compose](https://www.docker.com/)
+2. Run `docker-compose run run_tests` in project directory  
 
-Install requirements using `pip install -U -r requirements-test.txt`
+### Running in virtual environment
+1. Install all requirements listed above  
+2. [Create virtual environment](https://docs.python.org/3/tutorial/venv.html)  
+3. Create a superuser named 'test' on your local Postgres instance:
+  ```sql
+  CREATE ROLE test;
+  ALTER ROLE test WITH SUPERUSER;
+  ALTER ROLE test WITH LOGIN;
+  ALTER ROLE test PASSWORD 'test';
+  CREATE DATABASE test OWNER test;
+  CREATE DATABASE test2 OWNER test;
+  ```   
+3. Install requirements   
+  `pip3 install -U -r requirements-test.txt`  
+4. Start tests  
+  `python3 runtests.py`  
+   
 
-Create a superuser named 'test' on your local Postgres instance:
-```
-CREATE ROLE test;
-ALTER ROLE test WITH SUPERUSER;
-ALTER ROLE test WITH LOGIN;
-ALTER ROLE test PASSWORD 'test';
-CREATE DATABASE test OWNER test;
-CREATE DATABASE test2 OWNER test;
-```
-
-Run tests:
-```
-python runtests.py
-```
-
-## [django 2.2 bulk_update](https://docs.djangoproject.com/en/2.2/ref/models/querysets/#bulk-update) difference  
+# Alternatives  
+## [django 2.2+ bulk_update](https://docs.djangoproject.com/en/2.2/ref/models/querysets/#bulk-update) difference  
 Pros:  
 * bulk_update_or_create() method
 * Ability to use complex set functions
