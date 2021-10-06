@@ -18,7 +18,7 @@ services:
         - PYTHON_VER=latest
     volumes:
       - ./.docker/wait-for-it.sh:/bin/wait-for-it.sh
-    command: ["/bin/wait-for-it.sh", "postgres_db:5432", "-s", "-t", "0", "--", "python3", "runtests.py"]
+    command: ["/bin/bash", "/bin/wait-for-it.sh", "postgres_db:5432", "-s", "-t", "0", "--", "python3", "runtests.py"]
     environment:
       - PGHOST=postgres_db
       - PGUSER=postgres
