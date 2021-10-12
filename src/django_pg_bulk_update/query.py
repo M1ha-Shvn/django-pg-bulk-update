@@ -5,13 +5,6 @@ This file contains bulk_update query functions
 import inspect
 import json
 
-try:
-    # This approach applies to python 3.10+
-    from collections.abc import Iterable
-except ImportError:
-    # This approach applies to python versions less than 3.10
-    from collections import Iterable
-
 from itertools import chain
 from logging import getLogger
 from typing import Any, Type, Iterable as TIterable, Union, Optional, List, Tuple
@@ -21,7 +14,7 @@ from django.db.models import Model, Q, AutoField, Field
 from django.db.models.sql import UpdateQuery
 from django.db.models.sql.where import WhereNode
 
-from .compatibility import get_postgres_version, get_model_fields, returning_available, string_types
+from .compatibility import get_postgres_version, get_model_fields, returning_available, string_types, Iterable
 from .set_functions import AbstractSetFunction, NowSetFunction
 from .types import TOperators, TFieldNames, TUpdateValues, TSetFunctions, TOperatorsValid, TUpdateValuesValid, \
     TSetFunctionsValid, TDatabase, FieldDescriptor, AbstractFieldFormatter
@@ -233,9 +226,9 @@ def _validate_set_functions(model, fds, functions):
             # Note that we should always respect any user provided set functions
 
             if getattr(field, 'auto_now', False):
-                f.set_function = NowSetFunction(if_null=False)
+                set_func = NowSetFunction(if_null=False)
             elif getattr(field, 'auto_now_add', False):
-                f.set_function = NowSetFunction(if_null=True)
+                set_func = NowSetFunction(if_null=True)
         f.set_function = set_func
 
         if not f.set_function.field_is_supported(field):
