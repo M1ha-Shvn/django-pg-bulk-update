@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, date
 from unittest import skipIf
 
 from django.test import TestCase
@@ -403,24 +403,19 @@ class TestSimple(TestCase):
             'checked': datetime(2020, 1, 2, 0, 0, 0, tzinfo=tz_utc)
         }])
 
-        instance = AutoNowModel.objects.get()
-        self.assertEqual(datetime(2019, 1, 1,  tzinfo=tz_utc), instance.created)
-        self.assertEqual(datetime(2020, 1, 2, 0, 0, 0,  tzinfo=tz_utc), instance.checked)
-        self.assertEqual(instance.updated, get_auto_now_date())
-
         # Now check to make sure we can explicitly set values
         # (requires passing set functions)
         res = bulk_update(AutoNowModel, [{
             'id': 1,
-            'created': datetime(2010, 1, 2, 0, 0, 0, tzinfo=tz_utc),
-            'updated': datetime(2010, 1, 3, 0, 0, 0, tzinfo=tz_utc),
-            'checked': datetime(2010, 1, 4, 0, 0, 0, tzinfo=tz_utc),
+            'created': datetime(2011, 1, 2, 0, 0, 0, tzinfo=tz_utc),
+            'updated': date(2011, 1, 3),
+            'checked': datetime(2011, 1, 4, 0, 0, 0, tzinfo=tz_utc),
         }], set_functions={"created": "eq", "updated": "eq"})
 
         instance = AutoNowModel.objects.get()
-        self.assertEqual(datetime(2010, 1, 2, 0, 0, 0, tzinfo=tz_utc), instance.created)
-        self.assertEqual(datetime(2010, 1, 3, 0, 0, 0, tzinfo=tz_utc), instance.updated)
-        self.assertEqual(datetime(2010, 1, 4, 0, 0, 0, tzinfo=tz_utc), instance.checked)
+        self.assertEqual(datetime(2011, 1, 2, 0, 0, 0, tzinfo=tz_utc), instance.created)
+        self.assertEqual(date(2011, 1, 3), instance.updated)
+        self.assertEqual(datetime(2011, 1, 4, 0, 0, 0, tzinfo=tz_utc), instance.checked)
 
     def test_quoted_table_name(self):
         # Test for https://github.com/M1ha-Shvn/django-pg-bulk-update/issues/63
