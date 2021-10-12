@@ -1,10 +1,10 @@
-from datetime import timedelta
+from datetime import date, datetime, timedelta
 from unittest import skipIf
 
 from django.test import TestCase
 from django.utils.timezone import now
 
-from django_pg_bulk_update.compatibility import jsonb_available, hstore_available, array_available
+from django_pg_bulk_update.compatibility import jsonb_available, hstore_available, array_available, tz_utc
 from django_pg_bulk_update.query import bulk_create
 from django_pg_bulk_update.set_functions import ConcatSetFunction
 from tests.compatibility import get_auto_now_date
@@ -409,6 +409,21 @@ class TestSetFunctions(TestCase):
         instance = AutoNowModel.objects.get(pk=1)
         self.assertGreaterEqual(instance.checked, now() - timedelta(seconds=1))
         self.assertLessEqual(instance.checked, now() + timedelta(seconds=1))
+
+    def test_auto_now_respects_override(self):
+        # Now check to make sure we can explicitly set values
+        # (requires passing set functions)
+        res = bulk_create(AutoNowModel, [{
+            'id': 1,
+            'created': datetime(2011, 1, 2, 0, 0, 0, tzinfo=tz_utc),
+            'updated': date(2011, 1, 3),
+            'checked': datetime(2011, 1, 4, 0, 0, 0, tzinfo=tz_utc),
+        }], set_functions={"created": "eq", "updated": "eq", "checked": "eq"})
+
+        instance = AutoNowModel.objects.get()
+        self.assertEqual(datetime(2011, 1, 2, 0, 0, 0, tzinfo=tz_utc), instance.created)
+        self.assertEqual(date(2011, 1, 3), instance.updated)
+        self.assertEqual(datetime(2011, 1, 4, 0, 0, 0, tzinfo=tz_utc), instance.checked)
 
 
 class TestManager(TestCase):
