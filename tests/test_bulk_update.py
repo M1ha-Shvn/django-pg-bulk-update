@@ -398,11 +398,6 @@ class TestSimple(TestCase):
         self.assertEqual(instance.updated, get_auto_now_date())
 
     def test_auto_now_respects_override(self):
-        res = bulk_update(AutoNowModel, [{
-            'id': 1,
-            'checked': datetime(2020, 1, 2, 0, 0, 0, tzinfo=tz_utc)
-        }])
-
         # Now check to make sure we can explicitly set values
         # (requires passing set functions)
         res = bulk_update(AutoNowModel, [{
