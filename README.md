@@ -4,7 +4,7 @@
 Django extension to update multiple table records with similar (but not equal) conditions in efficient way on PostgreSQL
 
 ## Requirements
-* Python 3.5+
+* Python 3.6+
   Previous versions may also work, but are not tested in CI  
 * django >= 1.8  
   Previous versions may also work, but are not tested in CI.  
@@ -561,7 +561,8 @@ You can find them in `tests` directory.
 ## Running tests
 ### Running in docker
 1. Install [docker and docker-compose](https://www.docker.com/)
-2. Run `docker-compose run run_tests` in project directory  
+2. Run `docker build . --tag django-pg-bulk-pupdate` in project directory
+3. Run `docker-compose run run_tests` in project directory  
 
 ### Running in virtual environment
 1. Install all requirements listed above  

@@ -18,6 +18,13 @@ except ImportError:
     # For django before 3.2
     from django.db import DefaultConnectionProxy as ConnectionProxy
 
+try:
+    # This approach applies to python 3.10+
+    from collections.abc import Iterable  # noqa F401
+except ImportError:
+    # This approach applies to python versions less than 3.10
+    from collections import Iterable  # noqa F401
+
 
 # six.string_types replacement in order to remove dependency
 string_types = (str,) if sys.version_info[0] == 3 else (str, unicode)  # noqa F821

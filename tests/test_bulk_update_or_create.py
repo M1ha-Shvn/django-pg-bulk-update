@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from unittest import skipIf
 
 from django.test import TestCase
@@ -492,6 +492,31 @@ class TestSimple(TestCase):
             else:
                 self.assertGreaterEqual(instance.created, now() - timedelta(seconds=1))
                 self.assertLessEqual(instance.created, now() + timedelta(seconds=1))
+
+    def test_auto_now_respects_override(self):
+        bulk_update_or_create(AutoNowModel, [{
+            'id': 1,
+            'created': datetime(2011, 1, 2, 0, 0, 0, tzinfo=tz_utc),
+            'updated': date(2011, 1, 3),
+            'checked': datetime(2011, 1, 4, 0, 0, 0, tzinfo=tz_utc),
+        }], set_functions={"created": "eq", "updated": "eq", "checked": "eq"})
+
+        instance = AutoNowModel.objects.get()
+        self.assertEqual(datetime(2011, 1, 2, 0, 0, 0, tzinfo=tz_utc), instance.created)
+        self.assertEqual(date(2011, 1, 3), instance.updated)
+        self.assertEqual(datetime(2011, 1, 4, 0, 0, 0, tzinfo=tz_utc), instance.checked)
+
+        bulk_update_or_create(AutoNowModel, [{
+            'id': 1,
+            'created': datetime(2012, 2, 5, 1, 2, 3, tzinfo=tz_utc),
+            'updated': date(2012, 2, 6),
+            'checked': datetime(2012, 2, 7, 3, 2, 1, tzinfo=tz_utc),
+        }], set_functions={"created": "eq", "updated": "eq", "checked": "eq"})
+
+        instance = AutoNowModel.objects.get()
+        self.assertEqual(datetime(2012, 2, 5, 1, 2, 3, tzinfo=tz_utc), instance.created)
+        self.assertEqual(date(2012, 2, 6), instance.updated)
+        self.assertEqual(datetime(2012, 2, 7, 3, 2, 1, tzinfo=tz_utc), instance.checked)
 
     def test_quoted_table_name(self):
         # Test for https://github.com/M1ha-Shvn/django-pg-bulk-update/issues/63
