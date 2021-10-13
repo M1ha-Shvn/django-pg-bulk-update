@@ -400,7 +400,7 @@ class TestSimple(TestCase):
     def test_auto_now_respects_override(self):
         # Now check to make sure we can explicitly set values
         # (requires passing set functions)
-        res = bulk_update(AutoNowModel, [{
+        bulk_update(AutoNowModel, [{
             'id': 1,
             'created': datetime(2011, 1, 2, 0, 0, 0, tzinfo=tz_utc),
             'updated': date(2011, 1, 3),
@@ -679,6 +679,7 @@ class TestClauseOperators(TestCase):
             'id': list(range(7, 10)) + list(range(1, 4)),
             'name': '2'
         }], key_fields_ops=['!in'])
+
         self.assertEqual(6, res)
         for pk, name, int_field in TestModel.objects.all().order_by('id').values_list('id', 'name', 'int_field'):
             if pk in {1, 2, 3}:

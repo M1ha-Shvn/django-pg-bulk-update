@@ -224,11 +224,11 @@ def _validate_set_functions(model, fds, functions):
         set_func = functions.get(f.name)
         if set_func is None:
             # Note that we should always respect any user provided set functions
-
             if getattr(field, 'auto_now', False):
                 set_func = NowSetFunction(if_null=False)
             elif getattr(field, 'auto_now_add', False):
                 set_func = NowSetFunction(if_null=True)
+
         f.set_function = set_func
 
         if not f.set_function.field_is_supported(field):

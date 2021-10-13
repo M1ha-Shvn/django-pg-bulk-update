@@ -494,7 +494,7 @@ class TestSimple(TestCase):
                 self.assertLessEqual(instance.created, now() + timedelta(seconds=1))
 
     def test_auto_now_respects_override(self):
-        res = bulk_update_or_create(AutoNowModel, [{
+        bulk_update_or_create(AutoNowModel, [{
             'id': 1,
             'created': datetime(2011, 1, 2, 0, 0, 0, tzinfo=tz_utc),
             'updated': date(2011, 1, 3),
@@ -506,7 +506,7 @@ class TestSimple(TestCase):
         self.assertEqual(date(2011, 1, 3), instance.updated)
         self.assertEqual(datetime(2011, 1, 4, 0, 0, 0, tzinfo=tz_utc), instance.checked)
 
-        res = bulk_update_or_create(AutoNowModel, [{
+        bulk_update_or_create(AutoNowModel, [{
             'id': 1,
             'created': datetime(2012, 2, 5, 1, 2, 3, tzinfo=tz_utc),
             'updated': date(2012, 2, 6),

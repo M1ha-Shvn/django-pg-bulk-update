@@ -413,7 +413,7 @@ class TestSetFunctions(TestCase):
     def test_auto_now_respects_override(self):
         # Now check to make sure we can explicitly set values
         # (requires passing set functions)
-        res = bulk_create(AutoNowModel, [{
+        bulk_create(AutoNowModel, [{
             'id': 1,
             'created': datetime(2011, 1, 2, 0, 0, 0, tzinfo=tz_utc),
             'updated': date(2011, 1, 3),
