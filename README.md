@@ -561,7 +561,8 @@ You can find them in `tests` directory.
 ## Running tests
 ### Running in docker
 1. Install [docker and docker-compose](https://www.docker.com/)
-2. Run `docker-compose run run_tests` in project directory  
+2. Run `docker build . --tag django-pg-bulk-pupdate` in project directory
+3. Run `docker-compose run run_tests` in project directory  
 
 ### Running in virtual environment
 1. Install all requirements listed above  
