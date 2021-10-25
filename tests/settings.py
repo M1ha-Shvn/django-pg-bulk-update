@@ -52,3 +52,5 @@ INSTALLED_APPS.extend([
     "src",
     "tests"
 ])
+
+DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'

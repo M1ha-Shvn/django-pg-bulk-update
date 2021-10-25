@@ -401,11 +401,16 @@ def _with_values_query_part(model, values, conn, key_fds, upd_fds, default_fds=(
     first = True
     key_fields = tuple(fd.get_field(model) for fd in key_fds)
     key_format_bases = tuple(fd.key_operator for fd in key_fds)
-    upd_fields = tuple(fd.get_field(model) for fd in upd_fds)
-    upd_format_bases = tuple(fd.set_function for fd in upd_fds)
+
+    # I remove file descriptors which don't require any value from updates
+    #   as they should not be present in values SQL.
+    #   See issue https://github.com/M1ha-Shvn/django-pg-bulk-update/issues/71
+    upd_fds_with_values = tuple(fd for fd in upd_fds if fd.set_function.needs_value)
+    upd_fields = tuple(fd.get_field(model) for fd in upd_fds_with_values)
+    upd_format_bases = tuple(fd.set_function for fd in upd_fds_with_values)
+
     for keys, updates in values.items():
-        # For field sql and params
-        upd_values = [updates[fd.name] for fd in upd_fds if fd.set_function.needs_value]
+        upd_values = [updates[fd.name] for fd in upd_fds_with_values]
         upd_sql_items, upd_params = _generate_fds_sql(conn, upd_fields, upd_format_bases, upd_values, first)
         key_sql_items, key_params = _generate_fds_sql(conn, key_fields, key_format_bases, keys, first)
 
