@@ -2,6 +2,7 @@ from datetime import datetime, date
 from unittest import skipIf
 
 from django.test import TestCase
+from django.utils.timezone import now
 
 from django_pg_bulk_update.clause_operators import InClauseOperator
 from django_pg_bulk_update.compatibility import jsonb_available, hstore_available, array_available, tz_utc
@@ -387,6 +388,22 @@ class TestSimple(TestCase):
         res = bulk_update(AutoNowModel, [{
             'id': 1,
             'checked': datetime(2020, 1, 2, 0, 0, 0, tzinfo=tz_utc)
+        }])
+        self.assertEqual(1, res)
+
+        self.assertEqual(1, AutoNowModel.objects.all().count())
+
+        instance = AutoNowModel.objects.get()
+        self.assertEqual(datetime(2019, 1, 1,  tzinfo=tz_utc), instance.created)
+        self.assertEqual(datetime(2020, 1, 2, 0, 0, 0,  tzinfo=tz_utc), instance.checked)
+        self.assertEqual(instance.updated, get_auto_now_date())
+
+    def test_auto_now_given_directly(self):
+        res = bulk_update(AutoNowModel, [{
+            'id': 1,
+            'checked': datetime(2020, 1, 2, 0, 0, 0, tzinfo=tz_utc),
+            'created': now(),
+            'updated': now().date()
         }])
         self.assertEqual(1, res)
 

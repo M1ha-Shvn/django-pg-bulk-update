@@ -518,6 +518,32 @@ class TestSimple(TestCase):
         self.assertEqual(date(2012, 2, 6), instance.updated)
         self.assertEqual(datetime(2012, 2, 7, 3, 2, 1, tzinfo=tz_utc), instance.checked)
 
+    def test_auto_now_given_directly(self):
+        res = bulk_update_or_create(AutoNowModel, [{
+            'id': 1,
+            'checked': None,
+            'created': now(),
+            'updated': now().date()
+        }, {
+            'id': 11,
+            'checked': datetime(2020, 1, 2, 0, 0, 0, tzinfo=tz_utc),
+            'created': now(),
+            'updated': now().date()
+        }])
+        self.assertEqual(2, res)
+
+        # 1 from fixture + 1 created
+        self.assertEqual(2, AutoNowModel.objects.all().count())
+
+        for instance in AutoNowModel.objects.all():
+            self.assertEqual(instance.updated, get_auto_now_date())
+
+            if instance.pk <= 10:
+                self.assertEqual(datetime(2019, 1, 1, 0, 0, 0, tzinfo=tz_utc), instance.created)
+            else:
+                self.assertGreaterEqual(instance.created, now() - timedelta(seconds=1))
+                self.assertLessEqual(instance.created, now() + timedelta(seconds=1))
+
     def test_quoted_table_name(self):
         # Test for https://github.com/M1ha-Shvn/django-pg-bulk-update/issues/63
         self.assertEqual(2, bulk_update_or_create(
