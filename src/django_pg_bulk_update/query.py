@@ -377,7 +377,7 @@ def _with_values_query_part(model, values, conn, key_fds, upd_fds, default_fds=(
     :param conn: Database connection used
     :return: Names of fields in select. A tuple of sql and it's parameters
     """
-    tpl = "WITH vals(%s) AS (VALUES %s)%s"
+    tpl = "WITH vals(%s) AS (VALUES %s)%s"  # noqa
 
     # Form data for VALUES section
     # It includes both keys and update data: keys will be used in WHERE section, while update data in SET section
@@ -388,11 +388,11 @@ def _with_values_query_part(model, values, conn, key_fds, upd_fds, default_fds=(
         # Prepare default values to insert into database, if they are not provided in updates or keys
         # Dictionary keys list all db column names to be inserted.
         defaults_sel_sql = ', '.join('"%s"' % fd.prefixed_name for fd in default_fds)
-        defaults_vals = (fd.get_field(model).get_default() for fd in default_fds)
+        default_values = (fd.get_field(model).get_default() for fd in default_fds)
         defaults_fields = tuple(fd.get_field(model) for fd in default_fds)
         defaults_format_bases = tuple(fd.set_function for fd in default_fds)
         defaults_sql_items, defaults_params = _generate_fds_sql(conn, defaults_fields, defaults_format_bases,
-                                                                defaults_vals, True)
+                                                                default_values, True)
         defaults_sql = ",\n default_vals(%s) AS (VALUES (%s))" % (defaults_sel_sql, ', '.join(defaults_sql_items))
     else:
         defaults_sql = ''
@@ -430,7 +430,7 @@ def _with_values_query_part(model, values, conn, key_fds, upd_fds, default_fds=(
 def _bulk_update_query_part(model, conn, key_fds, upd_fds, where):
     # type: (Type[Model], TDatabase, Tuple[FieldDescriptor], Tuple[FieldDescriptor], Tuple[str, tuple]) -> Tuple[str, List[Any]]
     """
-    Forms bulk update query part without values, counting that all keys and values are already in vals table
+    Forms bulk update query part without values, counting that all keys and values are already in "vals" table
     :param model: Model to update, a subclass of django.db.models.Model
     :param conn: Database connection used
     :param key_fds: Field names, by which items would be selected (tuple)
@@ -478,12 +478,11 @@ def _bulk_update_query_part(model, conn, key_fds, upd_fds, where):
     return query, set_params + where_params
 
 
-def _returning_query_part(model, conn, ret_fds):
-    # type: (Type[Model], TDatabase, Optional[Tuple[FieldDescriptor]]) -> Tuple[str, List[Any]]
+def _returning_query_part(model, ret_fds):
+    # type: (Type[Model], Optional[Tuple[FieldDescriptor]]) -> Tuple[str, List[Any]]
     """
     Forms returning query part
     :param model: Model to update, a subclass of django.db.models.Model
-    :param conn: Database connection used
     :param ret_fds: FieldDescriptors to return
     :return: A tuple of sql and it's parameters
     """
@@ -539,7 +538,7 @@ def _bulk_update_no_validation(model, values, conn, key_fds, upd_fds, ret_fds, w
 
     values_sql, values_params = _with_values_query_part(model, values, conn, key_fds, upd_fds)
     upd_sql, upd_params = _bulk_update_query_part(model, conn, key_fds, upd_fds, where)
-    ret_sql, ret_params = _returning_query_part(model, conn, ret_fds)
+    ret_sql, ret_params = _returning_query_part(model, ret_fds)
 
     sql = "%s %s %s" % (values_sql, upd_sql, ret_sql)
     params = values_params + upd_params + ret_params
@@ -700,7 +699,7 @@ def _insert_no_validation(model, values, default_fds, insert_fds, ret_fds, using
     conn = connection if using is None else connections[using]
     val_sql, val_params = _with_values_query_part(model, values, conn, tuple(), insert_fds, default_fds)
     insert_sql, insert_params = _insert_query_part(model, conn, insert_fds, default_fds)
-    ret_sql, ret_params = _returning_query_part(model, conn, ret_fds)
+    ret_sql, ret_params = _returning_query_part(model, ret_fds)
 
     sql = "%s %s %s" % (val_sql, insert_sql, ret_sql)
     params = val_params + insert_params + ret_params
@@ -826,7 +825,7 @@ def _bulk_update_or_create_no_validation(model, values, key_fds, upd_fds, ret_fd
 def _insert_on_conflict_query_part(model, conn, key_fds, upd_fds, default_fds, update):
     # type: (Type[Model], TDatabase, Tuple[FieldDescriptor], Tuple[FieldDescriptor], Tuple[FieldDescriptor], bool) -> Tuple[str, List[Any]]
     """
-    Forms bulk update query part without values, counting that all keys and values are already in vals table
+    Forms bulk update query part without values, counting that all keys and values are already in "vals" table
     :param model: Model to update, a subclass of django.db.models.Model
     :param conn: Database connection used
     :param key_fds: FieldDescriptor objects to use as key fields
@@ -898,7 +897,7 @@ def _insert_on_conflict_no_validation(model, values, key_fds, upd_fds, ret_fds, 
     default_fds = _get_default_fds(model, tuple(chain(key_fds, upd_fds)))
     val_sql, val_params = _with_values_query_part(model, values, conn, key_fds, upd_fds, default_fds)
     upd_sql, upd_params = _insert_on_conflict_query_part(model, conn, key_fds, upd_fds, default_fds, update)
-    ret_sql, ret_params = _returning_query_part(model, conn, ret_fds)
+    ret_sql, ret_params = _returning_query_part(model, ret_fds)
 
     sql = "%s %s %s" % (val_sql, upd_sql, ret_sql)
     params = val_params + upd_params + ret_params

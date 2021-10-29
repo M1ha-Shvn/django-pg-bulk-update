@@ -1,12 +1,14 @@
 from datetime import date, datetime, timedelta
-from unittest import skipIf
+from unittest import skipIf, expectedFailure
 
 from django.test import TestCase
 from django.utils.timezone import now
+from django.test import override_settings
 
 from django_pg_bulk_update.compatibility import jsonb_available, array_available, hstore_available, tz_utc
 from django_pg_bulk_update.query import bulk_update_or_create
 from django_pg_bulk_update.set_functions import ConcatSetFunction
+from django_pg_returning import ReturningQuerySet
 from tests.compatibility import get_auto_now_date
 from tests.models import TestModel, UniqueNotPrimary, UpperCaseModel, AutoNowModel, TestModelWithSchema
 
@@ -16,17 +18,17 @@ class TestInputFormats(TestCase):
 
     def test_model(self):
         with self.assertRaises(TypeError):
-            bulk_update_or_create(123, [])
+            bulk_update_or_create(123, [])  # noqa
 
         with self.assertRaises(TypeError):
-            bulk_update_or_create('123', [])
+            bulk_update_or_create('123', [])  # noqa
 
     def test_values(self):
         with self.assertRaises(TypeError):
-            bulk_update_or_create(TestModel, 123)
+            bulk_update_or_create(TestModel, 123)  # noqa
 
         with self.assertRaises(TypeError):
-            bulk_update_or_create(TestModel, [123])
+            bulk_update_or_create(TestModel, [123])  # noqa
 
         with self.assertRaises(ValueError):
             bulk_update_or_create(TestModel, {(1, 2): {'id': 10}})
@@ -94,17 +96,17 @@ class TestInputFormats(TestCase):
             bulk_update_or_create(TestModel, values, using='invalid')
 
         with self.assertRaises(TypeError):
-            bulk_update_or_create(TestModel, values, using=123)
+            bulk_update_or_create(TestModel, values, using=123)  # noqa
 
     def test_set_functions(self):
         with self.assertRaises(TypeError):
-            bulk_update_or_create(TestModel, [{'id': 1, 'name': 'test1'}], set_functions=123)
+            bulk_update_or_create(TestModel, [{'id': 1, 'name': 'test1'}], set_functions=123)  # noqa
 
         with self.assertRaises(TypeError):
-            bulk_update_or_create(TestModel, [{'id': 1, 'name': 'test1'}], set_functions=[123])
+            bulk_update_or_create(TestModel, [{'id': 1, 'name': 'test1'}], set_functions=[123])  # noqa
 
         with self.assertRaises(ValueError):
-            bulk_update_or_create(TestModel, [{'id': 1, 'name': 'test1'}], set_functions={1: 'test'})
+            bulk_update_or_create(TestModel, [{'id': 1, 'name': 'test1'}], set_functions={1: 'test'})  # noqa
 
         with self.assertRaises(ValueError):
             bulk_update_or_create(TestModel, [{'id': 1, 'name': 'test1'}], set_functions={'id': 1})
@@ -125,10 +127,10 @@ class TestInputFormats(TestCase):
 
     def test_update(self):
         with self.assertRaises(TypeError):
-            bulk_update_or_create(TestModel, [{'id': 1, 'name': 'test1'}], update=123)
+            bulk_update_or_create(TestModel, [{'id': 1, 'name': 'test1'}], update=123)  # noqa
 
         with self.assertRaises(TypeError):
-            bulk_update_or_create(TestModel, [{'id': 1, 'name': ['test1']}], update='123')
+            bulk_update_or_create(TestModel, [{'id': 1, 'name': ['test1']}], update='123')  # noqa
 
         self.assertEqual(1, bulk_update_or_create(
             TestModel, [{'id': 1, 'name': 'test30'}, {'id': 20, 'name': 'test30'}], update=False))
@@ -137,16 +139,16 @@ class TestInputFormats(TestCase):
 
     def test_batch(self):
         with self.assertRaises(TypeError):
-            bulk_update_or_create(TestModel, [{'id': 1, 'name': 'test1'}], batch_size='abc')
+            bulk_update_or_create(TestModel, [{'id': 1, 'name': 'test1'}], batch_size='abc')  # noqa
 
         with self.assertRaises(ValueError):
             bulk_update_or_create(TestModel, [{'id': 1, 'name': 'test1'}], batch_size=-2)
 
         with self.assertRaises(TypeError):
-            bulk_update_or_create(TestModel, [{'id': 1, 'name': 'test1'}], batch_size=2.5)
+            bulk_update_or_create(TestModel, [{'id': 1, 'name': 'test1'}], batch_size=2.5)  # noqa
 
         with self.assertRaises(TypeError):
-            bulk_update_or_create(TestModel, [{'id': 1, 'name': 'test1'}], batch_size=1, batch_delay='abc')
+            bulk_update_or_create(TestModel, [{'id': 1, 'name': 'test1'}], batch_size=1, batch_delay='abc')  # noqa
 
         with self.assertRaises(ValueError):
             bulk_update_or_create(TestModel, [{'id': 1, 'name': 'test1'}], batch_size=1, batch_delay=-2)
@@ -356,7 +358,6 @@ class TestSimple(TestCase):
             'name': 'bulk_update_11'
         }], returning=('id', 'name', 'int_field'))
 
-        from django_pg_returning import ReturningQuerySet
         self.assertIsInstance(res, ReturningQuerySet)
         self.assertSetEqual({
             (1, 'bulk_update_1', 1),
@@ -443,7 +444,6 @@ class TestSimple(TestCase):
             'name': 'bulk_update_11'
         }], returning=('id', 'name', 'int_field'), key_is_unique=False)
 
-        from django_pg_returning import ReturningQuerySet
         self.assertIsInstance(res, ReturningQuerySet)
         self.assertSetEqual({
             (1, 'bulk_update_1', 1),
@@ -485,38 +485,66 @@ class TestSimple(TestCase):
         self.assertEqual(2, AutoNowModel.objects.all().count())
 
         for instance in AutoNowModel.objects.all():
-            self.assertEqual(instance.updated, get_auto_now_date())
-
+            # On PostgreSQL 9.4 native bulk_create is used. It contains a known issue:
+            #   it does not respect django TIME_ZONE setting. See https://code.djangoproject.com/ticket/32320#ticket.
+            #   Though, updated field uses NOW() PostgreSQL function, which sets correct date
             if instance.pk <= 10:
+                self.assertEqual(instance.updated, now().date())
                 self.assertEqual(datetime(2019, 1, 1, 0, 0, 0, tzinfo=tz_utc), instance.created)
             else:
+                self.assertEqual(instance.updated, get_auto_now_date())
                 self.assertGreaterEqual(instance.created, now() - timedelta(seconds=1))
                 self.assertLessEqual(instance.created, now() + timedelta(seconds=1))
 
     def test_auto_now_respects_override(self):
-        bulk_update_or_create(AutoNowModel, [{
-            'id': 1,
-            'created': datetime(2011, 1, 2, 0, 0, 0, tzinfo=tz_utc),
-            'updated': date(2011, 1, 3),
-            'checked': datetime(2011, 1, 4, 0, 0, 0, tzinfo=tz_utc),
-        }], set_functions={"created": "eq", "updated": "eq", "checked": "eq"})
+        with self.subTest('Create'):
+            bulk_update_or_create(AutoNowModel, [{
+                'id': 1,
+                'created': datetime(2011, 1, 2, 0, 0, 0, tzinfo=tz_utc),
+                'updated': date(2011, 1, 3),
+                'checked': datetime(2011, 1, 4, 0, 0, 0, tzinfo=tz_utc),
+            }], set_functions={"created": "eq", "updated": "eq", "checked": "eq"})
 
-        instance = AutoNowModel.objects.get()
-        self.assertEqual(datetime(2011, 1, 2, 0, 0, 0, tzinfo=tz_utc), instance.created)
-        self.assertEqual(date(2011, 1, 3), instance.updated)
-        self.assertEqual(datetime(2011, 1, 4, 0, 0, 0, tzinfo=tz_utc), instance.checked)
+            instance = AutoNowModel.objects.get()
+            self.assertEqual(datetime(2011, 1, 2, 0, 0, 0, tzinfo=tz_utc), instance.created)
+            self.assertEqual(date(2011, 1, 3), instance.updated)
+            self.assertEqual(datetime(2011, 1, 4, 0, 0, 0, tzinfo=tz_utc), instance.checked)
 
-        bulk_update_or_create(AutoNowModel, [{
-            'id': 1,
-            'created': datetime(2012, 2, 5, 1, 2, 3, tzinfo=tz_utc),
-            'updated': date(2012, 2, 6),
-            'checked': datetime(2012, 2, 7, 3, 2, 1, tzinfo=tz_utc),
-        }], set_functions={"created": "eq", "updated": "eq", "checked": "eq"})
+        with self.subTest('Update'):
+            bulk_update_or_create(AutoNowModel, [{
+                'id': 1,
+                'created': datetime(2012, 2, 5, 1, 2, 3, tzinfo=tz_utc),
+                'updated': date(2012, 2, 6),
+                'checked': datetime(2012, 2, 7, 3, 2, 1, tzinfo=tz_utc),
+            }], set_functions={"created": "eq", "updated": "eq", "checked": "eq"})
 
-        instance = AutoNowModel.objects.get()
-        self.assertEqual(datetime(2012, 2, 5, 1, 2, 3, tzinfo=tz_utc), instance.created)
-        self.assertEqual(date(2012, 2, 6), instance.updated)
-        self.assertEqual(datetime(2012, 2, 7, 3, 2, 1, tzinfo=tz_utc), instance.checked)
+            instance = AutoNowModel.objects.get()
+            self.assertEqual(datetime(2012, 2, 5, 1, 2, 3, tzinfo=tz_utc), instance.created)
+            self.assertEqual(date(2012, 2, 6), instance.updated)
+            self.assertEqual(datetime(2012, 2, 7, 3, 2, 1, tzinfo=tz_utc), instance.checked)
+
+    # Test for issue https://github.com/M1ha-Shvn/django-pg-bulk-update/issues/70
+    #  This is django bug, which should be fixed in DateField implementation, not this library
+    @expectedFailure
+    def test_auto_now_key_not_unique(self):
+        # Let's check 2 timezones with highest and lowest offsets, one of them should fail
+        timezones = [(-11, 'Pacific/Pago_Pago'), (14, 'Pacific/Kiritimati')]
+
+        for index, (tz_offset, tz_name) in enumerate(timezones, start=11):
+            with self.subTest('Timezone "%s" with offset %.2f hours' % (tz_name, tz_offset)):
+                with override_settings(TIME_ZONE=tz_name):
+                    res = bulk_update_or_create(AutoNowModel, [{
+                        'id': index,
+                        'checked': None
+                    }, {
+                        'id': 1,
+                        'checked': None
+                    }], key_is_unique=False)
+
+                self.assertEqual(2, res)
+                dt = get_auto_now_date(key_is_unique=False)
+                for instance in AutoNowModel.objects.filter(pk_in={1, index}):
+                    self.assertEqual(dt, instance.updated)
 
     def test_quoted_table_name(self):
         # Test for https://github.com/M1ha-Shvn/django-pg-bulk-update/issues/63

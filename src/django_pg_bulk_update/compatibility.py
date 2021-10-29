@@ -16,7 +16,7 @@ try:
     from django.utils.connection import ConnectionProxy
 except ImportError:
     # For django before 3.2
-    from django.db import DefaultConnectionProxy as ConnectionProxy
+    from django.db import DefaultConnectionProxy as ConnectionProxy  # noqa
 
 try:
     # This approach applies to python 3.10+
@@ -32,11 +32,11 @@ string_types = (str,) if sys.version_info[0] == 3 else (str, unicode)  # noqa F8
 
 # pytz.utc timezone in order to remove dependency
 try:
-    from datetime import timezone
+    from datetime import timezone  # noqa
     tz_utc = timezone.utc
 except ImportError:
     # For python before 3.3
-    import pytz
+    import pytz  # noqa
     tz_utc = pytz.utc
 
 
@@ -50,7 +50,7 @@ def zip_longest(*args, **kwargs):
         return zip_longest(*args, **kwargs)
     except ImportError:
         # python 2.7
-        from itertools import izip_longest
+        from itertools import izip_longest  # noqa
         return izip_longest(*args, **kwargs)
 
 
@@ -83,7 +83,7 @@ def array_available():  # type: () -> bool
 
 def import_pg_field_or_dummy(field_name, available_func):  # type: (str, Callable) -> Any
     """
-    Imports PostgreSQL specific field, if it is avaialbe. Otherwise returns dummy class
+    Imports PostgreSQL specific field, if it is available. Otherwise returns dummy class
     This is used to simplify isinstance(f, PGField) checks
     :param field_name: Field name. It should have same case as class name
     :param available_func: Function to check if field is available. Should return boolean

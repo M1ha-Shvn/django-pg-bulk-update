@@ -2,12 +2,12 @@ from datetime import datetime, date
 from unittest import skipIf
 
 from django.test import TestCase
+from django.utils.timezone import now
 
 from django_pg_bulk_update.clause_operators import InClauseOperator
 from django_pg_bulk_update.compatibility import jsonb_available, hstore_available, array_available, tz_utc
 from django_pg_bulk_update.query import bulk_update
 from django_pg_bulk_update.set_functions import ConcatSetFunction
-from tests.compatibility import get_auto_now_date
 from tests.models import TestModel, RelationModel, UpperCaseModel, AutoNowModel, TestModelWithSchema
 
 
@@ -395,7 +395,7 @@ class TestSimple(TestCase):
         instance = AutoNowModel.objects.get()
         self.assertEqual(datetime(2019, 1, 1,  tzinfo=tz_utc), instance.created)
         self.assertEqual(datetime(2020, 1, 2, 0, 0, 0,  tzinfo=tz_utc), instance.checked)
-        self.assertEqual(instance.updated, get_auto_now_date())
+        self.assertEqual(instance.updated, now().date())
 
     def test_auto_now_respects_override(self):
         # Now check to make sure we can explicitly set values

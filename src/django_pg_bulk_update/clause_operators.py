@@ -56,6 +56,12 @@ class AbstractArrayValueOperator(AbstractClauseOperator):
     """
     Abstract class partial, that handles an array of field values as input
     """
+    def get_sql_operator(self):
+        return super(AbstractArrayValueOperator, self).get_sql_operator()
+
+    def get_django_filters(self, name, value):
+        return super(AbstractArrayValueOperator, self).get_django_filters(name, value)
+
     def format_field_value(self, field, val, connection, **kwargs):
         assert isinstance(val, Iterable), "'%s' value must be iterable" % self.__class__.__name__
 
@@ -63,6 +69,7 @@ class AbstractArrayValueOperator(AbstractClauseOperator):
         # So let's validate it as Array of this field
         if array_available():
             from django.contrib.postgres.fields import ArrayField
+            
             arr_field = ArrayField(field)
             arr_field.model = field.model
             return super(AbstractArrayValueOperator, self).format_field_value(arr_field, val, connection, **kwargs)

@@ -2,6 +2,7 @@
 Contains some project unbind helpers
 """
 import logging
+from itertools import islice
 from time import sleep
 from typing import TypeVar, Set, Any, Tuple, Iterable, Callable, Optional, List
 
@@ -21,15 +22,15 @@ def get_subclasses(cls, recursive=False):  # type: (T, bool) -> Set[T]
     """
     Gets all subclasses of given class
     Attention!!! Classes would be found only if they were imported before using this function
-    :param cls: Class to get subcalsses
+    :param cls: Class to get subclasses
     :param recursive: If flag is set, returns subclasses of subclasses and so on too
     :return: A list of subclasses
     """
     subclasses = set(cls.__subclasses__())
 
     if recursive:
-        for subcls in subclasses.copy():
-            subclasses.update(get_subclasses(subcls, recursive=True))
+        for sub_cls in subclasses.copy():
+            subclasses.update(get_subclasses(sub_cls, recursive=True))
 
     return subclasses
 
@@ -48,7 +49,7 @@ def format_field_value(field, val, conn, cast_type=False):
     # And modified for our needs
     query = UpdateQuery(field.model)
     compiler = query.get_compiler(connection=conn)
-    HStoreField = import_pg_field_or_dummy('HStoreField', hstore_available)
+    HStoreField = import_pg_field_or_dummy('HStoreField', hstore_available)  # noqa
 
     if hasattr(val, 'resolve_expression'):
         val = val.resolve_expression(query, allow_joins=False, for_save=True)
@@ -103,6 +104,31 @@ def format_field_value(field, val, conn, cast_type=False):
     return value, tuple(update_params)
 
 
+def batch(data, batch_size):  # type: (Iterable[T], int) -> Iterable[Tuple[T, ...]]
+    """
+    Splits Iterable data (can be a generator) into tuples with length less or equal to batch_size
+    In fact, this function is reverse for itertools.chain(...)
+    :param data: Iterable of any type
+    :param batch_size: Expected maximum tuple size
+    :return: Tuples with length <= batch_size
+    """
+    if type(batch_size) is not int:
+        raise TypeError("batch_size must be positive integer")
+
+    elif batch_size <= 0:
+        raise ValueError("batch_size must be positive integer")
+
+    it = iter(data)
+
+    next_batch = tuple(islice(it, 0, batch_size))
+    while len(next_batch) == batch_size:
+        yield next_batch
+        next_batch = tuple(islice(it, 0, batch_size))
+
+    if next_batch:
+        yield next_batch
+
+
 def batched_operation(handler, data, batch_size=None, batch_delay=0, args=(), kwargs=None, data_arg_index=0):
     # type: (Callable, Iterable, Optional[int], float, Iterable, Optional[dict], int) -> List[Any]
     """
@@ -119,36 +145,32 @@ def batched_operation(handler, data, batch_size=None, batch_delay=0, args=(), kw
         Note, that args must contain any placeholder value, which will be replaced by batch data
     :return: A list of results for each batch
     """
-    if batch_size is not None and (type(batch_size) is not int):
-        raise TypeError("batch_size must be positive integer if given")
-    if batch_size is not None and batch_size <= 0:
-        raise ValueError("batch_size must be positive integer if given")
     if type(batch_delay) not in {int, float}:
         raise TypeError("batch_delay must be non negative float")
-    if batch_delay < 0:
+    elif batch_delay < 0:
         raise ValueError("batch_delay must be non negative float")
+
     if type(data_arg_index) is not int:
         raise TypeError("data_arg_num must be integer between 0 and len(args)")
-    if not 0 <= data_arg_index < len(args):
+    elif not 0 <= data_arg_index < len(tuple(args)):
         raise ValueError("data_arg_num must be integer between 0 and len(args)")
 
     def _batches_iterator():
         if batch_size is None:
             yield data
         elif isinstance(data, dict):
-            keys = list(data.keys())
-            for i in range(0, len(keys), batch_size):
-                yield {k: data[k] for k in keys[i:i+batch_size]}
+            for b in batch(data.items(), batch_size):
+                yield dict(b)
         else:
-            for i in range(0, len(data), batch_size):
-                yield data[i:i+batch_size]
+            for b in batch(data, batch_size):
+                yield b
 
     results = []
     args = list(args)
     kwargs = kwargs or {}
-    for j, batch in enumerate(_batches_iterator()):
-        logger.debug('Processing batch %d with size %d' % (j + 1, len(batch)))
-        args[data_arg_index] = batch
+    for j, batch_items in enumerate(_batches_iterator()):
+        logger.debug('Processing batch %d with size %d' % (j + 1, len(batch_items)))
+        args[data_arg_index] = batch_items
         r = handler(*args, **kwargs)
         results.append(r)
         sleep(batch_delay)
