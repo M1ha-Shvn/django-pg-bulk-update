@@ -7,7 +7,6 @@ from django.utils.timezone import now
 from django_pg_bulk_update.compatibility import jsonb_available, hstore_available, array_available, tz_utc
 from django_pg_bulk_update.query import bulk_create
 from django_pg_bulk_update.set_functions import ConcatSetFunction
-from tests.compatibility import get_auto_now_date
 from tests.models import TestModel, UpperCaseModel, AutoNowModel, TestModelWithSchema
 
 
@@ -314,7 +313,10 @@ class TestSimple(TestCase):
         self.assertGreaterEqual(instance.created, now() - timedelta(seconds=1))
         self.assertLessEqual(instance.created, now() + timedelta(seconds=1))
         self.assertIsNone(instance.checked)
-        self.assertEqual(instance.updated, get_auto_now_date())
+
+        # pg_bulk_create does not use native bulk_create method and sets correct date
+        #  So get_auto_now_date() is not needed here
+        self.assertEqual(instance.updated, now().date())
 
     def test_quoted_table_name(self):
         # Test for https://github.com/M1ha-Shvn/django-pg-bulk-update/issues/63

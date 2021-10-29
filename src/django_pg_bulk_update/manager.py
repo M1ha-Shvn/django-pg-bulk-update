@@ -158,8 +158,6 @@ class BulkUpdateMixin:
         Creates a batch of records in database.
         Acts like native QuerySet.bulk_create() method, but uses library infrastructure and input formats
         Can be much more effective than native implementation on wide models.
-
-        :param model: Model to update, a subclass of django.db.models.Model
         :param values: Data to update.
             All items must update same fields!!!
             Iterable of dicts. Each dict is create data.

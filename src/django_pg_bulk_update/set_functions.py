@@ -178,7 +178,7 @@ class AbstractSetFunction(AbstractFieldFormatter):
         :param with_table: Boolean flag - add table or not
         :return: String name
         """
-        table = '"%s".' % field.model._meta.db_table if with_table else ''
+        table = '"%s".' % field.model._meta.db_table if with_table else ''  # noqa
         return '%s"%s"' % (table, field.column)
 
 
@@ -247,7 +247,7 @@ class ConcatSetFunction(AbstractSetFunction):
 
     def get_sql_value(self, field, val, connection, val_as_param=True, with_table=False, for_update=True, **kwargs):
         null_default, null_default_params = self._parse_null_default(field, connection, **kwargs)
-        JSONField = import_pg_field_or_dummy('JSONField', jsonb_available)
+        JSONField = import_pg_field_or_dummy('JSONField', jsonb_available)  # noqa
 
         # Postgres 9.4 has JSONB support, but doesn't support concat operator (||)
         # So I've taken function to solve the problem from
