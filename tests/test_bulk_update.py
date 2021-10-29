@@ -397,6 +397,22 @@ class TestSimple(TestCase):
         self.assertEqual(datetime(2020, 1, 2, 0, 0, 0,  tzinfo=tz_utc), instance.checked)
         self.assertEqual(instance.updated, now().date())
 
+    def test_auto_now_given_directly(self):
+        res = bulk_update(AutoNowModel, [{
+            'id': 1,
+            'checked': datetime(2020, 1, 2, 0, 0, 0, tzinfo=tz_utc),
+            'created': now(),
+            'updated': now().date()
+        }])
+        self.assertEqual(1, res)
+
+        self.assertEqual(1, AutoNowModel.objects.all().count())
+
+        instance = AutoNowModel.objects.get()
+        self.assertEqual(datetime(2019, 1, 1,  tzinfo=tz_utc), instance.created)
+        self.assertEqual(datetime(2020, 1, 2, 0, 0, 0,  tzinfo=tz_utc), instance.checked)
+        self.assertEqual(instance.updated, get_auto_now_date())
+
     def test_auto_now_respects_override(self):
         # Now check to make sure we can explicitly set values
         # (requires passing set functions)

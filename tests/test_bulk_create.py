@@ -318,6 +318,19 @@ class TestSimple(TestCase):
         #  So get_auto_now_date() is not needed here
         self.assertEqual(instance.updated, now().date())
 
+    def test_auto_now_given_directly(self):
+        res = bulk_create(AutoNowModel, [{
+            'id': 11,
+            'created': now(),
+            'updated': now().date()
+        }])
+        self.assertEqual(1, res)
+        instance = AutoNowModel.objects.get(pk=11)
+        self.assertGreaterEqual(instance.created, now() - timedelta(seconds=1))
+        self.assertLessEqual(instance.created, now() + timedelta(seconds=1))
+        self.assertIsNone(instance.checked)
+        self.assertEqual(instance.updated, get_auto_now_date())
+
     def test_quoted_table_name(self):
         # Test for https://github.com/M1ha-Shvn/django-pg-bulk-update/issues/63
         self.assertEqual(1, bulk_create(TestModelWithSchema, [{'name': 'abc'}]))

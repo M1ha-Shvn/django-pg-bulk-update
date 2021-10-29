@@ -2,7 +2,7 @@ from typing import Iterable, Union, Dict, Tuple, Any, Optional, Type
 
 from django.db.models import Model, Field
 
-from .compatibility import ConnectionProxy
+from .compatibility import ConnectionProxy, string_types
 
 TFieldNames = Union[str, Iterable[str]]
 
@@ -58,7 +58,6 @@ class FieldDescriptor(object):
         :param val: Set function name or instance. Defaults to EqualSetFunction() if None is passed
         :return:
         """
-        from .compatibility import string_types
         from .set_functions import EqualSetFunction, AbstractSetFunction
 
         if val is None:
