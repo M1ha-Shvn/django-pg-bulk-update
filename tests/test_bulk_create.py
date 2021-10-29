@@ -313,9 +313,6 @@ class TestSimple(TestCase):
         self.assertGreaterEqual(instance.created, now() - timedelta(seconds=1))
         self.assertLessEqual(instance.created, now() + timedelta(seconds=1))
         self.assertIsNone(instance.checked)
-
-        # pg_bulk_create does not use native bulk_create method and sets correct date
-        #  So get_auto_now_date() is not needed here
         self.assertEqual(instance.updated, now().date())
 
     def test_auto_now_given_directly(self):
@@ -329,7 +326,7 @@ class TestSimple(TestCase):
         self.assertGreaterEqual(instance.created, now() - timedelta(seconds=1))
         self.assertLessEqual(instance.created, now() + timedelta(seconds=1))
         self.assertIsNone(instance.checked)
-        self.assertEqual(instance.updated, get_auto_now_date())
+        self.assertEqual(instance.updated, now().date())
 
     def test_quoted_table_name(self):
         # Test for https://github.com/M1ha-Shvn/django-pg-bulk-update/issues/63

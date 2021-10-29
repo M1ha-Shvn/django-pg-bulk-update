@@ -411,7 +411,7 @@ class TestSimple(TestCase):
         instance = AutoNowModel.objects.get()
         self.assertEqual(datetime(2019, 1, 1,  tzinfo=tz_utc), instance.created)
         self.assertEqual(datetime(2020, 1, 2, 0, 0, 0,  tzinfo=tz_utc), instance.checked)
-        self.assertEqual(instance.updated, get_auto_now_date())
+        self.assertEqual(instance.updated, now().date())
 
     def test_auto_now_respects_override(self):
         # Now check to make sure we can explicitly set values
