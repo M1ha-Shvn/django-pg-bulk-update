@@ -270,7 +270,7 @@ class DjangoSetFunction(AbstractSetFunction):
         :param for_update: If flag is set, update query is generated. Otherwise - insert query
         :return: Query instance
         """
-        kwargs = {'alias_cols': with_table} if django.VERSION > (3, 0) else {}
+        kwargs = {'alias_cols': with_table} if django.VERSION >= (3, 1) else {}
         query = UpdateQuery(field.model, **kwargs) if for_update else InsertQuery(field.model, **kwargs)
         return query
 
@@ -310,7 +310,7 @@ class DjangoSetFunction(AbstractSetFunction):
         if not for_update:
             expr = cls.replace_column_refs_with_defaults(expr)
 
-        if django.VERSION <= (3, 0) and not with_table:
+        if django.VERSION < (3, 1) and not with_table:
             expr = cls.remove_aliases_from_expression(expr)
 
         return compiler, expr
