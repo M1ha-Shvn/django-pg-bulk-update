@@ -188,14 +188,14 @@ class AbstractSetFunction(AbstractFieldFormatter):
 class DjangoSetFunction(AbstractSetFunction):
     needs_value = False
 
-    def __init__(self, django_expression: 'BaseExpression'):
+    def __init__(self, django_expression):  # type: (BaseExpression) -> None  # noqa: F821
         if not django_expressions_available():
             raise 'Django expressions are available since django 1.8, please upgrade'
 
         self._django_expression = django_expression
 
     @classmethod
-    def replace_column_refs_with_defaults(cls, expr):  # type (BaseExpression) -> BaseExpression
+    def replace_column_refs_with_defaults(cls, expr):  # type: (BaseExpression) -> BaseExpression  # noqa: F821
         """
         Replaces functions which reference columns to their default values.
         If field has default, function returns it. If not - tries searching in NULL_DEFAULTS.
@@ -236,7 +236,7 @@ class DjangoSetFunction(AbstractSetFunction):
 
     @classmethod
     def resolve_expression(cls, field, expr, connection, with_table=False, for_update=True):
-        # type: (Field, Any, TDatabase, bool, bool) -> Tuple[SQLCompiler, BaseExpression]
+        # type: (Field, Any, TDatabase, bool, bool) -> Tuple[SQLCompiler, BaseExpression]  # noqa: F821
         """
         Processes django expression, preparing it for SQL Generation
         Note: expression resolve has been mostly copied from SQLUpdateCompiler.as_sql() method
