@@ -1,12 +1,12 @@
 from datetime import datetime, date
 from unittest import skipIf
 
-from django.db.models.functions import Power
 from django.test import TestCase
 from django.utils.timezone import now
 
 from django_pg_bulk_update.clause_operators import InClauseOperator
-from django_pg_bulk_update.compatibility import jsonb_available, hstore_available, array_available, tz_utc
+from django_pg_bulk_update.compatibility import jsonb_available, hstore_available, array_available, tz_utc, \
+    django_expressions_available
 from django_pg_bulk_update.query import bulk_update
 from django_pg_bulk_update.set_functions import ConcatSetFunction
 from tests.models import TestModel, RelationModel, UpperCaseModel, AutoNowModel, TestModelWithSchema
@@ -649,13 +649,18 @@ class TestSetFunctions(TestCase):
             elif pk == 3:
                 self.assertListEqual([1, 2, 2], array_field)
 
+    @skipIf(not django_expressions_available(), "Django expressions are not supported")
     def test_django_expression(self):
-        res = bulk_update(TestModel, [{'id': 1}, {'id': 2}], set_functions={'int_field': Power('int_field', 2) + 1})
+        from django.db.models import F
+        from django.db.models.functions import Upper
+
+        res = bulk_update(TestModel, [{'id': 1}, {'id': 2}],
+                          set_functions={'name': Upper('name'), 'int_field': F('int_field') + 1})
 
         self.assertEqual(2, res)
         for instance in TestModel.objects.filter(pk__in={1, 2}):
-            self.assertEqual(instance.pk * instance.pk + 1, instance.int_field)
-            self.assertEqual('test%d' % instance.pk, instance.name)
+            self.assertEqual(instance.pk + 1, instance.int_field)
+            self.assertEqual('TEST%d' % instance.pk, instance.name)
 
 
 class TestClauseOperators(TestCase):

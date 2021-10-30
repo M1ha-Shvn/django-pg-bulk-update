@@ -2,17 +2,15 @@
 This file contains classes, describing functions which set values to fields.
 """
 import datetime
-from copy import copy
 from typing import Type, Optional, Any, Tuple, Dict
 
 from django.core.exceptions import FieldError
 from django.db.models import Field, Model
-from django.db.models.expressions import BaseExpression, Col, Value
 from django.db.models.sql import UpdateQuery, InsertQuery, Query
 from django.db.models.sql.compiler import SQLCompiler
 
 from .compatibility import get_postgres_version, jsonb_available, Postgres94MergeJSONBMigration, hstore_serialize, \
-    hstore_available, import_pg_field_or_dummy, tz_utc
+    hstore_available, import_pg_field_or_dummy, tz_utc, django_expressions_available
 from .types import TDatabase, AbstractFieldFormatter
 from .utils import get_subclasses, format_field_value
 
@@ -190,7 +188,10 @@ class AbstractSetFunction(AbstractFieldFormatter):
 class DjangoSetFunction(AbstractSetFunction):
     needs_value = False
 
-    def __init__(self, django_expression: BaseExpression):
+    def __init__(self, django_expression: 'BaseExpression'):
+        if not django_expressions_available():
+            raise 'Django expressions are available since django 1.8, please upgrade'
+
         self._django_expression = django_expression
 
     @classmethod
@@ -202,6 +203,8 @@ class DjangoSetFunction(AbstractSetFunction):
         :param expr: Expression to process
         :return: Processed Expression
         """
+        from django.db.models.expressions import Col, Value
+
         if isinstance(expr, Col):
             default_value = expr.field.get_default()
             if default_value is None:
