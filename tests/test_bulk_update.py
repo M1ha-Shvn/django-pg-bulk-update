@@ -1,6 +1,7 @@
 from datetime import datetime, date
 from unittest import skipIf
 
+from django.db.models.functions import Upper
 from django.test import TestCase
 from django.utils.timezone import now
 
@@ -481,16 +482,15 @@ class TestReadmeExample(TestCase):
 
         updated = bulk_update(TestModel, {
             (2, 3): {
-                "int_field": 3,
-                "name": "incr"
+                "int_field": 3
             }
         }, key_fields=['id', 'int_field'], key_fields_ops={'int_field': '<', 'id': 'gte'},
-                              set_functions={'int_field': '+'})
+                              set_functions={'int_field': '+', 'name': Upper('name')})
         self.assertEqual(1, updated)
         self.assertListEqual([
             {"id": 1, "name": "updated1", "int_field": 2},
             {"id": 2, "name": "updated2", "int_field": 3},
-            {"id": 3, "name": "incr", "int_field": 4}
+            {"id": 3, "name": "ITEM3", "int_field": 4}
         ], list(TestModel.objects.all().order_by("id").values("id", "name", "int_field")))
 
 

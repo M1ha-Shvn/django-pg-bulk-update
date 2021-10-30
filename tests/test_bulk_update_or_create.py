@@ -1,9 +1,9 @@
 from datetime import date, datetime, timedelta
 from unittest import skipIf, expectedFailure
 
-from django.test import TestCase
+from django.db.models import F
+from django.test import override_settings, TestCase
 from django.utils.timezone import now
-from django.test import override_settings
 
 from django_pg_bulk_update.compatibility import jsonb_available, array_available, hstore_available, tz_utc, \
     django_expressions_available
@@ -590,20 +590,18 @@ class TestReadmeExample(TestCase):
 
         res = bulk_update_or_create(TestModel, [{
             "id": 3,
-            "name": "_concat1",
-            "int_field": 4
+            "name": "_concat1"
         }, {
             "id": 4,
-            "name": "concat2",
-            "int_field": 5
-        }], set_functions={'name': '||'})
+            "name": "concat2"
+        }], set_functions={'name': '||', 'int_field': F('int_field') + 1})
         self.assertEqual(2, res)
 
         self.assertListEqual([
             {"id": 1, "name": "updated1", "int_field": 2},
             {"id": 2, "name": "updated2", "int_field": 3},
-            {"id": 3, "name": "incr_concat1", "int_field": 4},
-            {"id": 4, "name": "concat2", "int_field": 5},
+            {"id": 3, "name": "incr_concat1", "int_field": 5},
+            {"id": 4, "name": "concat2", "int_field": 1},
         ], list(TestModel.objects.all().order_by("id").values("id", "name", "int_field")))
 
 
