@@ -807,7 +807,7 @@ def _bulk_update_or_create_no_validation(model, values, key_fds, upd_fds, ret_fd
                 kwargs.update(dict(zip([fd.name for fd in key_fds], key)))
 
                 for fd in upd_fds:
-                    fd.set_function.modify_create_params(model, fd.name, kwargs)
+                    fd.set_function.modify_create_params(model, fd.name, kwargs, connection=connection)
 
                 create_items.append(model(**kwargs))
 

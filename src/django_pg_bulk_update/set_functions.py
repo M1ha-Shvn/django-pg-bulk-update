@@ -79,13 +79,14 @@ class AbstractSetFunction(AbstractFieldFormatter):
     # If set functions doesn't need value from input, set this to False.
     needs_value = True
 
-    def modify_create_params(self, model, key, kwargs):
-        # type: (Type[Model], str, Dict[str, Any]) -> Dict[str, Any]
+    def modify_create_params(self, model, key, kwargs, connection):
+        # type: (Type[Model], str, Dict[str, Any], TDatabase) -> Dict[str, Any]
         """
         This method modifies parameters before passing them to model(**kwargs)
         :param model: Model to get field from
         :param key: Field key, for which SetFunction is adopted
         :param kwargs: Function parameters
+        :param connection: Database connection used
         :return: Modified params
         """
         if hstore_available():
@@ -315,6 +316,15 @@ class DjangoSetFunction(AbstractSetFunction):
 
         return compiler, expr
 
+    def modify_create_params(self, model, key, kwargs, connection):
+        kwargs = super(DjangoSetFunction, self).modify_create_params(model, key, kwargs, connection)
+
+        # Django is sets its built in defaults here. Let's replace column aliases with this library defaults
+        field = model._meta.get_field(key)
+        _, expr = self.resolve_expression(field, self._django_expression, connection, for_update=False)
+        kwargs[key] = expr
+        return kwargs
+
     def get_sql_value(self, field, val, connection, val_as_param=True, with_table=False, for_update=True, **kwargs):
         compiler, expr = self.resolve_expression(field, self._django_expression, connection, with_table=with_table,
                                                  for_update=for_update)
@@ -347,7 +357,9 @@ class EqualSetFunction(AbstractSetFunction):
 class EqualNotNullSetFunction(AbstractSetFunction):
     names = {'eq_not_null'}
 
-    def modify_create_params(self, model, key, kwargs):
+    def modify_create_params(self, model, key, kwargs, connection):
+        kwargs = super(EqualNotNullSetFunction, self).modify_create_params(model, key, kwargs, connection)
+
         if kwargs[key] is None:
             del kwargs[key]
 
@@ -452,7 +464,9 @@ class ArrayRemoveSetFunction(AbstractSetFunction):
 
         return format_field_value(field.base_field, val, connection, cast_type=cast_type)
 
-    def modify_create_params(self, model, key, kwargs):
+    def modify_create_params(self, model, key, kwargs, connection):
+        kwargs = super(ArrayRemoveSetFunction, self).modify_create_params(model, key, kwargs, connection)
+
         if kwargs.get(key):
             kwargs[key] = model._meta.get_field(key).get_default()
 
