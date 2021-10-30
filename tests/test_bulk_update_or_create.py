@@ -1,7 +1,6 @@
 from datetime import date, datetime, timedelta
 from unittest import skipIf, expectedFailure
 
-from django.db.models.functions import Power
 from django.test import TestCase
 from django.utils.timezone import now
 from django.test import override_settings

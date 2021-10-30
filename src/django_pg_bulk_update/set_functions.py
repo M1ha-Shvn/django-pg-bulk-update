@@ -4,6 +4,8 @@ This file contains classes, describing functions which set values to fields.
 import datetime
 from typing import Type, Optional, Any, Tuple, Dict
 
+import django
+from copy import copy
 from django.core.exceptions import FieldError
 from django.db.models import Field, Model
 from django.db.models.sql import UpdateQuery, InsertQuery, Query
@@ -195,30 +197,69 @@ class DjangoSetFunction(AbstractSetFunction):
         self._django_expression = django_expression
 
     @classmethod
-    def replace_column_refs_with_defaults(cls, expr):  # type: (BaseExpression) -> BaseExpression  # noqa: F821
+    def _modify_column_refs_recursively(cls, expr, callback):
+        # type: (BaseExpression, Callable) -> BaseExpression  # noqa: F821
         """
-        Replaces functions which reference columns to their default values.
-        If field has default, function returns it. If not - tries searching in NULL_DEFAULTS.
-        This is required in insert statements, as column references can not be inserted.
+        Recursively iterates expression, searching for Col references and calls callback for every found expression
         :param expr: Expression to process
-        :return: Processed Expression
+        :param callback: Function to apply to every expression. Should take exactly 1 argument: Col instance
+        :return: Processed expression
         """
-        from django.db.models.expressions import Col, Value
+        from django.db.models.expressions import Col
 
         if isinstance(expr, Col):
-            default_value = expr.field.get_default()
-            if default_value is None:
-                default_value = NULL_DEFAULTS.get(expr.field.__class__.__name__)
-            return Value(default_value)
+            return callback(expr)
 
         src_expressions = expr.get_source_expressions()
         if not src_expressions:
             return expr
 
         expr = expr.copy()
-        new_src_expressions = (cls.replace_column_refs_with_defaults(sub_expr) for sub_expr in src_expressions)
+        new_src_expressions = [cls._modify_column_refs_recursively(sub_expr, callback) for sub_expr in src_expressions]
         expr.set_source_expressions(new_src_expressions)
         return expr
+
+    @classmethod
+    def replace_column_refs_with_defaults(cls, expr):  # type: (BaseExpression) -> BaseExpression  # noqa: F821
+        """
+        Replaces functions which reference columns to their default values.
+        If field has default, function returns it. If not - tries searching in NULL_DEFAULTS.
+        This is required in insert statements, as column references can not be inserted.
+        :param expr: Expression to process
+        :return: Processed expression
+        """
+        from django.db.models.expressions import Col, BaseExpression, Value
+
+        def replace_with_default_values(col):  # type: (Col) -> BaseExpression
+            default_value = col.field.get_default()
+            if default_value is None:
+                default_value = NULL_DEFAULTS.get(col.field.__class__.__name__)
+            return Value(default_value)
+
+        return cls._modify_column_refs_recursively(expr, replace_with_default_values)
+
+    @classmethod
+    def remove_aliases_from_expression(cls, expr):
+        """
+        Removes table alias for functions which reference columns, if with_table flag is False
+        In django 3.1+ This can be achieved by alias_cols=False Query flag.
+        :param expr: Expression to process
+        :return: Processed expression
+        """
+        from django.db.models.expressions import Col, BaseExpression
+
+        def remove_alias_from_col(col):  # type: (Col) -> BaseExpression
+            original_func = col.as_sql
+
+            def as_sql(compiler, connection):
+                sql, params = original_func(compiler, connection)
+                return sql.split('.', 1)[1], params
+
+            col = copy(col)
+            col.as_sql = as_sql
+            return col
+
+        return cls._modify_column_refs_recursively(expr, remove_alias_from_col)
 
     @classmethod
     def get_query(cls, field, with_table=False, for_update=True):  # type: (Field, bool, bool) -> Query
@@ -229,9 +270,8 @@ class DjangoSetFunction(AbstractSetFunction):
         :param for_update: If flag is set, update query is generated. Otherwise - insert query
         :return: Query instance
         """
-        query = UpdateQuery(field.model, alias_cols=with_table) \
-            if for_update else InsertQuery(field.model, alias_cols=with_table)
-
+        kwargs = {'alias_cols': with_table} if django.VERSION > (3, 0) else {}
+        query = UpdateQuery(field.model, **kwargs) if for_update else InsertQuery(field.model, **kwargs)
         return query
 
     @classmethod
@@ -258,15 +298,20 @@ class DjangoSetFunction(AbstractSetFunction):
                 'Aggregate functions are not allowed in this query '
                 '(%s=%r).' % (field.name, expr)
             )
-        if expr.contains_over_clause:
+
+        # There is no such attribute in early django
+        if getattr(expr, 'contains_over_clause', False):
             raise FieldError(
                 'Window expressions are not allowed in this query '
                 '(%s=%r).' % (field.name, expr)
             )
 
         # If there are field references, they should be replaced with defaults to perform an insert correctly
-        if not for_update and expr.contains_column_references:
+        if not for_update:
             expr = cls.replace_column_refs_with_defaults(expr)
+
+        if django.VERSION <= (3, 0) and not with_table:
+            expr = cls.remove_aliases_from_expression(expr)
 
         return compiler, expr
 
