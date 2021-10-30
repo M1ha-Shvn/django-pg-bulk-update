@@ -1,6 +1,7 @@
 from datetime import date, datetime, timedelta
 from unittest import skipIf, expectedFailure
 
+from django.db.models.functions import Power
 from django.test import TestCase
 from django.utils.timezone import now
 from django.test import override_settings
@@ -805,6 +806,29 @@ class TestSetFunctions(TestCase):
         TestModel.objects.filter(id=13).delete()
         TestModel.objects.all().update(array_field=[1, 2])
         _test_array_remove({'key_is_unique': True})
+
+    def test_django_expression(self):
+        res = bulk_update_or_create(TestModel, [{
+            'id': 1,
+        }, {
+            'id': 5,
+        }, {
+            'id': 11
+        }], set_functions={'int_field': Power('int_field', 2) + 1})  # For create 0 * 0 + 1
+
+        self.assertEqual(3, res)
+        for pk, name, int_field in TestModel.objects.all().order_by('id').values_list('id', 'name', 'int_field'):
+            if pk in {1, 5}:
+                self.assertEqual(pk * pk + 1, int_field)
+            elif pk > 10:
+                self.assertEqual(1, int_field)
+            else:
+                self.assertEqual(pk, int_field)
+
+            if pk != 11:
+                self.assertEqual('test%d' % pk, name)
+            else:
+                self.assertEqual('', name)
 
 
 class TestManager(TestCase):

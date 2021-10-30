@@ -1,6 +1,7 @@
 from datetime import date, datetime, timedelta
 from unittest import skipIf
 
+from django.db.models.functions import Power
 from django.test import TestCase
 from django.utils.timezone import now
 
@@ -436,6 +437,15 @@ class TestSetFunctions(TestCase):
         self.assertEqual(datetime(2011, 1, 2, 0, 0, 0, tzinfo=tz_utc), instance.created)
         self.assertEqual(date(2011, 1, 3), instance.updated)
         self.assertEqual(datetime(2011, 1, 4, 0, 0, 0, tzinfo=tz_utc), instance.checked)
+
+    def test_django_expression(self):
+        # Default for IntegerField is 0, so expression will result in 1
+        res = bulk_create(TestModel, [{'id': 11}, {'id': 12}], set_functions={'int_field': Power('int_field', 2) + 1})
+
+        self.assertEqual(2, res)
+        for instance in TestModel.objects.filter(pk__in={11, 12}):
+            self.assertEqual(1, instance.int_field)
+            self.assertEqual('', instance.name)
 
 
 class TestManager(TestCase):

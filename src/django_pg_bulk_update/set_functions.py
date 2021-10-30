@@ -2,9 +2,14 @@
 This file contains classes, describing functions which set values to fields.
 """
 import datetime
+from copy import copy
 from typing import Type, Optional, Any, Tuple, Dict
 
+from django.core.exceptions import FieldError
 from django.db.models import Field, Model
+from django.db.models.expressions import BaseExpression, Col, Value
+from django.db.models.sql import UpdateQuery, InsertQuery, Query
+from django.db.models.sql.compiler import SQLCompiler
 
 from .compatibility import get_postgres_version, jsonb_available, Postgres94MergeJSONBMigration, hstore_serialize, \
     hstore_available, import_pg_field_or_dummy, tz_utc
@@ -180,6 +185,105 @@ class AbstractSetFunction(AbstractFieldFormatter):
         """
         table = '"%s".' % field.model._meta.db_table if with_table else ''  # noqa
         return '%s"%s"' % (table, field.column)
+
+
+class DjangoSetFunction(AbstractSetFunction):
+    needs_value = False
+
+    def __init__(self, django_expression: BaseExpression):
+        self._django_expression = django_expression
+
+    @classmethod
+    def replace_column_refs_with_defaults(cls, expr):  # type (BaseExpression) -> BaseExpression
+        """
+        Replaces functions which reference columns to their default values.
+        If field has default, function returns it. If not - tries searching in NULL_DEFAULTS.
+        This is required in insert statements, as column references can not be inserted.
+        :param expr: Expression to process
+        :return: Processed Expression
+        """
+        if isinstance(expr, Col):
+            default_value = expr.field.get_default()
+            if default_value is None:
+                default_value = NULL_DEFAULTS.get(expr.field.__class__.__name__)
+            return Value(default_value)
+
+        src_expressions = expr.get_source_expressions()
+        if not src_expressions:
+            return expr
+
+        expr = expr.copy()
+        new_src_expressions = (cls.replace_column_refs_with_defaults(sub_expr) for sub_expr in src_expressions)
+        expr.set_source_expressions(new_src_expressions)
+        return expr
+
+    @classmethod
+    def get_query(cls, field, with_table=False, for_update=True):  # type: (Field, bool, bool) -> Query
+        """
+        Gets django query for current SQL generation, depending on generation parameters
+        :param field: Field for which to get query
+        :param with_table: If flag is set, column name in sql will be prefixed by table name
+        :param for_update: If flag is set, update query is generated. Otherwise - insert query
+        :return: Query instance
+        """
+        query = UpdateQuery(field.model, alias_cols=with_table) \
+            if for_update else InsertQuery(field.model, alias_cols=with_table)
+
+        return query
+
+    @classmethod
+    def resolve_expression(cls, field, expr, connection, with_table=False, for_update=True):
+        # type: (Field, Any, TDatabase, bool, bool) -> Tuple[SQLCompiler, BaseExpression]
+        """
+        Processes django expression, preparing it for SQL Generation
+        Note: expression resolve has been mostly copied from SQLUpdateCompiler.as_sql() method
+            and adopted for this function purposes
+        :param field: Django field expression will be applied to
+        :param expr: Expression to process
+        :param connection: Connection used to update data
+        :param with_table: If flag is set, column name in sql is prefixed by table name
+        :param for_update: If flag is set, returns update sql. Otherwise - insert SQL
+        :return: A tuple of compiler used to format expression and result expression
+        """
+        query = cls.get_query(field, with_table=with_table, for_update=for_update)
+        compiler = query.get_compiler(connection=connection)
+
+        compiler.pre_sql_setup()
+        expr = expr.resolve_expression(query=query, allow_joins=False, for_save=True)
+        if expr.contains_aggregate:
+            raise FieldError(
+                'Aggregate functions are not allowed in this query '
+                '(%s=%r).' % (field.name, expr)
+            )
+        if expr.contains_over_clause:
+            raise FieldError(
+                'Window expressions are not allowed in this query '
+                '(%s=%r).' % (field.name, expr)
+            )
+
+        # If there are field references, they should be replaced with defaults to perform an insert correctly
+        if not for_update and expr.contains_column_references:
+            expr = cls.replace_column_refs_with_defaults(expr)
+
+        return compiler, expr
+
+    def get_sql_value(self, field, val, connection, val_as_param=True, with_table=False, for_update=True, **kwargs):
+        compiler, expr = self.resolve_expression(field, self._django_expression, connection, with_table=with_table,
+                                                 for_update=for_update)
+
+        # SQL forming is copied from SQLUpdateCompiler.as_sql() and adopted for this function purposes
+        placeholder = field.get_placeholder(expr, compiler, connection) if hasattr(field, 'get_placeholder') else '%s'
+
+        if hasattr(expr, 'as_sql'):
+            sql, params = compiler.compile(expr)
+            sql = placeholder % sql
+        elif expr is not None:
+            sql, params = placeholder, (expr,)
+        else:
+            qn = compiler.quote_name_unless_alias
+            sql, params = '%s = NULL' % qn(field.column), tuple()
+
+        return sql, params
 
 
 class EqualSetFunction(AbstractSetFunction):

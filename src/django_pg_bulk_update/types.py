@@ -1,6 +1,7 @@
 from typing import Iterable, Union, Dict, Tuple, Any, Optional, Type
 
 from django.db.models import Model, Field
+from django.db.models.expressions import BaseExpression
 
 from .compatibility import ConnectionProxy, string_types
 
@@ -56,9 +57,9 @@ class FieldDescriptor(object):
         """
         Changes set_function for this field_descriptor.
         :param val: Set function name or instance. Defaults to EqualSetFunction() if None is passed
-        :return:
+        :return: None
         """
-        from .set_functions import EqualSetFunction, AbstractSetFunction
+        from .set_functions import EqualSetFunction, AbstractSetFunction, DjangoSetFunction
 
         if val is None:
             self._set_function = EqualSetFunction()
@@ -66,6 +67,8 @@ class FieldDescriptor(object):
             self._set_function = AbstractSetFunction.get_function_by_name(val)()
         elif isinstance(val, AbstractSetFunction):
             self._set_function = val
+        elif isinstance(val, BaseExpression):
+            self._set_function = DjangoSetFunction(val)
         else:
             raise TypeError("Invalid set function type: %s" % str(type(val)))
 

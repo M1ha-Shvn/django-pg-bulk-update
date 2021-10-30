@@ -1,6 +1,7 @@
 from datetime import datetime, date
 from unittest import skipIf
 
+from django.db.models.functions import Power
 from django.test import TestCase
 from django.utils.timezone import now
 
@@ -647,6 +648,14 @@ class TestSetFunctions(TestCase):
                 self.assertListEqual([1], array_field)
             elif pk == 3:
                 self.assertListEqual([1, 2, 2], array_field)
+
+    def test_django_expression(self):
+        res = bulk_update(TestModel, [{'id': 1}, {'id': 2}], set_functions={'int_field': Power('int_field', 2) + 1})
+
+        self.assertEqual(2, res)
+        for instance in TestModel.objects.filter(pk__in={1, 2}):
+            self.assertEqual(instance.pk * instance.pk + 1, instance.int_field)
+            self.assertEqual('test%d' % instance.pk, instance.name)
 
 
 class TestClauseOperators(TestCase):

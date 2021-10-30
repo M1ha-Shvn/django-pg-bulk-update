@@ -11,6 +11,7 @@ from typing import Any, Type, Iterable as TIterable, Union, Optional, List, Tupl
 
 from django.db import transaction, connection, connections
 from django.db.models import Model, Q, AutoField, Field
+from django.db.models.expressions import BaseExpression
 from django.db.models.sql import UpdateQuery
 from django.db.models.sql.where import WhereNode
 
@@ -215,8 +216,8 @@ def _validate_set_functions(model, fds, functions):
         if not isinstance(k, string_types):
             raise ValueError("'set_functions' keys must be strings")
 
-        if not isinstance(v, (string_types, AbstractSetFunction)):
-            raise ValueError("'set_functions' values must be string or AbstractSetFunction instance")
+        if not isinstance(v, (string_types, AbstractSetFunction, BaseExpression)):
+            raise ValueError("'set_functions' values must be string, AbstractSetFunction or BaseExpression instance")
 
     for f in fds:
         field = f.get_field(model)
