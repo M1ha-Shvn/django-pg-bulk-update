@@ -607,13 +607,13 @@ Pros:
 
 Cons:  
 * PostgreSQL only
-* Django method supports Func objects ([in library's backlog](https://github.com/M1hacka/django-pg-bulk-update/issues/38))
 * Ability to update parents/children (using extra queries)
 
 ## [django-bulk-update](https://github.com/aykut/django-bulk-update) difference
 Pros:
 * bulk_update_or_create() method
 * Ability to use complex set functions
+* Ability to use django expressions as set functions
 * Ability to use complex conditions
 * pdnf_clause helper
 * Django 1.7 support
