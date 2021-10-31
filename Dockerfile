@@ -2,7 +2,7 @@ ARG PYTHON_IMAGE_TAG=latest
 
 FROM python:${PYTHON_IMAGE_TAG}  AS image_stage
 
-ARG APP_TAG="3.4.4"
+ARG APP_TAG="3.5.0"
 
 LABEL \
   org.label-schema.build-date=Now \
