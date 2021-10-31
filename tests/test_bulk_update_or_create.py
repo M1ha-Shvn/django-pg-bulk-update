@@ -565,11 +565,12 @@ class TestSimple(TestCase):
         self.assertEqual(2, AutoNowModel.objects.all().count())
 
         for instance in AutoNowModel.objects.all():
-            self.assertEqual(instance.updated, get_auto_now_date())
 
             if instance.pk <= 10:
+                self.assertEqual(instance.updated, now().date())
                 self.assertEqual(datetime(2019, 1, 1, 0, 0, 0, tzinfo=tz_utc), instance.created)
             else:
+                self.assertEqual(instance.updated, get_auto_now_date())
                 self.assertGreaterEqual(instance.created, now() - timedelta(seconds=1))
                 self.assertLessEqual(instance.created, now() + timedelta(seconds=1))
 
