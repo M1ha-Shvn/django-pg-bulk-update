@@ -55,7 +55,7 @@ There are 4 query helpers in this library. There parameters are unified and desc
     
 * `bulk_create(model, values, using=None, set_functions=None, returning=None, batch_size=None, batch_delay=0)`  
   This function creates multiple records of given model in single database query.  
-  It's functionality is the same as django's [QuerySet.bulk_create](https://docs.djangoproject.com/en/3.0/ref/models/querysets/#bulk-create),
+  Its functionality is the same as django's [QuerySet.bulk_create](https://docs.djangoproject.com/en/3.0/ref/models/querysets/#bulk-create),
   but it is implemented on this library bases and can be more effective in some cases (for instance, for wide models).
   
 * `pdnf_clause(key_fields, field_values, key_fields_ops=())`  
@@ -95,27 +95,38 @@ There are 4 query helpers in this library. There parameters are unified and desc
 * `set_functions: Optional[Dict[str, Union[str, AbstractSetFunction]]]`  
   Optional. Functions which will be used to set values.  
   If given, it should be a dictionary:
-  + Key is a field name, function is applied to
-  + Value is a function alias name or AbstractSetFunction instance.  
-    Available function aliases:
-    - 'eq', '='  
-      Simple assign operator. It used by default for fields that are not mentioned in the dict.  
-    - 'incr', '+'  
-      Adds field value to previous one. It can be used for all numeric database types.   
-    - 'concat', '||'  
-      Concatenates field value to previous one. It can be used for string types, JSONField, HStoreField, ArrayField.
-    - 'eq_not_null'  
-      This function can be used, if you want to update value only if it is not None.
-    - 'union'  
-      This function combines ArrayField value with previous one, removing duplicates.
-    - 'array_remove'  
-      This function deletes value from ArrayField field using array_remove PSQL Function.
-    - 'now', 'NOW'  
-      This function sets field value to `NOW()` database function. Doesn't require any value in `values` parameter.  
-    - You can define your own set function. See section below.
+  + Key is a field name function is applied to
+  + Value can be:
+    + `django.db.models.expressions.BaseExpression` instance  
+        Any [django function expression](https://docs.djangoproject.com/en/3.2/ref/models/expressions/) returning a value.
+        Expression can use [Value](https://docs.djangoproject.com/en/3.2/ref/models/expressions/#value-expressions),
+        [F](https://docs.djangoproject.com/en/3.2/ref/models/expressions/#f-expressions),
+        [Func](https://docs.djangoproject.com/en/3.2/ref/models/expressions/#func-expressions) and their child classes.
+        It can not use annotations and tables other than updated model (like `F(a__b__c)`).
+        In create operations field default values is taken. If it is not provided, field default value is used.
+        Expression does not expect any value in `values` parameter and will ignore it if given.
+    
+    + Function alias name
+      - 'eq', '='  
+        Simple assign operator. It used by default for fields that are not mentioned in the dict.  
+      - 'incr', '+'  
+        Adds field value to previous one. It can be used for all numeric database types.   
+      - 'concat', '||'  
+        Concatenates field value to previous one. It can be used for string types, JSONField, HStoreField, ArrayField.
+      - 'eq_not_null'  
+        This function can be used, if you want to update value only if it is not None.
+      - 'union'  
+        This function combines ArrayField value with previous one, removing duplicates.
+      - 'array_remove'  
+        This function deletes value from ArrayField field using array_remove PSQL Function.
+      - 'now', 'NOW'  
+        This function sets field value to `NOW()` database function. Doesn't expect any value in `values` parameter. 
+        If one is given it is ignored.   
   
-    Increment, union and concatenate functions concern NULL as default value.
-    You can see default values in sections below.
+    + `django_pg_bulk_update.set_functions.AbstractSetFunction` instance  
+      You can define your own set function. See section below.  
+    
+      Increment, union and concatenate functions concern NULL as default value.
     
 * `key_field_ops: Union[Dict[str, Union[str, AbstractClauseOperator]], Iterable[Union[str, AbstractClauseOperator]]]`
     Optional. Operators, which are used to fined records for update. Operators are applied to `key_fields`.  
@@ -183,7 +194,8 @@ There are 4 query helpers in this library. There parameters are unified and desc
 
 ### Examples
 ```python
-from django.db import models
+from django.db import models, F
+from django.db.models.functions import Upper
 from django_pg_bulk_update import bulk_update, bulk_update_or_create, pdnf_clause
 
 # Test model
@@ -260,13 +272,13 @@ print(list(TestModel.objects.all().order_by("id").values("id", "name", "int_fiel
 #     {"id": 3, "name": "item3", "int_field": 1}
 # ]
 
-# Increment int_field by 3 and set name to 'incr' for records where id >= 2 and int_field < 3
+# Increment int_field by 3 and transform name to upper case for records where id >= 2 and int_field < 3
 updated = bulk_update(TestModel, {
-    (2, 3): {
-        "int_field": 3,
-        "name": "incr"
-    }
-}, key_fields=['id', 'int_field'], key_fields_ops={'int_field': '<', 'id': 'gte'}, set_functions={'int_field': '+'})
+        (2, 3): {
+            "int_field": 3
+        }
+    }, key_fields=['id', 'int_field'], key_fields_ops={'int_field': '<', 'id': 'gte'},
+    set_functions={'int_field': '+', 'name': Upper('name')})
 
 print(updated)
 # Outputs: 1
@@ -277,34 +289,33 @@ print(list(TestModel.objects.all().order_by("id").values("id", "name", "int_fiel
 #     {"id": 2, "name": "updated2", "int_field": 3},
 #     {"id": 3, "name": "incr", "int_field": 4}
 # ]
- 
- 
+
+
 res = bulk_update_or_create(TestModel, [{
     "id": 3,
-    "name": "_concat1",
-    "int_field": 4
+    "name": "_concat1"
 }, {
     "id": 4,
-    "name": "concat2",
-    "int_field": 5
-}], set_functions={'name': '||'})
+    "name": "concat2"
+}], set_functions={'name': '||', 'int_field': F('int_field') + 1})
 
 print(res)
 # Outputs: 2
 
 print(list(TestModel.objects.all().order_by("id").values("id", "name", "int_field")))
+# Note: IntegerField defaults to 0 in create operations. So 0 + 1 = 1.
 # Outputs: [
 #     {"id": 1, "name": "updated1", "int_field": 2},
 #     {"id": 2, "name": "updated2", "int_field": 3},
-#     {"id": 3, "name": "incr_concat1", "int_field": 4},
-#     {"id": 4, "name": "concat2", "int_field": 5},
+#     {"id": 3, "name": "incr_concat1", "int_field": 5},
+#     {"id": 4, "name": "concat2", "int_field": 1},
 # ]
 
 # Find records where 
 # id IN [1, 2, 3] AND name = 'updated2' OR id IN [3, 4, 5] AND name = 'concat2' OR id IN [2, 3, 4] AND name = 'updated1'
-        cond = pdnf_clause(['id', 'name'], [([1, 2, 3], 'updated2'),
-                                            ([3, 4, 5], 'concat2'),
-                                            ([2, 3, 4], 'updated1')], key_fields_ops={'id': 'in'})
+cond = pdnf_clause(['id', 'name'], [([1, 2, 3], 'updated2'),
+                                    ([3, 4, 5], 'concat2'),
+                                    ([2, 3, 4], 'updated1')], key_fields_ops={'id': 'in'})
 data = TestModel.objects.filter(cond).order_by('int_field').values_list('int_field', flat=True)
 print(list(data))
 # Outputs: [3, 5]
@@ -596,13 +607,13 @@ Pros:
 
 Cons:  
 * PostgreSQL only
-* Django method supports Func objects ([in library's backlog](https://github.com/M1hacka/django-pg-bulk-update/issues/38))
 * Ability to update parents/children (using extra queries)
 
 ## [django-bulk-update](https://github.com/aykut/django-bulk-update) difference
 Pros:
 * bulk_update_or_create() method
 * Ability to use complex set functions
+* Ability to use django expressions as set functions
 * Ability to use complex conditions
 * pdnf_clause helper
 * Django 1.7 support

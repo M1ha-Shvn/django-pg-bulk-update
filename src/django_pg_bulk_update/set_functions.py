@@ -4,10 +4,15 @@ This file contains classes, describing functions which set values to fields.
 import datetime
 from typing import Type, Optional, Any, Tuple, Dict
 
+import django
+from copy import copy
+from django.core.exceptions import FieldError
 from django.db.models import Field, Model
+from django.db.models.sql import UpdateQuery, InsertQuery, Query
+from django.db.models.sql.compiler import SQLCompiler
 
 from .compatibility import get_postgres_version, jsonb_available, Postgres94MergeJSONBMigration, hstore_serialize, \
-    hstore_available, import_pg_field_or_dummy, tz_utc
+    hstore_available, import_pg_field_or_dummy, tz_utc, django_expressions_available
 from .types import TDatabase, AbstractFieldFormatter
 from .utils import get_subclasses, format_field_value
 
@@ -74,13 +79,14 @@ class AbstractSetFunction(AbstractFieldFormatter):
     # If set functions doesn't need value from input, set this to False.
     needs_value = True
 
-    def modify_create_params(self, model, key, kwargs):
-        # type: (Type[Model], str, Dict[str, Any]) -> Dict[str, Any]
+    def modify_create_params(self, model, key, kwargs, connection):
+        # type: (Type[Model], str, Dict[str, Any], TDatabase) -> Dict[str, Any]
         """
         This method modifies parameters before passing them to model(**kwargs)
         :param model: Model to get field from
         :param key: Field key, for which SetFunction is adopted
         :param kwargs: Function parameters
+        :param connection: Database connection used
         :return: Modified params
         """
         if hstore_available():
@@ -182,6 +188,162 @@ class AbstractSetFunction(AbstractFieldFormatter):
         return '%s"%s"' % (table, field.column)
 
 
+class DjangoSetFunction(AbstractSetFunction):
+    needs_value = False
+
+    def __init__(self, django_expression):  # type: (BaseExpression) -> None  # noqa: F821
+        if not django_expressions_available():
+            raise 'Django expressions are available since django 1.8, please upgrade'
+
+        self._django_expression = django_expression
+
+    @classmethod
+    def _modify_column_refs_recursively(cls, expr, callback):
+        # type: (BaseExpression, Callable) -> BaseExpression  # noqa: F821
+        """
+        Recursively iterates expression, searching for Col references and calls callback for every found expression
+        :param expr: Expression to process
+        :param callback: Function to apply to every expression. Should take exactly 1 argument: Col instance
+        :return: Processed expression
+        """
+        from django.db.models.expressions import Col
+
+        if isinstance(expr, Col):
+            return callback(expr)
+
+        src_expressions = expr.get_source_expressions()
+        if not src_expressions:
+            return expr
+
+        expr = expr.copy()
+        new_src_expressions = [cls._modify_column_refs_recursively(sub_expr, callback) for sub_expr in src_expressions]
+        expr.set_source_expressions(new_src_expressions)
+        return expr
+
+    @classmethod
+    def replace_column_refs_with_defaults(cls, expr):  # type: (BaseExpression) -> BaseExpression  # noqa: F821
+        """
+        Replaces functions which reference columns to their default values.
+        If field has default, function returns it. If not - tries searching in NULL_DEFAULTS.
+        This is required in insert statements, as column references can not be inserted.
+        :param expr: Expression to process
+        :return: Processed expression
+        """
+        from django.db.models.expressions import Col, BaseExpression, Value
+
+        def replace_with_default_values(col):  # type: (Col) -> BaseExpression
+            default_value = col.field.get_default()
+            if default_value is None:
+                default_value = NULL_DEFAULTS.get(col.field.__class__.__name__)
+            return Value(default_value)
+
+        return cls._modify_column_refs_recursively(expr, replace_with_default_values)
+
+    @classmethod
+    def remove_aliases_from_expression(cls, expr):
+        """
+        Removes table alias for functions which reference columns, if with_table flag is False
+        In django 3.1+ This can be achieved by alias_cols=False Query flag.
+        :param expr: Expression to process
+        :return: Processed expression
+        """
+        from django.db.models.expressions import Col, BaseExpression
+
+        def remove_alias_from_col(col):  # type: (Col) -> BaseExpression
+            original_func = col.as_sql
+
+            def as_sql(compiler, connection):
+                sql, params = original_func(compiler, connection)
+                return sql.split('.', 1)[1], params
+
+            col = copy(col)
+            col.as_sql = as_sql
+            return col
+
+        return cls._modify_column_refs_recursively(expr, remove_alias_from_col)
+
+    @classmethod
+    def get_query(cls, field, with_table=False, for_update=True):  # type: (Field, bool, bool) -> Query
+        """
+        Gets django query for current SQL generation, depending on generation parameters
+        :param field: Field for which to get query
+        :param with_table: If flag is set, column name in sql will be prefixed by table name
+        :param for_update: If flag is set, update query is generated. Otherwise - insert query
+        :return: Query instance
+        """
+        kwargs = {'alias_cols': with_table} if django.VERSION >= (3, 1) else {}
+        query = UpdateQuery(field.model, **kwargs) if for_update else InsertQuery(field.model, **kwargs)
+        return query
+
+    @classmethod
+    def resolve_expression(cls, field, expr, connection, with_table=False, for_update=True):
+        # type: (Field, Any, TDatabase, bool, bool) -> Tuple[SQLCompiler, BaseExpression]  # noqa: F821
+        """
+        Processes django expression, preparing it for SQL Generation
+        Note: expression resolve has been mostly copied from SQLUpdateCompiler.as_sql() method
+            and adopted for this function purposes
+        :param field: Django field expression will be applied to
+        :param expr: Expression to process
+        :param connection: Connection used to update data
+        :param with_table: If flag is set, column name in sql is prefixed by table name
+        :param for_update: If flag is set, returns update sql. Otherwise - insert SQL
+        :return: A tuple of compiler used to format expression and result expression
+        """
+        query = cls.get_query(field, with_table=with_table, for_update=for_update)
+        compiler = query.get_compiler(connection=connection)
+
+        compiler.pre_sql_setup()
+        expr = expr.resolve_expression(query=query, allow_joins=False, for_save=True)
+        if expr.contains_aggregate:
+            raise FieldError(
+                'Aggregate functions are not allowed in this query '
+                '(%s=%r).' % (field.name, expr)
+            )
+
+        # There is no such attribute in early django
+        if getattr(expr, 'contains_over_clause', False):
+            raise FieldError(
+                'Window expressions are not allowed in this query '
+                '(%s=%r).' % (field.name, expr)
+            )
+
+        # If there are field references, they should be replaced with defaults to perform an insert correctly
+        if not for_update:
+            expr = cls.replace_column_refs_with_defaults(expr)
+
+        if django.VERSION < (3, 1) and not with_table:
+            expr = cls.remove_aliases_from_expression(expr)
+
+        return compiler, expr
+
+    def modify_create_params(self, model, key, kwargs, connection):
+        kwargs = super(DjangoSetFunction, self).modify_create_params(model, key, kwargs, connection)
+
+        # Django is sets its built in defaults here. Let's replace column aliases with this library defaults
+        field = model._meta.get_field(key)
+        _, expr = self.resolve_expression(field, self._django_expression, connection, for_update=False)
+        kwargs[key] = expr
+        return kwargs
+
+    def get_sql_value(self, field, val, connection, val_as_param=True, with_table=False, for_update=True, **kwargs):
+        compiler, expr = self.resolve_expression(field, self._django_expression, connection, with_table=with_table,
+                                                 for_update=for_update)
+
+        # SQL forming is copied from SQLUpdateCompiler.as_sql() and adopted for this function purposes
+        placeholder = field.get_placeholder(expr, compiler, connection) if hasattr(field, 'get_placeholder') else '%s'
+
+        if hasattr(expr, 'as_sql'):
+            sql, params = compiler.compile(expr)
+            sql = placeholder % sql
+        elif expr is not None:
+            sql, params = placeholder, (expr,)
+        else:
+            qn = compiler.quote_name_unless_alias
+            sql, params = '%s = NULL' % qn(field.column), tuple()
+
+        return sql, params
+
+
 class EqualSetFunction(AbstractSetFunction):
     names = {'eq', '='}
 
@@ -195,7 +357,9 @@ class EqualSetFunction(AbstractSetFunction):
 class EqualNotNullSetFunction(AbstractSetFunction):
     names = {'eq_not_null'}
 
-    def modify_create_params(self, model, key, kwargs):
+    def modify_create_params(self, model, key, kwargs, connection):
+        kwargs = super(EqualNotNullSetFunction, self).modify_create_params(model, key, kwargs, connection)
+
         if kwargs[key] is None:
             del kwargs[key]
 
@@ -300,7 +464,9 @@ class ArrayRemoveSetFunction(AbstractSetFunction):
 
         return format_field_value(field.base_field, val, connection, cast_type=cast_type)
 
-    def modify_create_params(self, model, key, kwargs):
+    def modify_create_params(self, model, key, kwargs, connection):
+        kwargs = super(ArrayRemoveSetFunction, self).modify_create_params(model, key, kwargs, connection)
+
         if kwargs.get(key):
             kwargs[key] = model._meta.get_field(key).get_default()
 

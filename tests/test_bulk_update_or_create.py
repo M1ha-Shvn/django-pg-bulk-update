@@ -1,11 +1,12 @@
 from datetime import date, datetime, timedelta
 from unittest import skipIf, expectedFailure
 
-from django.test import TestCase
+from django.db.models import F
+from django.test import override_settings, TestCase
 from django.utils.timezone import now
-from django.test import override_settings
 
-from django_pg_bulk_update.compatibility import jsonb_available, array_available, hstore_available, tz_utc
+from django_pg_bulk_update.compatibility import jsonb_available, array_available, hstore_available, tz_utc, \
+    django_expressions_available
 from django_pg_bulk_update.query import bulk_update_or_create
 from django_pg_bulk_update.set_functions import ConcatSetFunction
 from django_pg_returning import ReturningQuerySet
@@ -589,20 +590,18 @@ class TestReadmeExample(TestCase):
 
         res = bulk_update_or_create(TestModel, [{
             "id": 3,
-            "name": "_concat1",
-            "int_field": 4
+            "name": "_concat1"
         }, {
             "id": 4,
-            "name": "concat2",
-            "int_field": 5
-        }], set_functions={'name': '||'})
+            "name": "concat2"
+        }], set_functions={'name': '||', 'int_field': F('int_field') + 1})
         self.assertEqual(2, res)
 
         self.assertListEqual([
             {"id": 1, "name": "updated1", "int_field": 2},
             {"id": 2, "name": "updated2", "int_field": 3},
-            {"id": 3, "name": "incr_concat1", "int_field": 4},
-            {"id": 4, "name": "concat2", "int_field": 5},
+            {"id": 3, "name": "incr_concat1", "int_field": 5},
+            {"id": 4, "name": "concat2", "int_field": 1},
         ], list(TestModel.objects.all().order_by("id").values("id", "name", "int_field")))
 
 
@@ -805,6 +804,31 @@ class TestSetFunctions(TestCase):
         TestModel.objects.filter(id=13).delete()
         TestModel.objects.all().update(array_field=[1, 2])
         _test_array_remove({'key_is_unique': True})
+
+    @skipIf(not django_expressions_available(), "Django expressions are not supported")
+    def test_django_expression(self):
+        from django.db.models import F
+        from django.db.models.functions import Upper
+
+        res = bulk_update_or_create(TestModel, [{
+            'id': 1,
+        }, {
+            'id': 5,
+        }, {
+            'id': 11
+        }], set_functions={'int_field': F('int_field') + 1, 'name': Upper('name')})
+
+        self.assertEqual(3, res)
+        for pk, name, int_field in TestModel.objects.all().order_by('id').values_list('id', 'name', 'int_field'):
+            if pk in {1, 5}:
+                self.assertEqual(pk + 1, int_field)
+                self.assertEqual('TEST%d' % pk, name)
+            elif pk > 10:
+                self.assertEqual(1, int_field)
+                self.assertEqual('', name)
+            else:
+                self.assertEqual(pk, int_field)
+                self.assertEqual('test%d' % pk, name)
 
 
 class TestManager(TestCase):

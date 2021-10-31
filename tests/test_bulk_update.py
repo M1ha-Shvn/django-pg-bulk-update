@@ -1,11 +1,13 @@
 from datetime import datetime, date
 from unittest import skipIf
 
+from django.db.models.functions import Upper
 from django.test import TestCase
 from django.utils.timezone import now
 
 from django_pg_bulk_update.clause_operators import InClauseOperator
-from django_pg_bulk_update.compatibility import jsonb_available, hstore_available, array_available, tz_utc
+from django_pg_bulk_update.compatibility import jsonb_available, hstore_available, array_available, tz_utc, \
+    django_expressions_available
 from django_pg_bulk_update.query import bulk_update
 from django_pg_bulk_update.set_functions import ConcatSetFunction
 from tests.models import TestModel, RelationModel, UpperCaseModel, AutoNowModel, TestModelWithSchema
@@ -480,16 +482,15 @@ class TestReadmeExample(TestCase):
 
         updated = bulk_update(TestModel, {
             (2, 3): {
-                "int_field": 3,
-                "name": "incr"
+                "int_field": 3
             }
         }, key_fields=['id', 'int_field'], key_fields_ops={'int_field': '<', 'id': 'gte'},
-                              set_functions={'int_field': '+'})
+                              set_functions={'int_field': '+', 'name': Upper('name')})
         self.assertEqual(1, updated)
         self.assertListEqual([
             {"id": 1, "name": "updated1", "int_field": 2},
             {"id": 2, "name": "updated2", "int_field": 3},
-            {"id": 3, "name": "incr", "int_field": 4}
+            {"id": 3, "name": "ITEM3", "int_field": 4}
         ], list(TestModel.objects.all().order_by("id").values("id", "name", "int_field")))
 
 
@@ -647,6 +648,19 @@ class TestSetFunctions(TestCase):
                 self.assertListEqual([1], array_field)
             elif pk == 3:
                 self.assertListEqual([1, 2, 2], array_field)
+
+    @skipIf(not django_expressions_available(), "Django expressions are not supported")
+    def test_django_expression(self):
+        from django.db.models import F
+        from django.db.models.functions import Upper
+
+        res = bulk_update(TestModel, [{'id': 1}, {'id': 2}],
+                          set_functions={'name': Upper('name'), 'int_field': F('int_field') + 1})
+
+        self.assertEqual(2, res)
+        for instance in TestModel.objects.filter(pk__in={1, 2}):
+            self.assertEqual(instance.pk + 1, instance.int_field)
+            self.assertEqual('TEST%d' % instance.pk, instance.name)
 
 
 class TestClauseOperators(TestCase):

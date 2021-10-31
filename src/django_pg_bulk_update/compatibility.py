@@ -81,6 +81,14 @@ def array_available():  # type: () -> bool
     return django.VERSION >= (1, 8)
 
 
+def django_expressions_available():  # type: () -> bool
+    """
+    Checks if we can use django expressions.
+    It is available since django 1.8
+    :return: Bool
+    """
+    return django.VERSION >= (1, 8)
+
 def import_pg_field_or_dummy(field_name, available_func):  # type: (str, Callable) -> Any
     """
     Imports PostgreSQL specific field, if it is available. Otherwise returns dummy class
