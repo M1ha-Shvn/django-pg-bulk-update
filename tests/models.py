@@ -1,6 +1,7 @@
 """
 This file contains sample models to use in tests
 """
+import uuid
 from django.db import models
 
 from django_pg_bulk_update.manager import BulkUpdateManager
@@ -83,3 +84,9 @@ class AutoNowModel(models.Model):
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateField(auto_now=True)
     checked = models.DateTimeField(null=True, blank=True)
+
+
+class UUIDFieldPrimaryModel(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4)
+    key_field = models.IntegerField(unique=True)
+    int_field = models.IntegerField(default=1)

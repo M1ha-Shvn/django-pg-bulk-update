@@ -1,5 +1,6 @@
 from datetime import datetime, date
 from unittest import skipIf
+from uuid import UUID
 
 from django.db.models.functions import Upper
 from django.test import TestCase
@@ -10,7 +11,8 @@ from django_pg_bulk_update.compatibility import jsonb_available, hstore_availabl
     django_expressions_available
 from django_pg_bulk_update.query import bulk_update
 from django_pg_bulk_update.set_functions import ConcatSetFunction
-from tests.models import TestModel, RelationModel, UpperCaseModel, AutoNowModel, TestModelWithSchema
+from tests.models import TestModel, RelationModel, UpperCaseModel, AutoNowModel, TestModelWithSchema, \
+    UUIDFieldPrimaryModel
 
 
 class TestInputFormats(TestCase):
@@ -147,7 +149,7 @@ class TestInputFormats(TestCase):
 
 
 class TestSimple(TestCase):
-    fixtures = ['test_model', 'm2m_relation', 'test_upper_case_model', 'auto_now_model', 'test_model_with_schema']
+    fixtures = ['test_model', 'm2m_relation']
     multi_db = True
     databases = ['default', 'secondary']
 
@@ -169,21 +171,6 @@ class TestSimple(TestCase):
             else:
                 self.assertEqual('test%d' % pk, name)
             self.assertEqual(pk, int_field)
-
-    def test_upper_case(self):
-        res = bulk_update(UpperCaseModel, [{
-            'id': 1,
-            'UpperCaseName': 'BulkUpdate1'
-        }, {
-            'id': 3,
-            'UpperCaseName': 'BulkUpdate3'
-        }])
-        self.assertEqual(2, res)
-        for pk, name in UpperCaseModel.objects.all().order_by('id').values_list('id', 'UpperCaseName'):
-            if pk in {1, 3}:
-                self.assertEqual('BulkUpdate%d' % pk, name)
-            else:
-                self.assertEqual('test%d' % pk, name)
 
     def test_empty(self):
         res = bulk_update(TestModel, [])
@@ -385,6 +372,22 @@ class TestSimple(TestCase):
                 self.assertEqual('test%d' % pk, name)
             self.assertEqual(pk, int_field)
 
+
+class ModelWithSchemaTest(TestCase):
+    fixtures = ['test_model_with_schema']
+    multi_db = True
+    databases = ['default']
+
+    def test_quoted_table_name(self):
+        # Test for https://github.com/M1ha-Shvn/django-pg-bulk-update/issues/63
+        self.assertEqual(1, bulk_update(TestModelWithSchema, [{'id': 1, 'name': 'abc'}]))
+
+
+class AutoNowTest(TestCase):
+    fixtures = ['auto_now_model']
+    multi_db = True
+    databases = ['default']
+
     def test_auto_now(self):
         res = bulk_update(AutoNowModel, [{
             'id': 1,
@@ -430,9 +433,49 @@ class TestSimple(TestCase):
         self.assertEqual(date(2011, 1, 3), instance.updated)
         self.assertEqual(datetime(2011, 1, 4, 0, 0, 0, tzinfo=tz_utc), instance.checked)
 
-    def test_quoted_table_name(self):
-        # Test for https://github.com/M1ha-Shvn/django-pg-bulk-update/issues/63
-        self.assertEqual(1, bulk_update(TestModelWithSchema, [{'id': 1, 'name': 'abc'}]))
+
+class UpperCaseModelTest(TestCase):
+    fixtures = ['test_upper_case_model']
+    multi_db = True
+    databases = ['default']
+
+    def test_upper_case(self):
+        res = bulk_update(UpperCaseModel, [{
+            'id': 1,
+            'UpperCaseName': 'BulkUpdate1'
+        }, {
+            'id': 3,
+            'UpperCaseName': 'BulkUpdate3'
+        }])
+        self.assertEqual(2, res)
+        for pk, name in UpperCaseModel.objects.all().order_by('id').values_list('id', 'UpperCaseName'):
+            if pk in {1, 3}:
+                self.assertEqual('BulkUpdate%d' % pk, name)
+            else:
+                self.assertEqual('test%d' % pk, name)
+
+
+class UUIDPrimaryFieldTest(TestCase):
+    """
+    Test for issue https://github.com/M1ha-Shvn/django-pg-bulk-update/issues/84
+    """
+    fixtures = ['test_uuid_primary_model']
+    multi_db = True
+    databases = ['default']
+
+    def test_update(self):
+        res = bulk_update(UUIDFieldPrimaryModel, [{
+            'key_field': 1,
+            'int_field': 5
+        }, {
+            'key_field': 2,
+            'int_field': 6
+        }], key_fields=['key_field'])
+        self.assertEqual(1, res)
+
+        instance = UUIDFieldPrimaryModel.objects.get()
+        self.assertEqual(UUID("09ddba14-4acb-4fff-9381-7f7b253181e7"), instance.pk)
+        self.assertEqual(5, instance.int_field)
 
 
 class TestReadmeExample(TestCase):

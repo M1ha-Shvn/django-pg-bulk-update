@@ -1,5 +1,6 @@
 from datetime import date, datetime, timedelta
 from unittest import skipIf, expectedFailure
+from uuid import UUID
 
 from django.db.models import F
 from django.test import override_settings, TestCase
@@ -11,7 +12,8 @@ from django_pg_bulk_update.query import bulk_update_or_create
 from django_pg_bulk_update.set_functions import ConcatSetFunction
 from django_pg_returning import ReturningQuerySet
 from tests.compatibility import get_auto_now_date
-from tests.models import TestModel, UniqueNotPrimary, UpperCaseModel, AutoNowModel, TestModelWithSchema
+from tests.models import TestModel, UniqueNotPrimary, UpperCaseModel, AutoNowModel, TestModelWithSchema, \
+    UUIDFieldPrimaryModel
 
 
 class TestInputFormats(TestCase):
@@ -156,7 +158,7 @@ class TestInputFormats(TestCase):
 
 
 class TestSimple(TestCase):
-    fixtures = ['test_model', 'test_upper_case_model', 'auto_now_model']
+    fixtures = ['test_model']
     multi_db = True
     databases = ['default', 'secondary']
 
@@ -186,28 +188,6 @@ class TestSimple(TestCase):
                 self.assertIsNone(int_field)
             else:
                 self.assertEqual(pk, int_field)
-
-    def test_upper_case(self):
-        res = bulk_update_or_create(UpperCaseModel, [{
-            'id': 1,
-            'UpperCaseName': 'BulkUpdate1'
-        }, {
-            'id': 3,
-            'UpperCaseName': 'BulkUpdate3'
-        }, {
-            'id': 4,
-            'UpperCaseName': 'BulkUpdate4'
-        }])
-        self.assertEqual(3, res)
-
-        # 3 from fixture + 1 created
-        self.assertEqual(4, UpperCaseModel.objects.all().count())
-
-        for pk, name in UpperCaseModel.objects.all().order_by('id').values_list('id', 'UpperCaseName'):
-            if pk in {1, 3, 4}:
-                self.assertEqual('BulkUpdate%d' % pk, name)
-            else:
-                self.assertEqual('test%d' % pk, name)
 
     def test_empty(self):
         res = bulk_update_or_create(TestModel, [])
@@ -472,6 +452,50 @@ class TestSimple(TestCase):
         self.assertIsInstance(res, ReturningQuerySet)
         self.assertEqual(0, res.count())
 
+
+class ModelWithSchemaTest(TestCase):
+    multi_db = True
+    databases = ['default']
+
+    def test_quoted_table_name(self):
+        # Test for https://github.com/M1ha-Shvn/django-pg-bulk-update/issues/63
+        self.assertEqual(2, bulk_update_or_create(
+            TestModelWithSchema, [{'id': 1, 'name': 'abc'}, {'id': 21, 'name': 'create'}]))
+
+
+class UpperCaseModelTest(TestCase):
+    fixtures = ['test_upper_case_model']
+    multi_db = True
+    databases = ['default']
+
+    def test_upper_case(self):
+        res = bulk_update_or_create(UpperCaseModel, [{
+            'id': 1,
+            'UpperCaseName': 'BulkUpdate1'
+        }, {
+            'id': 3,
+            'UpperCaseName': 'BulkUpdate3'
+        }, {
+            'id': 4,
+            'UpperCaseName': 'BulkUpdate4'
+        }])
+        self.assertEqual(3, res)
+
+        # 3 from fixture + 1 created
+        self.assertEqual(4, UpperCaseModel.objects.all().count())
+
+        for pk, name in UpperCaseModel.objects.all().order_by('id').values_list('id', 'UpperCaseName'):
+            if pk in {1, 3, 4}:
+                self.assertEqual('BulkUpdate%d' % pk, name)
+            else:
+                self.assertEqual('test%d' % pk, name)
+
+
+class AutoNowTest(TestCase):
+    fixtures = ['auto_now_model']
+    multi_db = True
+    databases = ['default']
+
     def test_auto_now(self):
         res = bulk_update_or_create(AutoNowModel, [{
             'id': 1,
@@ -574,10 +598,35 @@ class TestSimple(TestCase):
                 self.assertGreaterEqual(instance.created, now() - timedelta(seconds=1))
                 self.assertLessEqual(instance.created, now() + timedelta(seconds=1))
 
-    def test_quoted_table_name(self):
-        # Test for https://github.com/M1ha-Shvn/django-pg-bulk-update/issues/63
-        self.assertEqual(2, bulk_update_or_create(
-            TestModelWithSchema, [{'id': 1, 'name': 'abc'}, {'id': 21, 'name': 'create'}]))
+
+class UUIDPrimaryFieldTest(TestCase):
+    """
+    Test for issue https://github.com/M1ha-Shvn/django-pg-bulk-update/issues/84
+    """
+    fixtures = ['test_uuid_primary_model']
+    multi_db = True
+    databases = ['default']
+
+    def test_update_or_create(self):
+        res = bulk_update_or_create(UUIDFieldPrimaryModel, [{
+            'key_field': 1,
+            'int_field': 5
+        }, {
+            'key_field': 2,
+            'int_field': 6
+        }], key_fields=['key_field'])
+        self.assertEqual(2, res)
+        self.assertEqual(2, UUIDFieldPrimaryModel.objects.all().count())
+
+        for pk, key_field, int_field in TestModel.objects.all().order_by('key_field').\
+                values_list('id', 'key_field', 'int_field'):
+            self.assertIsInstance(pk, UUID)
+
+            if key_field == 1:
+                self.assertEqual(5, int_field)
+                self.assertEqual(UUID("09ddba14-4acb-4fff-9381-7f7b253181e7"), pk)
+            else:
+                self.assertEqual(6, int_field)
 
 
 class TestReadmeExample(TestCase):
