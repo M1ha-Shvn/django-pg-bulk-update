@@ -1,5 +1,8 @@
 django>=1.7
-psycopg2
+
+# FIXME On later versions I get strange error 'database connection isn't set to UTC'
+psycopg2-binary<=2.8.6
+
 pytz; python_version < '3.3'
 typing; python_version < '3.5'
 
