@@ -360,18 +360,17 @@ class UUIDPrimaryFieldTest(TestCase):
 
     def test_create(self):
         res = bulk_create(UUIDFieldPrimaryModel, [{
-            'key_field': 1,
-            'int_field': 5
+            'key_field': 1
         }, {
-            'key_field': 2,
-            'int_field': 6
+            'key_field': 2
         }])
         self.assertEqual(2, res)
 
-        primary_keys = UUIDFieldPrimaryModel.objects.all().values_list('pk', flat=True)
-        self.assertEqual(2, len(primary_keys))
-        for pk in primary_keys:
+        data = UUIDFieldPrimaryModel.objects.all().values_list('pk', 'int_field')
+        self.assertEqual(2, len(data))
+        for pk, int_field in data:
             self.assertIsInstance(pk, UUID)
+            self.assertEqual(1, int_field)
 
 
 class TestReadmeExample(TestCase):

@@ -42,6 +42,22 @@ class FieldDescriptor(object):
         """
         return model._meta.get_field(self.name)
 
+    def field_default_is_mutable(self, model):  # type: (Type[Model]) -> bool
+        """
+        Checks if field default value can be different for different field instances or not
+        :param model: django.db.models.Model subclass
+        :return: Boolean
+        """
+        field = self.get_field(model)
+        if not field.has_default() or not callable(field.default):
+            return False
+
+        # Common default values generating functions which always return same result
+        if field.default in {dict, list, tuple, set}:
+            return False
+
+        return True
+
     @property
     def set_function(self):
         # type: () -> 'AbstractSetFunction'  # noqa: F821

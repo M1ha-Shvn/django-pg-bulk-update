@@ -618,7 +618,7 @@ class UUIDPrimaryFieldTest(TestCase):
         self.assertEqual(2, res)
         self.assertEqual(2, UUIDFieldPrimaryModel.objects.all().count())
 
-        for pk, key_field, int_field in TestModel.objects.all().order_by('key_field').\
+        for pk, key_field, int_field in UUIDFieldPrimaryModel.objects.all().order_by('key_field').\
                 values_list('id', 'key_field', 'int_field'):
             self.assertIsInstance(pk, UUID)
 
