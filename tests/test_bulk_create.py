@@ -325,7 +325,7 @@ class UpperCaseModelTest(TestCase):
 class AutoNowTest(TestCase):
     multi_db = True
     databases = ['default']
-    
+
     def test_auto_now(self):
         res = bulk_create(AutoNowModel, [{
             'id': 11
