@@ -366,11 +366,11 @@ class UUIDPrimaryFieldTest(TestCase):
         }])
         self.assertEqual(2, res)
 
-        data = UUIDFieldPrimaryModel.objects.all().values_list('pk', 'int_field')
+        data = UUIDFieldPrimaryModel.objects.all().values_list('pk', 'char_field')
         self.assertEqual(2, len(data))
-        for pk, int_field in data:
+        for pk, char_field in data:
             self.assertIsInstance(pk, UUID)
-            self.assertEqual(1, int_field)
+            self.assertEqual('', char_field)
 
 
 class TestReadmeExample(TestCase):

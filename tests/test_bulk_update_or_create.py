@@ -610,23 +610,23 @@ class UUIDPrimaryFieldTest(TestCase):
     def test_update_or_create(self):
         res = bulk_update_or_create(UUIDFieldPrimaryModel, [{
             'key_field': 1,
-            'int_field': 5
+            'char_field': '1'
         }, {
             'key_field': 2,
-            'int_field': 6
+            'char_field': '2'
         }], key_fields=['key_field'])
         self.assertEqual(2, res)
         self.assertEqual(2, UUIDFieldPrimaryModel.objects.all().count())
 
-        for pk, key_field, int_field in UUIDFieldPrimaryModel.objects.all().order_by('key_field').\
-                values_list('id', 'key_field', 'int_field'):
+        for pk, key_field, char_field in UUIDFieldPrimaryModel.objects.all().order_by('key_field').\
+                values_list('id', 'key_field', 'char_field'):
             self.assertIsInstance(pk, UUID)
 
             if key_field == 1:
-                self.assertEqual(5, int_field)
+                self.assertEqual('1', char_field)
                 self.assertEqual(UUID("09ddba14-4acb-4fff-9381-7f7b253181e7"), pk)
             else:
-                self.assertEqual(6, int_field)
+                self.assertEqual('2', char_field)
 
 
 class TestReadmeExample(TestCase):

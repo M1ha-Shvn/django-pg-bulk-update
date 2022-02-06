@@ -4,7 +4,7 @@
     "pk": "09ddba14-4acb-4fff-9381-7f7b253181e7",
     "fields": {
       "key_field": 1,
-      "int_field": 0
+      "char_field": "abc"
     }
   }
 ]

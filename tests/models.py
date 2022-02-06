@@ -89,4 +89,4 @@ class AutoNowModel(models.Model):
 class UUIDFieldPrimaryModel(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4)
     key_field = models.IntegerField(unique=True)
-    int_field = models.IntegerField(default=1)
+    char_field = models.CharField(default=str, max_length=10, blank=True)

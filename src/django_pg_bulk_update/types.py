@@ -52,8 +52,8 @@ class FieldDescriptor(object):
         if not field.has_default() or not callable(field.default):
             return False
 
-        # Common default values generating functions which always return same result
-        if field.default in {dict, list, tuple, set}:
+        # Python builtin functions generating same empty values
+        if field.default in {dict, list, tuple, set, frozenset, str, bytes, bool, bytearray, int, float}:
             return False
 
         return True

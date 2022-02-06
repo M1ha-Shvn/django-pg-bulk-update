@@ -19,7 +19,7 @@ class Migration(migrations.Migration):
                 ('id', models.UUIDField(auto_created=False, primary_key=True, serialize=False, verbose_name='ID',
                                         default=uuid4)),
                 ('key_field', models.IntegerField(unique=True)),
-                ('int_field', models.IntegerField(default=1)),
+                ('char_field', models.CharField(default=str, max_length=10, blank=True)),
             ],
             options={
                 'abstract': False

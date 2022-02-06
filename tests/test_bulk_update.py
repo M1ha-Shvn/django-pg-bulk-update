@@ -466,16 +466,16 @@ class UUIDPrimaryFieldTest(TestCase):
     def test_update(self):
         res = bulk_update(UUIDFieldPrimaryModel, [{
             'key_field': 1,
-            'int_field': 5
+            'char_field': '5'
         }, {
             'key_field': 2,
-            'int_field': 6
+            'char_field': '6'
         }], key_fields=['key_field'])
         self.assertEqual(1, res)
 
         instance = UUIDFieldPrimaryModel.objects.get()
         self.assertEqual(UUID("09ddba14-4acb-4fff-9381-7f7b253181e7"), instance.pk)
-        self.assertEqual(5, instance.int_field)
+        self.assertEqual('5', instance.char_field)
 
 
 class TestReadmeExample(TestCase):
