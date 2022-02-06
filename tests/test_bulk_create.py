@@ -1,5 +1,6 @@
 from datetime import date, datetime, timedelta
 from unittest import skipIf
+from uuid import UUID
 
 from django.test import TestCase
 from django.utils.timezone import now
@@ -8,7 +9,7 @@ from django_pg_bulk_update.compatibility import jsonb_available, hstore_availabl
     django_expressions_available
 from django_pg_bulk_update.query import bulk_create
 from django_pg_bulk_update.set_functions import ConcatSetFunction
-from tests.models import TestModel, UpperCaseModel, AutoNowModel, TestModelWithSchema
+from tests.models import TestModel, UpperCaseModel, AutoNowModel, TestModelWithSchema, UUIDFieldPrimaryModel
 
 
 class TestInputFormats(TestCase):
@@ -90,7 +91,7 @@ class TestInputFormats(TestCase):
 
 
 class TestSimple(TestCase):
-    fixtures = ['test_model', 'test_upper_case_model']
+    fixtures = ['test_model']
     multi_db = True
     databases = ['default', 'secondary']
 
@@ -138,28 +139,6 @@ class TestSimple(TestCase):
             else:
                 self.assertEqual('test%d' % pk, name)
                 self.assertEqual(pk, int_field)
-
-    def test_upper_case(self):
-        res = bulk_create(UpperCaseModel, [{
-            'id': 11,
-            'UpperCaseName': 'BulkUpdate11'
-        }, {
-            'id': 12,
-            'UpperCaseName': 'BulkUpdate12'
-        }, {
-            'id': 13,
-            'UpperCaseName': 'BulkUpdate13'
-        }])
-        self.assertEqual(3, res)
-
-        # 3 from fixture + 3 created
-        self.assertEqual(6, UpperCaseModel.objects.all().count())
-
-        for pk, name in UpperCaseModel.objects.all().order_by('id').values_list('id', 'UpperCaseName'):
-            if pk > 10:
-                self.assertEqual('BulkUpdate%d' % pk, name)
-            else:
-                self.assertEqual('test%d' % pk, name)
 
     def test_empty(self):
         res = bulk_create(TestModel, [])
@@ -305,6 +284,48 @@ class TestSimple(TestCase):
         self.assertIsInstance(res, ReturningQuerySet)
         self.assertEqual(0, res.count())
 
+
+class ModelWithSchemaTest(TestCase):
+    multi_db = True
+    databases = ['default']
+
+    def test_quoted_table_name(self):
+        # Test for https://github.com/M1ha-Shvn/django-pg-bulk-update/issues/63
+        self.assertEqual(1, bulk_create(TestModelWithSchema, [{'name': 'abc'}]))
+
+
+class UpperCaseModelTest(TestCase):
+    fixtures = ['test_upper_case_model']
+    multi_db = True
+    databases = ['default']
+
+    def test_upper_case(self):
+        res = bulk_create(UpperCaseModel, [{
+            'id': 11,
+            'UpperCaseName': 'BulkUpdate11'
+        }, {
+            'id': 12,
+            'UpperCaseName': 'BulkUpdate12'
+        }, {
+            'id': 13,
+            'UpperCaseName': 'BulkUpdate13'
+        }])
+        self.assertEqual(3, res)
+
+        # 3 from fixture + 3 created
+        self.assertEqual(6, UpperCaseModel.objects.all().count())
+
+        for pk, name in UpperCaseModel.objects.all().order_by('id').values_list('id', 'UpperCaseName'):
+            if pk > 10:
+                self.assertEqual('BulkUpdate%d' % pk, name)
+            else:
+                self.assertEqual('test%d' % pk, name)
+
+
+class AutoNowTest(TestCase):
+    multi_db = True
+    databases = ['default']
+
     def test_auto_now(self):
         res = bulk_create(AutoNowModel, [{
             'id': 11
@@ -329,9 +350,27 @@ class TestSimple(TestCase):
         self.assertIsNone(instance.checked)
         self.assertEqual(instance.updated, now().date())
 
-    def test_quoted_table_name(self):
-        # Test for https://github.com/M1ha-Shvn/django-pg-bulk-update/issues/63
-        self.assertEqual(1, bulk_create(TestModelWithSchema, [{'name': 'abc'}]))
+
+class UUIDPrimaryFieldTest(TestCase):
+    """
+    Test for issue https://github.com/M1ha-Shvn/django-pg-bulk-update/issues/84
+    """
+    multi_db = True
+    databases = ['default']
+
+    def test_create(self):
+        res = bulk_create(UUIDFieldPrimaryModel, [{
+            'key_field': 1
+        }, {
+            'key_field': 2
+        }])
+        self.assertEqual(2, res)
+
+        data = UUIDFieldPrimaryModel.objects.all().values_list('pk', 'char_field')
+        self.assertEqual(2, len(data))
+        for pk, char_field in data:
+            self.assertIsInstance(pk, UUID)
+            self.assertEqual('', char_field)
 
 
 class TestReadmeExample(TestCase):

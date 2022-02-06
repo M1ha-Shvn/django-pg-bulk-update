@@ -352,6 +352,7 @@ def _get_default_fds(model, existing_fds):
             desc = FieldDescriptor(f.name)
             desc.set_prefix('def')
             result.append(desc)
+
     return tuple(result)
 
 
@@ -366,6 +367,24 @@ def _generate_fds_sql(conn, fields, format_bases, values, cast_type):
     ))
 
     return sql_list, tuple(chain(*params_list))
+
+
+def _split_default_fds_by_mutability(default_fds, model):
+    # type: (Tuple[FieldDescriptor], Type[Model]) -> Tuple[Tuple[FieldDescriptor], Tuple[FieldDescriptor]]
+    """
+    Splits default_fds to mutable and immutable tuples. They should be treated differently
+    :param default_fds: field descriptors to split
+    :return: Tuple of mutable field descriptors; tuple of immutable field descriptors
+    """
+
+    mutable_default_fds, immutable_default_fds = [], []
+    for fd in default_fds:
+        if fd.field_default_is_mutable(model):
+            mutable_default_fds.append(fd)
+        else:
+            immutable_default_fds.append(fd)
+
+    return tuple(mutable_default_fds), tuple(immutable_default_fds)
 
 
 def _with_values_query_part(model, values, conn, key_fds, upd_fds, default_fds=()):
@@ -385,13 +404,17 @@ def _with_values_query_part(model, values, conn, key_fds, upd_fds, default_fds=(
     values_items = []
     values_update_params = []
 
-    if default_fds:
+    # Mutable defaults should be generated for each update item, while immutable can be passed once
+    #   See issue https://github.com/M1ha-Shvn/django-pg-bulk-update/issues/84
+    mutable_default_fds, immutable_default_fds = _split_default_fds_by_mutability(default_fds, model)
+
+    if immutable_default_fds:
         # Prepare default values to insert into database, if they are not provided in updates or keys
         # Dictionary keys list all db column names to be inserted.
-        defaults_sel_sql = ', '.join('"%s"' % fd.prefixed_name for fd in default_fds)
-        default_values = (fd.get_field(model).get_default() for fd in default_fds)
-        defaults_fields = tuple(fd.get_field(model) for fd in default_fds)
-        defaults_format_bases = tuple(fd.set_function for fd in default_fds)
+        defaults_sel_sql = ', '.join('"%s"' % fd.prefixed_name for fd in immutable_default_fds)
+        defaults_fields = tuple(fd.get_field(model) for fd in immutable_default_fds)
+        default_values = (field.get_default() for field in defaults_fields)
+        defaults_format_bases = tuple(fd.set_function for fd in immutable_default_fds)
         defaults_sql_items, defaults_params = _generate_fds_sql(conn, defaults_fields, defaults_format_bases,
                                                                 default_values, True)
         defaults_sql = ",\n default_vals(%s) AS (VALUES (%s))" % (defaults_sel_sql, ', '.join(defaults_sql_items))
@@ -410,15 +433,24 @@ def _with_values_query_part(model, values, conn, key_fds, upd_fds, default_fds=(
     upd_fields = tuple(fd.get_field(model) for fd in upd_fds_with_values)
     upd_format_bases = tuple(fd.set_function for fd in upd_fds_with_values)
 
+    # I add mutable default fds to upd_fds as they can generate different values for different items
+    #  See issue https://github.com/M1ha-Shvn/django-pg-bulk-update/issues/84
+    mutable_defaults_fields = tuple(fd.get_field(model) for fd in mutable_default_fds)
+    mutable_defaults_format_bases = tuple(fd.set_function for fd in mutable_default_fds)
+
     for keys, updates in values.items():
         upd_values = [updates[fd.name] for fd in upd_fds_with_values]
         upd_sql_items, upd_params = _generate_fds_sql(conn, upd_fields, upd_format_bases, upd_values, first)
         key_sql_items, key_params = _generate_fds_sql(conn, key_fields, key_format_bases, keys, first)
 
-        sql_items = key_sql_items + upd_sql_items
+        mutable_default_values = (field.get_default() for field in mutable_defaults_fields)
+        def_sql_items, def_params = _generate_fds_sql(conn, mutable_defaults_fields, mutable_defaults_format_bases,
+                                                      mutable_default_values, first)
+
+        sql_items = key_sql_items + upd_sql_items + def_sql_items
 
         values_items.append(sql_items)
-        values_update_params.extend(chain(key_params, upd_params))
+        values_update_params.extend(chain(key_params, upd_params, def_params))
         first = False
 
     # NOTE. No extra brackets here or VALUES will return nothing
@@ -427,7 +459,8 @@ def _with_values_query_part(model, values, conn, key_fds, upd_fds, default_fds=(
     )
 
     sel_sql = ', '.join(
-        '"%s"' % fd.prefixed_name for fd in chain(key_fds, upd_fds) if fd.set_function.needs_value
+        '"%s"' % fd.prefixed_name for fd in chain(key_fds, upd_fds, mutable_default_fds)
+        if fd.set_function.needs_value
     )
 
     return tpl % (sel_sql, values_sql, defaults_sql), values_update_params + list(defaults_params)
@@ -651,26 +684,30 @@ def _insert_query_part(model, conn, insert_fds, default_fds):
         SELECT %s FROM %s
     """
 
+    # Mutable defaults are places in vals section, while immutable in default_vals section
+    #   See issue https://github.com/M1ha-Shvn/django-pg-bulk-update/issues/84
+    mutable_default_fds, immutable_default_fds = _split_default_fds_by_mutability(default_fds, model)
+
     # Table we save data to
     db_table = conn.ops.quote_name(model._meta.db_table)
-    from_table = '"vals" CROSS JOIN "default_vals"' if default_fds else '"vals"'
+    from_table = '"vals" CROSS JOIN "default_vals"' if immutable_default_fds else '"vals"'
 
     # Columns to insert to table
     columns = ', '.join(
         '"%s"' % fd.get_field(model).column
-        for fd in chain(insert_fds, default_fds)
+        for fd in chain(insert_fds, mutable_default_fds, immutable_default_fds)
     )
 
     # Columns to select from values
     val_columns, val_columns_params = [], []
-    for fd in insert_fds:
+    for fd in chain(insert_fds, mutable_default_fds):
         val = '"vals"."%s"' % fd.prefixed_name
         func_sql, params = fd.set_function.get_sql_value(fd.get_field(model), val, conn, val_as_param=False,
                                                          for_update=False)
         val_columns.append(func_sql)
         val_columns_params.extend(params)
 
-    for fd in default_fds:
+    for fd in immutable_default_fds:
         val = '"default_vals"."%s"' % fd.prefixed_name
         func_sql, params = fd.set_function.get_sql_value(fd.get_field(model), val, conn, val_as_param=False,
                                                          for_update=False)

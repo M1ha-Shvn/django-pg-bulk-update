@@ -69,7 +69,7 @@ class AbstractArrayValueOperator(AbstractClauseOperator):
         # So let's validate it as Array of this field
         if array_available():
             from django.contrib.postgres.fields import ArrayField
-            
+
             arr_field = ArrayField(field)
             arr_field.model = field.model
             return super(AbstractArrayValueOperator, self).format_field_value(arr_field, val, connection, **kwargs)
