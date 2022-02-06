@@ -35,6 +35,8 @@ WORKDIR /app/src
 COPY ./requirements-test.txt /app/requirements-test.txt
 RUN --mount=type=cache,target=/root/.cache/pip \
   set -eu && \
+  apt-get update && \
+  apt-get install -y libpq-dev python3-dev && \
   python3 -m pip install --upgrade pip setuptools wheel  && \
   python3 -m pip install --upgrade --requirement /app/requirements-test.txt
 
