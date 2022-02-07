@@ -69,6 +69,55 @@ NULL_DEFAULTS = {
 }
 
 
+if django_expressions_available():
+    from django.db.models.expressions import Expression
+
+    class BulkValue(Expression):
+        """
+        A mixin which defines django Expression to be replaced by concrete django values
+        """
+        def __init__(self, *args, **kwargs):
+            super(BulkValue, self).__init__(*args, **kwargs)
+
+            self._ready = False
+            self._value = None
+            self._val_as_param = False
+
+        def __ror__(self, other):
+            return super(BulkValue, self).__rand__(other)
+
+        def __rand__(self, other):
+            return super(BulkValue, self).__rand__(other)
+
+        def set_value(self, val, val_as_param):  # type: (Any, bool) -> None
+            """
+            Replaces fake initial data with real values, passed from query values parameter
+            :param val: Value to return in SQL
+            :param val_as_param: If flag is not set, value should be converted to string and inserted into query directly.
+                Otherwise a placeholder and query parameter will be used
+            :return: None
+            """
+            self._value = val
+            self._val_as_param = val_as_param
+            self._ready = True
+
+        def as_sql(self, compiler, connection):
+            if not self._ready:
+                raise ValueError('BulkValue instance has not been initialized before using as_sql method')
+
+            if not self._val_as_param:
+                return str(self._value), []
+
+            from django.db.models.expressions import Value
+            return Value(self._value).as_sql(compiler, connection)
+
+else:
+    # Dummy class for django before 1.8
+    class BulkValue:
+        def as_sql(self, compiler, connection):
+            raise NotImplementedError("This is not supported in your django version. Please, upgrade")
+
+
 class AbstractSetFunction(AbstractFieldFormatter):
     names = set()
 
@@ -189,34 +238,54 @@ class AbstractSetFunction(AbstractFieldFormatter):
 
 
 class DjangoSetFunction(AbstractSetFunction):
-    needs_value = False
-
     def __init__(self, django_expression):  # type: (BaseExpression) -> None  # noqa: F821
         if not django_expressions_available():
             raise 'Django expressions are available since django 1.8, please upgrade'
 
         self._django_expression = django_expression
+        self._needs_value = None
+
+    @property
+    def needs_value(self):  # type: () -> bool
+        """
+        If expression contains BulkValue() references, value is required, otherwise - not
+        :return: Boolean
+        """
+        if self._needs_value is None:
+            def search_bulk_value_callback(expr):
+                self._needs_value = True
+                return expr
+
+            self._modify_expression_recursively(BulkValue, self._django_expression, search_bulk_value_callback)
+
+        return self._needs_value
 
     @classmethod
-    def _modify_column_refs_recursively(cls, expr, callback):
-        # type: (BaseExpression, Callable) -> BaseExpression  # noqa: F821
+    def _modify_expression_recursively(cls, target_expression_class, expr, callback):
+        # type: (BaseExpression, BaseExpression, Callable) -> BaseExpression  # noqa: F821
         """
         Recursively iterates expression, searching for Col references and calls callback for every found expression
+        :param target_expression_class: Instance of expression to search
         :param expr: Expression to process
-        :param callback: Function to apply to every expression. Should take exactly 1 argument: Col instance
+        :param callback: Function to apply to every expression. Should take exactly 1 argument:
+            target_expression_class instance
         :return: Processed expression
         """
-        from django.db.models.expressions import Col
-
-        if isinstance(expr, Col):
+        if isinstance(expr, target_expression_class):
             return callback(expr)
+
+        if not hasattr(expr, 'get_source_expressions'):
+            return expr
 
         src_expressions = expr.get_source_expressions()
         if not src_expressions:
             return expr
 
         expr = expr.copy()
-        new_src_expressions = [cls._modify_column_refs_recursively(sub_expr, callback) for sub_expr in src_expressions]
+        new_src_expressions = [
+            cls._modify_expression_recursively(target_expression_class, sub_expr, callback)
+            for sub_expr in src_expressions
+        ]
         expr.set_source_expressions(new_src_expressions)
         return expr
 
@@ -237,10 +306,10 @@ class DjangoSetFunction(AbstractSetFunction):
                 default_value = NULL_DEFAULTS.get(col.field.__class__.__name__)
             return Value(default_value)
 
-        return cls._modify_column_refs_recursively(expr, replace_with_default_values)
+        return cls._modify_expression_recursively(Col, expr, replace_with_default_values)
 
     @classmethod
-    def remove_aliases_from_expression(cls, expr):
+    def remove_aliases_from_expression(cls, expr):  # type: (BaseExpression) -> BaseExpression  # noqa: F821
         """
         Removes table alias for functions which reference columns, if with_table flag is False
         In django 3.1+ This can be achieved by alias_cols=False Query flag.
@@ -260,7 +329,26 @@ class DjangoSetFunction(AbstractSetFunction):
             col.as_sql = as_sql
             return col
 
-        return cls._modify_column_refs_recursively(expr, remove_alias_from_col)
+        return cls._modify_expression_recursively(Col, expr, remove_alias_from_col)
+
+    @classmethod
+    def replace_bulk_value_in_expression(cls, expr, val, val_as_param):
+        # type: (BaseExpression, Any, bool) -> BaseExpression  # noqa: F821
+        """
+        Removes table alias for functions which reference columns, if with_table flag is False
+        In django 3.1+ This can be achieved by alias_cols=False Query flag.
+        :param expr: Expression to process
+        :param val: Value passed to get_sql_value method
+        :param val_as_param: If flag is not set, value should be converted to string and inserted into query directly.
+            Otherwise, a placeholder and query parameter will be used
+        :return: Processed expression
+        """
+        def set_bulk_value_real_data(expr):
+            expr.set_value(val, val_as_param)
+            return expr
+
+        cls._modify_expression_recursively(BulkValue, expr, set_bulk_value_real_data)
+        return expr
 
     @classmethod
     def get_query(cls, field, with_table=False, for_update=True):  # type: (Field, bool, bool) -> Query
@@ -276,8 +364,8 @@ class DjangoSetFunction(AbstractSetFunction):
         return query
 
     @classmethod
-    def resolve_expression(cls, field, expr, connection, with_table=False, for_update=True):
-        # type: (Field, Any, TDatabase, bool, bool) -> Tuple[SQLCompiler, BaseExpression]  # noqa: F821
+    def resolve_expression(cls, field, expr, connection, val, val_as_param=False, with_table=False, for_update=True):
+        # type: (Field, Any, TDatabase, Any, bool, bool, bool) -> Tuple[SQLCompiler, BaseExpression]  # noqa: F821
         """
         Processes django expression, preparing it for SQL Generation
         Note: expression resolve has been mostly copied from SQLUpdateCompiler.as_sql() method
@@ -285,6 +373,9 @@ class DjangoSetFunction(AbstractSetFunction):
         :param field: Django field expression will be applied to
         :param expr: Expression to process
         :param connection: Connection used to update data
+        :param val: Value passed to get_sql_value method
+        :param val_as_param: If flag is not set, value should be converted to string and inserted into query directly.
+            Otherwise, a placeholder and query parameter will be used
         :param with_table: If flag is set, column name in sql is prefixed by table name
         :param for_update: If flag is set, returns update sql. Otherwise - insert SQL
         :return: A tuple of compiler used to format expression and result expression
@@ -293,6 +384,7 @@ class DjangoSetFunction(AbstractSetFunction):
         compiler = query.get_compiler(connection=connection)
 
         compiler.pre_sql_setup()
+        expr = cls.replace_bulk_value_in_expression(expr, val, val_as_param)
         expr = expr.resolve_expression(query=query, allow_joins=False, for_save=True)
         if expr.contains_aggregate:
             raise FieldError(
@@ -321,12 +413,13 @@ class DjangoSetFunction(AbstractSetFunction):
 
         # Django is sets its built in defaults here. Let's replace column aliases with this library defaults
         field = model._meta.get_field(key)
-        _, expr = self.resolve_expression(field, self._django_expression, connection, for_update=False)
+        _, expr = self.resolve_expression(field, self._django_expression, connection, kwargs.get(key), for_update=False)
         kwargs[key] = expr
         return kwargs
 
     def get_sql_value(self, field, val, connection, val_as_param=True, with_table=False, for_update=True, **kwargs):
-        compiler, expr = self.resolve_expression(field, self._django_expression, connection, with_table=with_table,
+        compiler, expr = self.resolve_expression(field, self._django_expression, connection, val,
+                                                 val_as_param=val_as_param, with_table=with_table,
                                                  for_update=for_update)
 
         # SQL forming is copied from SQLUpdateCompiler.as_sql() and adopted for this function purposes
