@@ -10,7 +10,7 @@ from django_pg_bulk_update.clause_operators import InClauseOperator
 from django_pg_bulk_update.compatibility import jsonb_available, hstore_available, array_available, tz_utc, \
     django_expressions_available
 from django_pg_bulk_update.query import bulk_update
-from django_pg_bulk_update.set_functions import ConcatSetFunction
+from django_pg_bulk_update.set_functions import ConcatSetFunction, BulkValue
 from tests.models import TestModel, RelationModel, UpperCaseModel, AutoNowModel, TestModelWithSchema, \
     UUIDFieldPrimaryModel
 
@@ -697,12 +697,12 @@ class TestSetFunctions(TestCase):
         from django.db.models import F
         from django.db.models.functions import Upper
 
-        res = bulk_update(TestModel, [{'id': 1}, {'id': 2}],
-                          set_functions={'name': Upper('name'), 'int_field': F('int_field') + 1})
+        res = bulk_update(TestModel, [{'id': 1, 'int_field': 2}, {'id': 2, 'int_field': 4}],
+                          set_functions={'name': Upper('name'), 'int_field': F('int_field') + BulkValue()})
 
         self.assertEqual(2, res)
         for instance in TestModel.objects.filter(pk__in={1, 2}):
-            self.assertEqual(instance.pk + 1, instance.int_field)
+            self.assertEqual(3 * instance.pk, instance.int_field)
             self.assertEqual('TEST%d' % instance.pk, instance.name)
 
 

@@ -104,7 +104,9 @@ There are 4 query helpers in this library. There parameters are unified and desc
         [Func](https://docs.djangoproject.com/en/3.2/ref/models/expressions/#func-expressions) and their child classes.
         It can not use annotations and tables other than updated model (like `F(a__b__c)`).
         In create operations field default values is taken. If it is not provided, field default value is used.
-        Expression does not expect any value in `values` parameter and will ignore it if given.
+        Expression can contain `django_pg_bulk_update.set_functions.BulkValue()` expression in it. 
+        If so, it will be replaced with field value passed in `values` parameter.
+        If expression does not contain `BulkValue` instances data, passed in `values` parameter for this key is ignored.
     
     + Function alias name
       - 'eq', '='  
@@ -197,6 +199,7 @@ There are 4 query helpers in this library. There parameters are unified and desc
 from django.db import models, F
 from django.db.models.functions import Upper
 from django_pg_bulk_update import bulk_update, bulk_update_or_create, pdnf_clause
+from django_pg_bulk_update.set_functions import BulkValue
 
 # Test model
 class TestModel(models.Model):
@@ -293,22 +296,24 @@ print(list(TestModel.objects.all().order_by("id").values("id", "name", "int_fiel
 
 res = bulk_update_or_create(TestModel, [{
     "id": 3,
-    "name": "_concat1"
+    "name": "_concat1",
+    "int_field": 3
 }, {
     "id": 4,
-    "name": "concat2"
-}], set_functions={'name': '||', 'int_field': F('int_field') + 1})
+    "name": "concat2",
+    'int_field': 4
+}], set_functions={'name': '||', 'int_field': F('int_field') + BulkValue()})
 
 print(res)
 # Outputs: 2
 
 print(list(TestModel.objects.all().order_by("id").values("id", "name", "int_field")))
-# Note: IntegerField defaults to 0 in create operations. So 0 + 1 = 1.
+# Note: IntegerField defaults to 0 in create operations. So 0 + 4 = 4 for id 4.
 # Outputs: [
 #     {"id": 1, "name": "updated1", "int_field": 2},
 #     {"id": 2, "name": "updated2", "int_field": 3},
-#     {"id": 3, "name": "incr_concat1", "int_field": 5},
-#     {"id": 4, "name": "concat2", "int_field": 1},
+#     {"id": 3, "name": "incr_concat1", "int_field": 7},
+#     {"id": 4, "name": "concat2", "int_field": 4},
 # ]
 
 # Find records where 
@@ -357,7 +362,7 @@ TestModel.objects.pg_bulk_update([
     # Any data here
 ], key_fields='id', set_functions=None, key_fields_ops=())
 
-# Update only records with id gtreater than 5 
+# Update only records with id greater than 5 
 TestModel.objects.filter(id__gte=5).pg_bulk_update([
     # Any data here
 ], key_fields='id', set_functions=None, key_fields_ops=())

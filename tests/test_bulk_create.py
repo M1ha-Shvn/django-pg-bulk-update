@@ -8,7 +8,7 @@ from django.utils.timezone import now
 from django_pg_bulk_update.compatibility import jsonb_available, hstore_available, array_available, tz_utc, \
     django_expressions_available
 from django_pg_bulk_update.query import bulk_create
-from django_pg_bulk_update.set_functions import ConcatSetFunction
+from django_pg_bulk_update.set_functions import ConcatSetFunction, BulkValue
 from tests.models import TestModel, UpperCaseModel, AutoNowModel, TestModelWithSchema, UUIDFieldPrimaryModel
 
 
@@ -481,11 +481,12 @@ class TestSetFunctions(TestCase):
     def test_django_expression(self):
         # Default for IntegerField should be 0
         from django.db.models import F
-        res = bulk_create(TestModel, [{'id': 11}, {'id': 12}], set_functions={'int_field': F('int_field') + 1})
+        res = bulk_create(TestModel, [{'id': 11, 'int_field': 1}, {'id': 12, 'int_field': 2}],
+                          set_functions={'int_field': F('int_field') + BulkValue()})
 
         self.assertEqual(2, res)
         for instance in TestModel.objects.filter(pk__in={11, 12}):
-            self.assertEqual(1, instance.int_field)
+            self.assertEqual(instance.pk - 10, instance.int_field)
             self.assertEqual('', instance.name)
 
 

@@ -9,7 +9,7 @@ from django.utils.timezone import now
 from django_pg_bulk_update.compatibility import jsonb_available, array_available, hstore_available, tz_utc, \
     django_expressions_available
 from django_pg_bulk_update.query import bulk_update_or_create
-from django_pg_bulk_update.set_functions import ConcatSetFunction
+from django_pg_bulk_update.set_functions import ConcatSetFunction, BulkValue
 from django_pg_returning import ReturningQuerySet
 from tests.compatibility import get_auto_now_date
 from tests.models import TestModel, UniqueNotPrimary, UpperCaseModel, AutoNowModel, TestModelWithSchema, \
@@ -654,6 +654,33 @@ class TestReadmeExample(TestCase):
             {"id": 4, "name": "concat2", "int_field": 1},
         ], list(TestModel.objects.all().order_by("id").values("id", "name", "int_field")))
 
+    @skipIf(not django_expressions_available(), "Django expressions are not supported")
+    def test_example_with_bulk_value(self):
+        # Skip bulk_create and bulk_update section (tested in other test), and init data as bulk_update_or_create start
+        TestModel.objects.bulk_create([
+            TestModel(pk=1, name="updated1", int_field=2),
+            TestModel(pk=2, name="updated2", int_field=3),
+            TestModel(pk=3, name="incr", int_field=4),
+        ])
+
+        res = bulk_update_or_create(TestModel, [{
+            "id": 3,
+            "name": "_concat1",
+            "int_field": 3
+        }, {
+            "id": 4,
+            "name": "concat2",
+            "int_field": 4
+        }], set_functions={'name': '||', 'int_field': F('int_field') + BulkValue()})
+        self.assertEqual(2, res)
+
+        self.assertListEqual([
+            {"id": 1, "name": "updated1", "int_field": 2},
+            {"id": 2, "name": "updated2", "int_field": 3},
+            {"id": 3, "name": "incr_concat1", "int_field": 7},
+            {"id": 4, "name": "concat2", "int_field": 4},
+        ], list(TestModel.objects.all().order_by("id").values("id", "name", "int_field")))
+
 
 class TestSetFunctions(TestCase):
     fixtures = ['test_model']
@@ -862,19 +889,22 @@ class TestSetFunctions(TestCase):
 
         res = bulk_update_or_create(TestModel, [{
             'id': 1,
+            'int_field': 1
         }, {
             'id': 5,
+            'int_field': 5
         }, {
-            'id': 11
-        }], set_functions={'int_field': F('int_field') + 1, 'name': Upper('name')})
+            'id': 11,
+            'int_field': 11
+        }], set_functions={'int_field': F('int_field') + BulkValue(), 'name': Upper('name')})
 
         self.assertEqual(3, res)
         for pk, name, int_field in TestModel.objects.all().order_by('id').values_list('id', 'name', 'int_field'):
             if pk in {1, 5}:
-                self.assertEqual(pk + 1, int_field)
+                self.assertEqual(pk * 2, int_field)
                 self.assertEqual('TEST%d' % pk, name)
             elif pk > 10:
-                self.assertEqual(1, int_field)
+                self.assertEqual(pk, int_field)
                 self.assertEqual('', name)
             else:
                 self.assertEqual(pk, int_field)
