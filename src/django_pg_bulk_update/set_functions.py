@@ -219,7 +219,7 @@ class AbstractSetFunction(AbstractFieldFormatter):
         if self.supported_field_classes is None:
             return True
         else:
-            return field.__class__.__name__  in self.supported_field_classes or self.is_parent_class_supported(field.__class__)
+            return field.__class__.__name__ in self.supported_field_classes or self.is_parent_class_supported(field.__class__)
 
     def _parse_null_default(self, field, connection, **kwargs):
         """
