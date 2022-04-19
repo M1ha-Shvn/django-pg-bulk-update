@@ -205,8 +205,8 @@ class AbstractSetFunction(AbstractFieldFormatter):
                 for base in class_to_check.__bases__: mro.extend(recurse(base, recurse))
                 return mro
             mro = getmro(class_to_check, getmro)
-        for class in mro:
-            if class.__name__ in self.supported_field_classes:
+        for cl in mro:
+            if cl.__name__ in self.supported_field_classes:
                 return True
         return False
 
