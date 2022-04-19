@@ -193,6 +193,22 @@ class AbstractSetFunction(AbstractFieldFormatter):
             return next(sub_cls for sub_cls in get_subclasses(cls, recursive=True) if name in sub_cls.names)
         except StopIteration:
             raise ValueError("Operation with name '%s' doesn't exist" % name)
+           
+    def is_parent_class_supported(self, class_to_check):
+        try:
+            # Try getting all relevant classes in method-resolution order
+            mro = list(class_to_check.__mro__)
+        except AttributeError:
+            # If a class has no __mro__, then it's a classic class
+            def getmro(class_to_check, recurse):
+                mro = [class_to_check]
+                for base in class_to_check.__bases__: mro.extend(recurse(base, recurse))
+                return mro
+            mro = getmro(class_to_check, getmro)
+        for class in mro:
+            if class.__name__ in self.supported_field_classes:
+                return True
+        return False
 
     def field_is_supported(self, field):  # type: (Field) -> bool
         """
@@ -203,7 +219,7 @@ class AbstractSetFunction(AbstractFieldFormatter):
         if self.supported_field_classes is None:
             return True
         else:
-            return field.__class__.__name__ in self.supported_field_classes
+            return field.__class__.__name__  in self.supported_field_classes or self.is_parent_class_supported(field.__class__)
 
     def _parse_null_default(self, field, connection, **kwargs):
         """
