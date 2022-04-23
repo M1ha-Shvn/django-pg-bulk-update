@@ -463,7 +463,9 @@ which contains alias in `names` attribute.
 ### Custom set function
 You can define your own set function, creating `AbstractSetFunction` subclass and implementing:
 * `names` attribute
-* `supported_field_classes` attribute
+* `supported_field_classes` attribute  
+  It can contain class name, class or full python import path of a class. 
+  If a class or path is given, any child class would be accepted too.  
 * One of:  
   - `def get_sql_value(self, field, val, connection, val_as_param=True, with_table=False, for_update=True, **kwargs)` method
   This method defines new value to set for parameter. It is called from `get_sql(...)` method by default.

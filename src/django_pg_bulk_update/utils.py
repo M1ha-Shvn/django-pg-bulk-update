@@ -9,6 +9,7 @@ from typing import TypeVar, Set, Any, Tuple, Iterable, Callable, Optional, List
 from django.core.exceptions import FieldError
 from django.db.models import Field
 from django.db.models.sql.subqueries import UpdateQuery
+from importlib import import_module
 
 from .compatibility import hstore_serialize, hstore_available, get_field_db_type, import_pg_field_or_dummy
 from .types import TDatabase
@@ -185,3 +186,21 @@ def is_auto_set_field(field):  # type: (Field) -> bool
     :return: Boolean
     """
     return getattr(field, 'auto_now', False) or getattr(field, 'auto_now_add', False)
+
+
+def lazy_import(class_obj):  # (str) -> Optional[Any]
+    """
+    Import field class by dot separated import path
+    :param class_obj: Already imported class or dot separated import path
+    :return: Class or None if class has not been imported
+    """
+    if not isinstance(class_obj, str):
+        return class_obj
+
+    module_path, cls = class_obj.rsplit('.', 1)
+    try:
+        module = import_module(module_path)
+    except ImportError:
+        return None
+
+    return getattr(module, cls, None)
