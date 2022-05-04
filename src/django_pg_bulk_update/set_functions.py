@@ -14,7 +14,7 @@ from django.db.models.sql.compiler import SQLCompiler
 from .compatibility import get_postgres_version, jsonb_available, Postgres94MergeJSONBMigration, hstore_serialize, \
     hstore_available, import_pg_field_or_dummy, tz_utc, django_expressions_available
 from .types import TDatabase, AbstractFieldFormatter
-from .utils import get_subclasses, format_field_value
+from .utils import get_subclasses, format_field_value, lazy_import
 
 # When doing increment operations, we need to replace NULL values with something
 # This dictionary contains field defaults by it's class name.
@@ -122,7 +122,10 @@ class AbstractSetFunction(AbstractFieldFormatter):
     names = set()
 
     # If set function supports any field class, this should be None.
-    # Otherwise a set of class names supported
+    # Otherwise, it must be a set, containing:
+    #   - Field classes (any child classes are accepted too)
+    #   - Field class python import paths (any child classes are accepted too)
+    #   - Filed class names
     supported_field_classes = None
 
     # If set functions doesn't need value from input, set this to False.
@@ -203,7 +206,10 @@ class AbstractSetFunction(AbstractFieldFormatter):
         if self.supported_field_classes is None:
             return True
         else:
-            return field.__class__.__name__ in self.supported_field_classes
+            return any(
+                field.__class__.__name__ == field_cls or lazy_import(field_cls) == field.__class__
+                for field_cls in self.supported_field_classes
+            )
 
     def _parse_null_default(self, field, connection, **kwargs):
         """
@@ -474,10 +480,22 @@ class EqualNotNullSetFunction(AbstractSetFunction):
 class PlusSetFunction(AbstractSetFunction):
     names = {'+', 'incr'}
 
-    supported_field_classes = {'IntegerField', 'FloatField', 'AutoField', 'BigAutoField', 'BigIntegerField',
-                               'SmallIntegerField', 'PositiveIntegerField', 'PositiveSmallIntegerField', 'DecimalField',
-                               'IntegerRangeField', 'BigIntegerRangeField', 'FloatRangeField', 'DateTimeRangeField',
-                               'DateRangeField'}
+    supported_field_classes = {
+        'django.db.models.IntegerField',
+        'django.db.models.FloatField',
+        'django.db.models.AutoField',
+        'django.db.models.BigAutoField',
+        'django.db.models.BigIntegerField',
+        'django.db.models.SmallIntegerField',
+        'django.db.models.PositiveIntegerField',
+        'django.db.models.PositiveSmallIntegerField',
+        'django.db.models.DecimalField',
+        'django.db.models.IntegerRangeField',
+        'django.db.models.BigIntegerRangeField',
+        'django.db.models.FloatRangeField',
+        'django.db.models.DateTimeRangeField',
+        'django.db.models.DateRangeField'
+    }
 
     def get_sql_value(self, field, val, connection, val_as_param=True, with_table=False, for_update=True, **kwargs):
         null_default, null_default_params = self._parse_null_default(field, connection, **kwargs)
@@ -498,9 +516,22 @@ class PlusSetFunction(AbstractSetFunction):
 class ConcatSetFunction(AbstractSetFunction):
     names = {'||', 'concat'}
 
-    supported_field_classes = {'CharField', 'TextField', 'EmailField', 'FilePathField', 'SlugField', 'HStoreField',
-                               'URLField', 'BinaryField', 'JSONField', 'ArrayField', 'CITextField', 'CICharField',
-                               'CIEmailField'}
+    supported_field_classes = {
+        'django.db.models.CharField',
+        'django.db.models.TextField',
+        'django.db.models.EmailField',
+        'django.db.models.FilePathField',
+        'django.db.models.SlugField',
+        'django.contrib.postgres.fields.HStoreField',
+        'django.db.models.URLField',
+        'django.db.models.BinaryField',
+        'django.db.models.JSONField',
+        'django.contrib.postgres.fields.JSONField',
+        'django.contrib.postgres.fields.ArrayField',
+        'django.db.models.CITextField',
+        'django.db.models.CICharField',
+        'django.db.models.CIEmailField'
+    }
 
     def get_sql_value(self, field, val, connection, val_as_param=True, with_table=False, for_update=True, **kwargs):
         null_default, null_default_params = self._parse_null_default(field, connection, **kwargs)
@@ -531,7 +562,9 @@ class ConcatSetFunction(AbstractSetFunction):
 class UnionSetFunction(AbstractSetFunction):
     names = {'union'}
 
-    supported_field_classes = {'ArrayField'}
+    supported_field_classes = {
+        'django.contrib.postgres.fields.ArrayField'
+    }
 
     def get_sql_value(self, field, val, connection, val_as_param=True, with_table=False, for_update=True, **kwargs):
         if for_update:
@@ -548,7 +581,9 @@ class UnionSetFunction(AbstractSetFunction):
 class ArrayRemoveSetFunction(AbstractSetFunction):
     names = {'array_remove'}
 
-    supported_field_classes = {'ArrayField'}
+    supported_field_classes = {
+        'django.contrib.postgres.fields.ArrayField'
+    }
 
     def format_field_value(self, field, val, connection, cast_type=False, **kwargs):
         # Support for django 1.8
@@ -581,7 +616,10 @@ class ArrayRemoveSetFunction(AbstractSetFunction):
 
 class NowSetFunction(AbstractSetFunction):
     names = {'now', 'NOW'}
-    supported_field_classes = {'DateField', 'DateTimeField'}
+    supported_field_classes = {
+        'django.db.models.DateField',
+        'django.db.models.DateTimeField'
+    }
     needs_value = False
 
     def __init__(self, if_null=False):  # type: (bool) -> None
