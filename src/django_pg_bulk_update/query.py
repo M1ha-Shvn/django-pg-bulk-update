@@ -16,7 +16,8 @@ from django.db.models.sql import UpdateQuery
 from django.db.models.sql.where import WhereNode
 
 from tests.compatibility import get_empty_q_object
-from .compatibility import get_postgres_version, get_model_fields, returning_available, string_types, Iterable
+from .compatibility import get_postgres_version, get_model_fields, returning_available, string_types, Iterable, \
+    FullResultSet
 from .set_functions import AbstractSetFunction, NowSetFunction
 from .types import TOperators, TFieldNames, TUpdateValues, TSetFunctions, TOperatorsValid, TUpdateValuesValid, \
     TSetFunctionsValid, TDatabase, FieldDescriptor, AbstractFieldFormatter
@@ -271,7 +272,11 @@ def _validate_where(model, where, using):
     query = UpdateQuery(model)
     conn = connections[using] if using else connection
     compiler = query.get_compiler(connection=conn)
-    sql, params = where.as_sql(compiler, conn)
+
+    try:
+        sql, params = where.as_sql(compiler, conn)
+    except FullResultSet:
+        return '', tuple()
 
     # I change table name to "t" inside queries
     if sql:

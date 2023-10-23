@@ -40,6 +40,14 @@ except ImportError:
     tz_utc = pytz.utc
 
 
+try:
+    from django.core.exceptions import FullResultSet
+except ImportError:
+    # For django before 4.2
+    class FullResultSet(Exception):
+        pass
+
+
 def zip_longest(*args, **kwargs):
     """
     https://docs.python.org/3.5/library/itertools.html#itertools.zip_longest
