@@ -11,7 +11,7 @@ from typing import Any, Type, Iterable as TIterable, Union, Optional, List, Tupl
 
 from django.db import transaction, connection, connections
 from django.db.models import Model, Q, AutoField, Field
-from django.db.models.expressions import BaseExpression
+from django.db.models.expressions import BaseExpression, Value
 from django.db.models.sql import UpdateQuery
 from django.db.models.sql.where import WhereNode
 
@@ -306,7 +306,7 @@ def pdnf_clause(key_fields, field_values, key_fields_ops=()):
 
     if len(field_values) == 0:
         # Empty condition should return empty result
-        return ~Q()
+        return Q(Value(False))
 
     or_cond = Q()
     for values_item in field_values:
