@@ -11,10 +11,11 @@ from typing import Any, Type, Iterable as TIterable, Union, Optional, List, Tupl
 
 from django.db import transaction, connection, connections
 from django.db.models import Model, Q, AutoField, Field
-from django.db.models.expressions import BaseExpression, Value
+from django.db.models.expressions import BaseExpression
 from django.db.models.sql import UpdateQuery
 from django.db.models.sql.where import WhereNode
 
+from tests.compatibility import get_empty_q_object
 from .compatibility import get_postgres_version, get_model_fields, returning_available, string_types, Iterable
 from .set_functions import AbstractSetFunction, NowSetFunction
 from .types import TOperators, TFieldNames, TUpdateValues, TSetFunctions, TOperatorsValid, TUpdateValuesValid, \
@@ -305,8 +306,7 @@ def pdnf_clause(key_fields, field_values, key_fields_ops=()):
     field_values = list(field_values)
 
     if len(field_values) == 0:
-        # Empty condition should return empty result
-        return Q(Value(False))
+        return get_empty_q_object()
 
     or_cond = Q()
     for values_item in field_values:
