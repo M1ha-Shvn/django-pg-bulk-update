@@ -15,9 +15,8 @@ from django.db.models.expressions import BaseExpression
 from django.db.models.sql import UpdateQuery
 from django.db.models.sql.where import WhereNode
 
-from tests.compatibility import get_empty_q_object
-from .compatibility import get_postgres_version, get_model_fields, returning_available, string_types, Iterable, \
-    FullResultSet
+from .compatibility import get_postgres_version, get_model_fields, returning_available, string_types,\
+    get_empty_q_object, Iterable, FullResultSet
 from .set_functions import AbstractSetFunction, NowSetFunction
 from .types import TOperators, TFieldNames, TUpdateValues, TSetFunctions, TOperatorsValid, TUpdateValuesValid, \
     TSetFunctionsValid, TDatabase, FieldDescriptor, AbstractFieldFormatter

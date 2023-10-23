@@ -8,8 +8,7 @@ from typing import Dict, Any, Optional, Union, Tuple, List, Type, Callable
 
 import django
 from django.db import connection, connections, models, migrations
-from django.db.models import Model, Field, BigIntegerField, IntegerField
-
+from django.db.models import Model, Field, BigIntegerField, IntegerField, Q, Value, BooleanField
 
 try:
     # For django 3.2+
@@ -221,6 +220,21 @@ def get_model_fields(model, concrete=False):  # type: (Type[Model], Optional[boo
             res = [f for f in res if getattr(f, 'concrete', True) and not getattr(f, 'many_to_many', False)]
 
     return res
+
+
+def get_empty_q_object() -> Q:
+    """
+    Generates Q-Object, which leads to empty QuerySet.
+      See https://stackoverflow.com/questions/35893867/always-false-q-object
+    """
+    import django
+    if django.VERSION >= (3,):
+        return Q(Value(False, output_field=BooleanField()))
+
+    # Django before 3.0 doesn't work with not binary conditions and expects field name to be always present.
+    #   It raises TypeError: cannot unpack non-iterable Value object.
+    #   This condition raises EmptyResultSet while forming query and doesn't even execute it
+    return Q(pk__in=[])
 
 
 # Postgres 9.4 has JSONB support, but doesn't support concat operator (||)
