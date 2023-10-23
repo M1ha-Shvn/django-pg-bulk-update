@@ -9,12 +9,14 @@ import os
 import sys
 
 import django
+import psycopg2
 from django.conf import settings
 from django.test.utils import get_runner
 
 if __name__ == "__main__":
     print('Django: ', django.VERSION)
     print('Python: ', sys.version)
+    print('Psycopg2: ', psycopg2.__version__)
 
     # Add the src directory to sys.path
     curdir = os.path.dirname(os.path.realpath(__file__))
