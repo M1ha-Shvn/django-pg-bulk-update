@@ -33,6 +33,15 @@ jobs:
         - django-version: "4.2"
           postgres-version: "11"
 
+        # Python 3.11 can not work property with psycopg2 2.8.6
+        #  Bug django before 3.1 fails some tests with error
+        #  'AssertionError: database connection isn't set to UTC'
+        #  on psycopg2 >= 2.9. So I disabled not working versions.
+        - django-version: "2.2"
+          python-version: "3.11"
+        - django-version: "3.0"
+          python-version: "3.11"
+
     services:
       postgres:
         image: postgres:${{ matrix.postgres-version }}
