@@ -1,12 +1,5 @@
-django==3.0.*
-
-# FIXME In django before 2.2 psycopg2 versions > 2.8.6 throw strange error 'database connection isn't set to UTC'
-#   Bug has been fixed in Django 3.1+
-#   Python 3.11 at the same time failes with psycopg2 2.8.6 with error
-#   'SystemError: initialization of _psycopg raised unreported exception'
-psycopg2; python_version == '3.11'
-psycopg2<=2.8.6; python_version != '3.11'
-
+django>=1.7
+psycopg2
 pytz; python_version < '3.3'
 typing; python_version < '3.5'
 
