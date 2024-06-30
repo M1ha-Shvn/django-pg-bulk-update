@@ -163,7 +163,12 @@ def get_postgres_version(using=None, as_tuple=True):
         A single number major*10000 + minor*100 + revision if false.
     """
     conn = connection if using is None else connections[using]
-    num = conn.cursor().connection.server_version
+    try:
+        # server_version moved to ConnectionInfo class in psycopg 3.0
+        num = conn.cursor().connection.info.server_version
+    except AttributeError:
+        # server_version is directly available in the Connection class in psycopg 2.x
+        num = conn.cursor().connection.server_version
     return (int(num / 10000), int(num % 10000 / 100), num % 100) if as_tuple else num
 
 
